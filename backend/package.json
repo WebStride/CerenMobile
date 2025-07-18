@@ -1,0 +1,47 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/app.ts",
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning --loader ts-node/esm build/src/app.js",
+    "build": "tsc",
+    "dev": "nodemon src/app.ts",
+    "update-dates": "node --no-warnings=ExperimentalWarning --loader ts-node/esm build/apps/api/src/utils/scripts/updateDateFieldSalesDetails.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.12.0",
+    "bcrypt": "^6.0.0",
+    "config": "^4.0.1",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.21",
+    "mongoose": "^8.16.4",
+    "nanoid": "^5.1.5",
+    "pino": "^9.7.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^4.0.5"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/body-parser": "^1.19.6",
+    "@types/config": "^3.3.5",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/lodash": "^4.17.20",
+    "@types/nanoid": "^2.1.0",
+    "@types/node": "^24.0.14",
+    "@types/pino": "^7.0.4",
+    "prisma": "^6.12.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  }
+}

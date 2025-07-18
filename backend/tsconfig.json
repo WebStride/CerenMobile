@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "outDir": "build",
+    "jsx": "react",
+    "declaration": true,
+    "target": "es2016",
+    "module": "NodeNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "ts-node": {
+    "esm": true
+},
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
