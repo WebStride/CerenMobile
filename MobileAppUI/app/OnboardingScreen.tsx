@@ -32,7 +32,7 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           className="bg-[#BCD042] rounded-lg w-full py-4 mb-2 items-center"
           activeOpacity={0.85}
-          onPress={() => router.replace("/")}
+          onPress={() => router.replace("/login")}
         >
           <Text className="text-white text-lg font-bold">Get Started</Text>
         </TouchableOpacity>
