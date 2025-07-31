@@ -10,6 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
+const auth_1 = require("./controllers/auth");
+const user_1 = require("./controllers/user");
 const prisma = new client_1.PrismaClient();
 function routes(app) {
     app.get('/healthcheck', (req, res) => res.sendStatus(200));
@@ -31,5 +33,12 @@ function routes(app) {
             res.status(500).json({ error: "Database error" });
         }
     }));
+    // Auth routes
+    app.post("/auth/register", auth_1.register);
+    app.post("/auth/verify", auth_1.verifyPhoneNumber);
+    app.post("/auth/refresh", auth_1.refreshToken);
+    app.post("/auth/logout", auth_1.logout);
+    // User routes
+    app.post("/user/address", user_1.submitUserAddress);
 }
 exports.default = routes;

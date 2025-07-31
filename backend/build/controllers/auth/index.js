@@ -1,0 +1,99 @@
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.register = register;
+exports.verifyPhoneNumber = verifyPhoneNumber;
+exports.refreshToken = refreshToken;
+exports.logout = logout;
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const auth_1 = require("../../service/auth");
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
+function register(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { phoneNumber, name } = req.body;
+        if (!phoneNumber)
+            return res.status(400).json({ error: "Missing phoneNumber" });
+        try {
+            yield (0, auth_1.sendOTP)(phoneNumber);
+            res.json({ success: true, message: "OTP sent" });
+        }
+        catch (err) {
+            res.status(500).json({ error: "Failed to send OTP", details: err.message });
+        }
+    });
+}
+function verifyPhoneNumber(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { phoneNumber, code, name } = req.body;
+        if (!phoneNumber || !code) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+        try {
+            const isValid = yield (0, auth_1.verifyOTP)(phoneNumber, code);
+            if (!isValid) {
+                return res.status(400).json({ error: "Invalid OTP" });
+            }
+            const { user, tokens } = yield (0, auth_1.saveUserAndGenerateTokens)(name, phoneNumber);
+            res.json({
+                success: true,
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    phoneNumber: user.phoneNumber
+                }
+            });
+        }
+        catch (error) {
+            res.status(500).json({ error: "Verification failed", details: error.message });
+        }
+    });
+}
+function refreshToken(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const refreshToken = req.headers['x-refresh-token'];
+        if (!refreshToken) {
+            return res.status(401).json({ error: "Refresh token required" });
+        }
+        try {
+            const decoded = jsonwebtoken_1.default.verify(refreshToken, REFRESH_TOKEN_SECRET);
+            const tokens = (0, auth_1.generateTokens)({
+                userId: decoded.userId,
+                phoneNumber: decoded.phoneNumber
+            });
+            res.json({
+                success: true,
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken
+            });
+        }
+        catch (error) {
+            res.status(403).json({
+                error: "Invalid refresh token",
+                code: 'INVALID_REFRESH_TOKEN'
+            });
+        }
+    });
+}
+function logout(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // For mobile apps, token invalidation is typically handled client-side
+        // by removing the tokens from secure storage
+        res.json({
+            success: true,
+            message: "Logout successful"
+        });
+    });
+}
