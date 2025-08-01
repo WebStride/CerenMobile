@@ -1,5 +1,7 @@
 import { Express, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
+import { register, verifyPhoneNumber, refreshToken, logout } from "./controllers/auth";
+import { submitUserAddress } from "./controllers/user";
 
 const prisma = new PrismaClient();
 
@@ -25,6 +27,20 @@ function routes(app: Express) {
             res.status(500).json({ error: "Database error" });
         }
     });
+
+
+    // Auth routes
+    app.post("/auth/register", register);
+    app.post("/auth/verify", verifyPhoneNumber);
+    app.post("/auth/refresh", refreshToken);
+    app.post("/auth/logout", logout);
+
+    // User routes
+    app.post("/user/address", submitUserAddress);
+
 }
 
+
+
 export default routes;
+

@@ -1,0 +1,1827 @@
+-- CreateTable
+CREATE TABLE `ACCOUNTSMASTER` (
+    `AccountID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CustomerID` MEDIUMINT UNSIGNED NOT NULL,
+    `BalanceAmount` FLOAT NULL DEFAULT 0,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `Active` TINYINT NOT NULL DEFAULT 1,
+
+    INDEX `CustomerIDIdx`(`CustomerID`),
+    PRIMARY KEY (`AccountID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CUSTOMERACCOUNTHISTORY` (
+    `HISTORYENTRYID` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ACCOUNTID` MEDIUMINT UNSIGNED NOT NULL,
+    `PAYMENTID` BIGINT UNSIGNED NOT NULL,
+    `INVOICEID` MEDIUMINT NOT NULL,
+    `SALEAMOUNT` FLOAT NULL DEFAULT 0,
+    `CANCELAMOUNT` FLOAT NULL DEFAULT 0,
+    `RETURNAMOUNT` FLOAT NULL DEFAULT 0,
+    `DISCOUNTAMOUNT` FLOAT NULL DEFAULT 0,
+    `TOTALTAX` FLOAT NULL DEFAULT 0,
+    `NETSALEAMOUNT` FLOAT NULL DEFAULT 0,
+    `BALANCEAMOUNT` FLOAT NULL DEFAULT 0,
+    `AMOUNTRECEIVED` FLOAT NULL DEFAULT 0,
+    `NEWBALANCEAMOUNT` FLOAT NULL DEFAULT 0,
+    `ENTRYDATE` DATETIME(0) NULL,
+    `LASTUPDATEDDATE` DATETIME(0) NULL,
+
+    INDEX `ACCOUNTIDIdx`(`ACCOUNTID`),
+    INDEX `PAYMENTIDIdx`(`PAYMENTID`),
+    PRIMARY KEY (`HISTORYENTRYID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CUSTOMERMASTER` (
+    `CUSTOMERID` INTEGER NOT NULL AUTO_INCREMENT,
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `ADDRESS` VARCHAR(1000) NULL,
+    `PHONENO` VARCHAR(20) NULL,
+    `CUSTOMERTYPEID` SMALLINT NOT NULL DEFAULT 1,
+    `StoreAreaInSFT` BIGINT NULL,
+    `AvgDailySales` BIGINT NULL,
+    `ContactPersonName` VARCHAR(100) NULL,
+    `LINEID` INTEGER NULL,
+    `PRICEGROUPID` INTEGER NULL,
+    `DISCOUNTGROUPID` INTEGER NULL,
+    `GSTIN` VARCHAR(20) NULL,
+    `STATEID` VARCHAR(5) NULL,
+    `ADDEDDATE` DATETIME(0) NULL,
+    `LASTUPDATEDATE` DATETIME(0) NULL,
+    `ACTIVE` BIT(1) NULL,
+    `ORDERDAYS` VARCHAR(20) NOT NULL DEFAULT '1',
+    `PINCODE` INTEGER NULL,
+    `CITY` VARCHAR(100) NULL,
+
+    PRIMARY KEY (`CUSTOMERID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CUSTOMERMASTER_BCK` (
+    `CUSTOMERID` INTEGER NOT NULL DEFAULT 0,
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `ADDRESS` VARCHAR(1000) NULL,
+    `PHONENO` VARCHAR(20) NULL,
+    `CUSTOMERTYPEID` SMALLINT NOT NULL DEFAULT 1,
+    `LINEID` INTEGER NULL,
+    `PRICEGROUPID` INTEGER NULL,
+    `DISCOUNTGROUPID` INTEGER NULL,
+    `GSTIN` VARCHAR(20) NULL,
+    `STATEID` VARCHAR(5) NULL,
+    `ADDEDDATE` DATETIME(0) NULL,
+    `LASTUPDATEDATE` DATETIME(0) NULL,
+    `ACTIVE` BIT(1) NULL,
+    `ORDERDAYS` VARCHAR(20) NOT NULL DEFAULT '1',
+    `PINCODE` INTEGER NULL,
+    `CITY` VARCHAR(100) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CUSTOMERTYPEMASTER` (
+    `CUSTOMERTYPEID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CUSTOMERTYPE` VARCHAR(20) NOT NULL,
+    `DESCRIPTION` VARCHAR(100) NULL,
+
+    PRIMARY KEY (`CUSTOMERTYPEID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CatalogMaster` (
+    `CatalogID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CatalogName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`CatalogID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CurrentOrders` (
+    `ProductName` VARCHAR(50) NOT NULL,
+    `OrdQty` DOUBLE NULL,
+    `OrdAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CurrentOrders1` (
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `OrdQty` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CurrentOrders_Inv` (
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `OrdQty` DOUBLE NULL,
+    `OrdAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CurrentStock` (
+    `ProductInvID` BIGINT NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL,
+    `PP` DECIMAL(10, 0) NULL,
+    `Sales` DOUBLE NULL,
+    `SalesAmt` DOUBLE NULL,
+    `SP` DECIMAL(10, 0) NULL,
+    `Stock` DOUBLE NULL,
+    `StockAmt` DOUBLE NULL,
+    `Short` DOUBLE NULL,
+    `ShortAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CurrentStock_Prev` (
+    `ProductInvID` BIGINT NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL,
+    `PP` DECIMAL(10, 0) NULL,
+    `Sales` DOUBLE NULL,
+    `SalesAmt` DOUBLE NULL,
+    `SP` FLOAT NULL,
+    `Stock` DOUBLE NULL,
+    `StockAmt` DOUBLE NULL,
+    `Short` DOUBLE NULL,
+    `ShortAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CustomerLedgerDetails` (
+    `LedgerID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CustomerID` INTEGER NULL,
+    `LedgerName` VARCHAR(200) NULL,
+
+    PRIMARY KEY (`LedgerID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CustomerProductPreferenceMaster` (
+    `ID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CustomerID` MEDIUMINT UNSIGNED NOT NULL,
+    `ProductID` MEDIUMINT UNSIGNED NOT NULL,
+    `SortID` MEDIUMINT UNSIGNED NOT NULL,
+
+    INDEX `CustomerIDIdx`(`CustomerID`),
+    PRIMARY KEY (`ID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DISCOUNTGROUPMASTER` (
+    `DISCOUNTGROUPID` INTEGER NOT NULL AUTO_INCREMENT,
+    `DISCOUNTGROUPNAME` VARCHAR(100) NOT NULL,
+    `DESCRIPTION` VARCHAR(50) NULL,
+    `DISCOUNT` DECIMAL(4, 2) NULL DEFAULT 0.00,
+    `ISDEFAULT` BIT(1) NULL,
+    `DISCOUNTTYPE` VARCHAR(10) NULL DEFAULT 'ABSOLUTE',
+
+    PRIMARY KEY (`DISCOUNTGROUPID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DailyPurchase` (
+    `Date` DATE NULL,
+    `ProductInvID` INTEGER NULL,
+    `CumPurchase` DOUBLE NULL,
+    `CumPurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DailyPurchaseAll` (
+    `Date1` DATE NULL,
+    `ProductInvID` INTEGER NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DailySales` (
+    `Date` DATE NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `CumSales` DOUBLE NULL,
+    `CumSalesAmt` DOUBLE NULL,
+    `CumShort` DOUBLE NULL,
+    `Cumwaste` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DailySalesAll` (
+    `Date` DATE NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `Sales` DOUBLE NULL,
+    `SalesAmt` DOUBLE NULL,
+    `short` DOUBLE NULL,
+    `waste` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EInvoiceItems` (
+    `EInvoiceItemID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `EInvoiceID` BIGINT UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `SaleQty` FLOAT NULL DEFAULT 0,
+    `Price` FLOAT NULL DEFAULT 0,
+    `TaxableValue` FLOAT NULL DEFAULT 0,
+    `CGST` FLOAT NULL DEFAULT 0,
+    `SGST` FLOAT NULL DEFAULT 0,
+    `IGST` FLOAT NULL DEFAULT 0,
+    `NetTotal` FLOAT NULL DEFAULT 0,
+    `InvoiceItemStatus` VARCHAR(20) NULL,
+    `Discount` FLOAT NULL DEFAULT 0,
+
+    INDEX `idx_EInvoiceID`(`EInvoiceID`),
+    PRIMARY KEY (`EInvoiceItemID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EInvoiceItems_bck` (
+    `EInvoiceItemID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceID` BIGINT UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `SaleQty` FLOAT NULL DEFAULT 0,
+    `Price` FLOAT NULL DEFAULT 0,
+    `TaxableValue` FLOAT NULL DEFAULT 0,
+    `CGST` FLOAT NULL DEFAULT 0,
+    `SGST` FLOAT NULL DEFAULT 0,
+    `IGST` FLOAT NULL DEFAULT 0,
+    `NetTotal` FLOAT NULL DEFAULT 0,
+    `InvoiceItemStatus` VARCHAR(20) NULL,
+    `Discount` FLOAT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EInvoices` (
+    `EInvoiceID` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `EInvoiceDate` DATETIME(0) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceID` BIGINT NOT NULL,
+    `InvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `InvoiceStatus` VARCHAR(20) NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `AckNo` VARCHAR(50) NULL,
+    `AckDate` DATETIME(0) NULL,
+    `IRN` VARCHAR(100) NULL,
+    `SignedQrCode` VARCHAR(10000) NULL,
+
+    INDEX `idx_customerid`(`CustomerID`),
+    PRIMARY KEY (`EInvoiceID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EInvoices_Change` (
+    `EInvoiceID` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `EInvoiceDate` DATETIME(0) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceID` BIGINT NOT NULL,
+    `InvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `InvoiceStatus` VARCHAR(20) NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `AckNo` VARCHAR(50) NULL,
+    `AckDate` DATETIME(0) NULL,
+    `IRN` VARCHAR(100) NULL,
+    `SignedQrCode` VARCHAR(10000) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EInvoices_Dateissue` (
+    `EInvoiceID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `EInvoiceDate` DATETIME(0) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceID` BIGINT NOT NULL,
+    `InvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `InvoiceStatus` VARCHAR(20) NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `AckNo` VARCHAR(50) NULL,
+    `AckDate` DATETIME(0) NULL,
+    `IRN` VARCHAR(100) NULL,
+    `SignedQrCode` VARCHAR(10000) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EInvoices_b4Number` (
+    `EInvoiceID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `EInvoiceDate` DATETIME(0) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceID` BIGINT NOT NULL,
+    `InvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `InvoiceStatus` VARCHAR(20) NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `AckNo` VARCHAR(50) NULL,
+    `AckDate` DATETIME(0) NULL,
+    `IRN` VARCHAR(100) NULL,
+    `SignedQrCode` VARCHAR(10000) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EInvoices_bck` (
+    `EInvoiceID` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `EInvoiceDate` DATETIME(0) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceID` BIGINT NOT NULL,
+    `InvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `InvoiceStatus` VARCHAR(20) NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `AckNo` VARCHAR(50) NULL,
+    `AckDate` DATETIME(0) NULL,
+    `IRN` VARCHAR(100) NULL,
+    `SignedQrCode` VARCHAR(10000) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EWBAttributeMaster` (
+    `AttributeID` INTEGER NULL,
+    `AttributeName` VARCHAR(100) NULL,
+    `AttributeValue` VARCHAR(100) NULL,
+    `JSONValue` VARCHAR(50) NULL,
+    `DisplayOrder` INTEGER NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EWayBills` (
+    `EWayBillID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `EWayBillDate` DATETIME(0) NOT NULL,
+    `EWayBillNumber` VARCHAR(20) NOT NULL,
+    `SupplyType` VARCHAR(10) NOT NULL,
+    `SubSupplyType` VARCHAR(10) NOT NULL,
+    `DocumentType` VARCHAR(20) NOT NULL,
+    `DocumentID` INTEGER NOT NULL,
+    `CustomerID` INTEGER NOT NULL,
+    `VehicleNumber` VARCHAR(20) NULL,
+    `DistanceInKm` INTEGER NULL,
+    `CreationDate` TIMESTAMP(0) NULL,
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `EWayBillStatus` VARCHAR(20) NOT NULL,
+    `EWayBillNumberFromPortal` VARCHAR(100) NULL,
+    `ValidFromDate` DATETIME(0) NULL,
+    `ValidToDate` DATETIME(0) NULL,
+    `ValidTillDate` DATETIME(0) NULL,
+
+    PRIMARY KEY (`EWayBillID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EXPENSES` (
+    `ExpenseID` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PaymentDate` DATETIME(0) NOT NULL,
+    `PaymentModeID` SMALLINT UNSIGNED NOT NULL,
+    `PaymentAmount` FLOAT NULL DEFAULT 0,
+    `Description` VARCHAR(100) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `UserID` SMALLINT UNSIGNED NULL,
+
+    PRIMARY KEY (`ExpenseID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `IDValueMaster` (
+    `TableName` VARCHAR(50) NOT NULL,
+    `IDValue` VARCHAR(200) NOT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ImageMaster` (
+    `ImageID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `Name` VARCHAR(100) NOT NULL,
+    `Url` VARCHAR(500) NOT NULL,
+    `SizeInKB` MEDIUMINT NOT NULL,
+    `Width` INTEGER NOT NULL,
+    `Height` INTEGER NOT NULL,
+    `ImgType` VARCHAR(10) NOT NULL,
+    `ParentImageID` INTEGER NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`ImageID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `InvoiceItems` (
+    `InvoiceItemID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `InvoiceID` SMALLINT UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `OrderQty` VARCHAR(10) NULL,
+    `SaleQty` FLOAT NULL DEFAULT 0,
+    `Price` FLOAT NULL DEFAULT 0,
+    `TaxableValue` FLOAT NULL DEFAULT 0,
+    `CGST` FLOAT NULL DEFAULT 0,
+    `SGST` FLOAT NULL DEFAULT 0,
+    `IGST` FLOAT NULL DEFAULT 0,
+    `NetTotal` FLOAT NULL DEFAULT 0,
+    `InvoiceItemStatus` VARCHAR(20) NULL,
+    `Discount` FLOAT NULL DEFAULT 0,
+
+    INDEX `InvoiceIDIdx`(`InvoiceID`),
+    PRIMARY KEY (`InvoiceItemID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `InvoiceItems_bck` (
+    `InvoiceItemID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `InvoiceID` SMALLINT UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `OrderQty` VARCHAR(10) NULL,
+    `SaleQty` FLOAT NULL DEFAULT 0,
+    `Price` FLOAT NULL DEFAULT 0,
+    `TaxableValue` FLOAT NULL DEFAULT 0,
+    `CGST` FLOAT NULL DEFAULT 0,
+    `SGST` FLOAT NULL DEFAULT 0,
+    `IGST` FLOAT NULL DEFAULT 0,
+    `NetTotal` FLOAT NULL DEFAULT 0,
+    `InvoiceItemStatus` VARCHAR(20) NULL,
+    `Discount` FLOAT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Invoices` (
+    `InvoiceID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `InvoiceNumber` VARCHAR(20) NOT NULL,
+    `InvoiceDate` DATETIME(0) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `OrderID` BIGINT NOT NULL,
+    `InvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `InvoiceStatus` VARCHAR(20) NULL,
+    `BalanceAmount` FLOAT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    INDEX `CustomerIDIdx`(`CustomerID`),
+    PRIMARY KEY (`InvoiceID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Invoices_BCK` (
+    `InvoiceID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `InvoiceNumber` VARCHAR(20) NOT NULL,
+    `InvoiceDate` DATETIME(0) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `OrderID` BIGINT NOT NULL,
+    `InvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `InvoiceStatus` VARCHAR(20) NULL,
+    `BalanceAmount` FLOAT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `LINEMASTER` (
+    `LINEID` INTEGER NOT NULL AUTO_INCREMENT,
+    `LINENAME` VARCHAR(50) NULL,
+    `DESCRIPTION` VARCHAR(50) NULL,
+    `LineManagerName` VARCHAR(500) NULL,
+    `LineManagerPhoneNo` VARCHAR(20) NULL,
+
+    PRIMARY KEY (`LINEID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `LogTable` (
+    `Id` INTEGER NOT NULL AUTO_INCREMENT,
+    `ExecDate1` DATETIME(0) NULL,
+
+    PRIMARY KEY (`Id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `March16short` (
+    `ProductID` MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
+    `WholesalePrice` FLOAT NULL,
+    `short` INTEGER NOT NULL DEFAULT 0,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `OrderItems` (
+    `OrderItemID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `OrderID` INTEGER UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `OrderQty` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `OrderItemStatus` VARCHAR(20) NULL,
+    `Comments` VARCHAR(200) NULL,
+
+    INDEX `OrderIDIdx`(`OrderID`),
+    PRIMARY KEY (`OrderItemID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `OrderItems_NotDeli` (
+    `OrderItemID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `OrderID` INTEGER UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `OrderQty` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `OrderItemStatus` VARCHAR(7) NOT NULL DEFAULT '',
+    `Comments` VARCHAR(200) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `OrderItems_bck` (
+    `OrderItemID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `OrderID` INTEGER UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `OrderQty` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `OrderItemStatus` VARCHAR(20) NULL,
+    `Comments` VARCHAR(200) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Orders` (
+    `OrderID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `OrderNumber` VARCHAR(20) NOT NULL,
+    `OrderDate` DATETIME(0) NOT NULL,
+    `CustomerID` SMALLINT NOT NULL,
+    `OrderItemCount` SMALLINT NULL DEFAULT 0,
+    `EstimateOrderAmount` FLOAT NULL DEFAULT 0,
+    `OrderStatus` VARCHAR(20) NULL,
+    `DateDelivered` DATETIME(0) NULL,
+    `DateInvoiceCreated` DATETIME(0) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `DeliveryLineID` SMALLINT NULL,
+
+    INDEX `CustomerIDIdx`(`CustomerID`),
+    PRIMARY KEY (`OrderID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Orders_bck` (
+    `OrderID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `OrderNumber` VARCHAR(20) NOT NULL,
+    `OrderDate` DATETIME(0) NOT NULL,
+    `CustomerID` SMALLINT NOT NULL,
+    `OrderItemCount` SMALLINT NULL DEFAULT 0,
+    `EstimateOrderAmount` FLOAT NULL DEFAULT 0,
+    `OrderStatus` VARCHAR(20) NULL,
+    `DateDelivered` DATETIME(0) NULL,
+    `DateInvoiceCreated` DATETIME(0) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `DeliveryLineID` SMALLINT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PAYMENTS` (
+    `PaymentID` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PaymentDate` DATETIME(0) NOT NULL,
+    `InvoiceID` BIGINT UNSIGNED NULL,
+    `QuotationID` BIGINT UNSIGNED NULL,
+    `AccountID` MEDIUMINT UNSIGNED NOT NULL,
+    `PaymentModeID` SMALLINT UNSIGNED NOT NULL,
+    `PaymentAmount` FLOAT NULL DEFAULT 0,
+    `Description` VARCHAR(100) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `UserID` SMALLINT UNSIGNED NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+
+    INDEX `AccountIDIdx`(`AccountID`),
+    INDEX `InvoiceIDIdx`(`InvoiceID`),
+    PRIMARY KEY (`PaymentID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PPTable` (
+    `ProductInvID` INTEGER NULL,
+    `Price` FLOAT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PRICEGROUPMASTER` (
+    `PriceGroupID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PriceGroupName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NULL,
+    `PriceColumn` VARCHAR(50) NOT NULL,
+    `Discount` FLOAT NULL,
+    `DiscountType` VARCHAR(50) NULL,
+    `IsDefault` TINYINT NOT NULL DEFAULT 1,
+    `IsRetailPriceGroup` TINYINT NOT NULL DEFAULT 0,
+    `IsRetailDefault` TINYINT NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (`PriceGroupID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PRIVILEGECONTROLMASTER` (
+    `CONTROLID` INTEGER NOT NULL AUTO_INCREMENT,
+    `FORMNAME` VARCHAR(100) NULL,
+    `CONTROLNAME` VARCHAR(100) NULL,
+    `ENABLED` BIT(1) NULL DEFAULT b'1',
+    `PRIVILEGEID` TINYTEXT NULL,
+
+    PRIMARY KEY (`CONTROLID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PRIVILEGEMASTER` (
+    `PRIVILEGEID` VARCHAR(20) NOT NULL,
+    `PRIVILEGENAME` VARCHAR(100) NULL,
+
+    PRIMARY KEY (`PRIVILEGEID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PURCHASEACCOUNTSMASTER` (
+    `PurchaseAccountID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `VendorID` MEDIUMINT UNSIGNED NOT NULL,
+    `BalanceAmount` FLOAT NULL DEFAULT 0,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `Active` TINYINT NOT NULL DEFAULT 1,
+
+    INDEX `VendorIDIdx`(`VendorID`),
+    PRIMARY KEY (`PurchaseAccountID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PURCHASEPAYMENTS` (
+    `PurchasePaymentID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PurchasePaymentDate` DATETIME(0) NOT NULL,
+    `PurchaseInvoiceID` MEDIUMINT UNSIGNED NULL,
+    `PurchaseAccountID` MEDIUMINT UNSIGNED NOT NULL,
+    `PaymentModeID` SMALLINT UNSIGNED NOT NULL,
+    `PaymentAmount` FLOAT NULL DEFAULT 0,
+    `Description` VARCHAR(100) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `UserID` SMALLINT UNSIGNED NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+
+    INDEX `PurchaseAccountIDIdx`(`PurchaseAccountID`),
+    INDEX `PurchaseInvoiceIDIdx`(`PurchaseInvoiceID`),
+    PRIMARY KEY (`PurchasePaymentID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PaymentModeMaster` (
+    `PaymentModeID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PaymentMode` VARCHAR(20) NOT NULL,
+    `Description` VARCHAR(100) NULL,
+
+    PRIMARY KEY (`PaymentModeID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PincodeDetails` (
+    `Pincode` INTEGER NULL,
+    `State` VARCHAR(100) NULL,
+    `Area` VARCHAR(100) NULL,
+    `District` VARCHAR(100) NULL,
+    `Latitude` DOUBLE NULL,
+    `Longitude` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductCategoryForAppMaster` (
+    `CategoryID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CategoryName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `SortOrder` INTEGER NULL DEFAULT 0,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`CategoryID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductCategoryImages` (
+    `ProductCategoryImageID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CategoryID` INTEGER NOT NULL,
+    `ImageID` INTEGER NOT NULL,
+    `SortOrder` INTEGER NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`ProductCategoryImageID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductCategoryMaster` (
+    `CategoryID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `CategoryName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (`CategoryID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductImages` (
+    `ProductImageID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ProductID` INTEGER NOT NULL,
+    `ImageID` INTEGER NOT NULL,
+    `SortOrder` INTEGER NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`ProductImageID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductInventory` (
+    `ProductInvID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` FLOAT NOT NULL,
+    `Units` SMALLINT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `LastPODate` DATETIME(0) NULL,
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `MinOrdQty` FLOAT NULL,
+
+    PRIMARY KEY (`ProductInvID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductInventoryForApp` (
+    `ProductInvID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `StockName` VARCHAR(50) NOT NULL,
+    `VInventory` FLOAT NULL DEFAULT 0,
+    `UnitsOfMeasurement` VARCHAR(50) NOT NULL,
+    `Units` FLOAT NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`ProductInvID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductInventory_b4_PuneOff` (
+    `ProductInvID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` FLOAT NOT NULL,
+    `Units` SMALLINT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `LastPODate` DATETIME(0) NULL,
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `MinOrdQty` FLOAT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductInventory_b4newstock` (
+    `ProductInvID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` FLOAT NOT NULL,
+    `Units` SMALLINT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `LastPODate` DATETIME(0) NULL,
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductInventory_bck` (
+    `ProductInvID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` FLOAT NOT NULL,
+    `Units` SMALLINT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `LastPODate` DATETIME(0) NULL,
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `MinOrdQty` FLOAT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductInventory_bck1` (
+    `ProductInvID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` FLOAT NOT NULL,
+    `Units` SMALLINT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `LastPODate` DATETIME(0) NULL,
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductMaster` (
+    `ProductID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ProductSKU` VARCHAR(15) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `SubCategoryID` SMALLINT UNSIGNED NOT NULL,
+    `PurchasePrice` FLOAT NULL,
+    `WholesalePrice` FLOAT NULL,
+    `RetailPrice` FLOAT NULL,
+    `MaxRetailPrice` FLOAT NULL,
+    `Units` FLOAT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `SortName` VARCHAR(50) NOT NULL,
+    `DisplayName` VARCHAR(100) NULL,
+    `TaxID` SMALLINT UNSIGNED NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `VendorID` SMALLINT UNSIGNED NULL,
+    `Barcode` VARCHAR(200) NULL,
+    `IsRetailProduct` TINYINT NOT NULL DEFAULT 0,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedUserID` INTEGER NULL,
+    `AddedPOSNumber` VARCHAR(50) NULL,
+    `AddedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedUserID` INTEGER NULL,
+    `LastUpdatedPOSNumber` VARCHAR(50) NULL,
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `SuperCategoryID` INTEGER NULL,
+    `CategoryID` SMALLINT UNSIGNED NOT NULL,
+    `OTSPrePR` FLOAT NULL,
+    `OTSRegPR` FLOAT NULL,
+    `Aliases` VARCHAR(200) NULL,
+    `CategoryIDForApp` INTEGER NULL,
+    `SubCategoryIDForApp` INTEGER NULL,
+    `IsNewProduct` TINYINT NULL,
+    `Parcelable` TINYINT NULL,
+    `OfferEnabled` TINYINT NULL,
+    `MinimumQty` FLOAT NULL,
+    `DefaultLSQty` FLOAT NULL,
+    `ProductInvIDForApp` INTEGER NULL,
+    `CatalogID` INTEGER NULL,
+    `CatalogDefault` TINYINT NULL,
+    `SortOrder` INTEGER NULL,
+    `PremiumPrice` FLOAT NULL,
+    `UnitsForApp` FLOAT NULL,
+    `UnitsOfMeasurementForApp` VARCHAR(20) NULL,
+    `Measure` VARCHAR(20) NULL,
+
+    INDEX `CategoryIDIdx`(`SubCategoryID`),
+    PRIMARY KEY (`ProductID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductMaster_b4_PuneOff` (
+    `ProductID` MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
+    `ProductSKU` VARCHAR(15) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `SubCategoryID` SMALLINT UNSIGNED NOT NULL,
+    `PurchasePrice` FLOAT NULL,
+    `WholesalePrice` FLOAT NULL,
+    `RetailPrice` FLOAT NULL,
+    `MaxRetailPrice` FLOAT NULL,
+    `Units` FLOAT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `SortName` VARCHAR(50) NOT NULL,
+    `DisplayName` VARCHAR(100) NULL,
+    `TaxID` SMALLINT UNSIGNED NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `VendorID` SMALLINT UNSIGNED NULL,
+    `Barcode` VARCHAR(200) NULL,
+    `IsRetailProduct` TINYINT NOT NULL DEFAULT 0,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `SuperCategoryID` INTEGER NULL,
+    `CategoryID` SMALLINT UNSIGNED NOT NULL,
+    `OTSPrePR` FLOAT NULL,
+    `OTSRegPR` FLOAT NULL,
+    `Aliases` VARCHAR(200) NULL,
+    `CategoryIDForApp` INTEGER NULL,
+    `SubCategoryIDForApp` INTEGER NULL,
+    `IsNewProduct` TINYINT NULL,
+    `Parcelable` TINYINT NULL,
+    `OfferEnabled` TINYINT NULL,
+    `MinimumQty` FLOAT NULL,
+    `DefaultLSQty` FLOAT NULL,
+    `UnitsForApp` FLOAT NULL,
+    `UnitsOfMeasurementForApp` VARCHAR(20) NULL,
+    `ProductInvIDForApp` INTEGER NULL,
+    `CatalogID` INTEGER NULL,
+    `CatalogDefault` TINYINT NULL,
+    `SortOrder` INTEGER NULL,
+    `Measure` VARCHAR(20) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductMaster_bck` (
+    `ProductID` MEDIUMINT UNSIGNED NOT NULL DEFAULT 0,
+    `ProductSKU` VARCHAR(15) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `SubCategoryID` SMALLINT UNSIGNED NOT NULL,
+    `PurchasePrice` FLOAT NULL,
+    `WholesalePrice` FLOAT NULL,
+    `RetailPrice` FLOAT NULL,
+    `MaxRetailPrice` FLOAT NULL,
+    `Units` FLOAT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `SortName` VARCHAR(50) NOT NULL,
+    `TaxID` SMALLINT UNSIGNED NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `VendorID` SMALLINT UNSIGNED NULL,
+    `Barcode` VARCHAR(200) NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `SuperCategoryID` INTEGER NULL,
+    `CategoryID` SMALLINT UNSIGNED NOT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductStockHistory` (
+    `HistoryEntryID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ProductInvID` INTEGER UNSIGNED NOT NULL,
+    `Type` VARCHAR(15) NULL,
+    `OrderedQty` FLOAT NULL,
+    `ReceivedQty` FLOAT NULL,
+    `NetQty` FLOAT NULL,
+    `PODate` DATETIME(0) NULL,
+    `UpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    INDEX `ProductInvIDIdx`(`ProductInvID`),
+    PRIMARY KEY (`HistoryEntryID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductSubCategoryForAppMaster` (
+    `SubCategoryID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `SubCategoryName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `SortOrder` INTEGER NULL DEFAULT 0,
+    `CategoryID` MEDIUMINT UNSIGNED NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`SubCategoryID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductSubCategoryImages` (
+    `ProductSubCategoryImageID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `SubCategoryID` INTEGER NOT NULL,
+    `ImageID` INTEGER NOT NULL,
+    `SortOrder` INTEGER NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` DATETIME(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`ProductSubCategoryImageID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ProductSubCategoryMaster` (
+    `SubCategoryID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `SubCategoryName` VARCHAR(50) NOT NULL,
+    `Description` VARCHAR(200) NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `CategoryID` SMALLINT UNSIGNED NOT NULL,
+
+    PRIMARY KEY (`SubCategoryID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PuneSales` (
+    `StockName` VARCHAR(50) NOT NULL,
+    `Sales1Wk` DOUBLE NULL,
+    `Sales2Wk` DOUBLE NULL,
+    `Salesmonth` DOUBLE NULL,
+    `Salestoday` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Puneorders_copy` (
+    `OrderID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `OrderNumber` VARCHAR(20) NOT NULL,
+    `OrderDate` DATETIME(0) NOT NULL,
+    `CustomerID` SMALLINT NOT NULL,
+    `OrderItemCount` SMALLINT NULL DEFAULT 0,
+    `EstimateOrderAmount` FLOAT NULL DEFAULT 0,
+    `OrderStatus` VARCHAR(20) NULL,
+    `DateDelivered` DATETIME(0) NULL,
+    `DateInvoiceCreated` DATETIME(0) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `DeliveryLineID` SMALLINT NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseAll_Current` (
+    `Date1` DATE NULL,
+    `Vendor` VARCHAR(50) NULL,
+    `BillNo` VARCHAR(50) NULL,
+    `ItemName` VARCHAR(50) NULL,
+    `QTY` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `Total` FLOAT NULL,
+    `Category` VARCHAR(50) NULL,
+    `Units` FLOAT NULL,
+    `StockName` VARCHAR(50) NULL,
+    `STOCKQTY` FLOAT NULL,
+    `Take` INTEGER NOT NULL DEFAULT 0,
+    `ProductID` INTEGER NULL,
+    `ProductInvID` INTEGER NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseAll_Previos` (
+    `Date1` DATE NULL,
+    `Vendor` VARCHAR(50) NULL,
+    `BillNo` VARCHAR(50) NULL,
+    `ItemName` VARCHAR(50) NULL,
+    `QTY` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `Total` FLOAT NULL,
+    `Category` VARCHAR(50) NULL,
+    `Units` FLOAT NULL,
+    `StockName` VARCHAR(50) NULL,
+    `STOCKQTY` FLOAT NULL,
+    `Take` INTEGER NOT NULL DEFAULT 0,
+    `ProductID` INTEGER NULL,
+    `ProductInvID` INTEGER NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseAll_Stock` (
+    `ProductInvID` INTEGER NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL,
+    `PP` DECIMAL(10, 0) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseAll_Stock1` (
+    `StockName` VARCHAR(50) NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseInvoiceItems` (
+    `PurchaseInvoiceItemID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PurchaseInvoiceID` MEDIUMINT UNSIGNED NOT NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NOT NULL,
+    `OrderQty` VARCHAR(10) NULL,
+    `ReceivedQty` FLOAT NULL DEFAULT 0,
+    `CancelQty` FLOAT NULL DEFAULT 0,
+    `ReturnQty` FLOAT NULL DEFAULT 0,
+    `Price` FLOAT NULL DEFAULT 0,
+    `Discount` FLOAT NULL DEFAULT 0,
+    `TaxableValue` FLOAT NULL DEFAULT 0,
+    `CGST` FLOAT NULL DEFAULT 0,
+    `SGST` FLOAT NULL DEFAULT 0,
+    `IGST` FLOAT NULL DEFAULT 0,
+    `NetTotal` FLOAT NULL DEFAULT 0,
+    `PurchaseInvoiceItemStatus` VARCHAR(20) NULL,
+
+    INDEX `PurchaseInvoiceIDIdx`(`PurchaseInvoiceID`),
+    PRIMARY KEY (`PurchaseInvoiceItemID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseInvoices` (
+    `PurchaseInvoiceID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PurchaseInvoiceNumber` VARCHAR(20) NOT NULL,
+    `PurchaseInvoiceDate` DATETIME(0) NOT NULL,
+    `VendorID` SMALLINT UNSIGNED NOT NULL,
+    `PurchaseOrderID` MEDIUMINT UNSIGNED NOT NULL,
+    `PurchaseInvoiceItemCount` SMALLINT NULL DEFAULT 0,
+    `GrossInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `DiscountAmount` FLOAT NULL DEFAULT 0,
+    `NetInvoiceAmount` FLOAT NULL DEFAULT 0,
+    `PurchaseInvoiceStatus` VARCHAR(20) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    INDEX `VendorIDIdx`(`VendorID`),
+    PRIMARY KEY (`PurchaseInvoiceID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseOrderItems` (
+    `PurchaseOrderItemID` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PurchaseOrderID` MEDIUMINT UNSIGNED NOT NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NOT NULL,
+    `OrderedQty` FLOAT NULL DEFAULT 0,
+    `ReceivedQty` FLOAT NULL DEFAULT 0,
+    `Price` FLOAT NULL,
+    `POItemStatus` VARCHAR(20) NULL,
+    `Comments` VARCHAR(200) NULL,
+
+    INDEX `PurchaseOrderIDIdx`(`PurchaseOrderID`),
+    PRIMARY KEY (`PurchaseOrderItemID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PurchaseOrders` (
+    `PurchaseOrderID` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PurchaseOrderNumber` VARCHAR(20) NOT NULL,
+    `PurchaseOrderDate` DATETIME(0) NOT NULL,
+    `VendorID` SMALLINT UNSIGNED NULL,
+    `POItemCount` SMALLINT NULL,
+    `EstimateOrderAmount` FLOAT NULL,
+    `PurchaseOrderStatus` VARCHAR(20) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdatedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `DateReceived` DATETIME(0) NULL,
+    `DateInvoiceCreated` DATETIME(0) NULL,
+
+    INDEX `VendorIDIdx`(`VendorID`),
+    PRIMARY KEY (`PurchaseOrderID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Purchase_All` (
+    `Date1` DATE NULL,
+    `Vendor` VARCHAR(50) NULL,
+    `BillNo` VARCHAR(50) NULL,
+    `ItemName` VARCHAR(50) NULL,
+    `QTY` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `Total` FLOAT NULL,
+    `Category` VARCHAR(50) NULL,
+    `Units` FLOAT NULL,
+    `StockName` VARCHAR(50) NULL,
+    `STOCKQTY` FLOAT NULL,
+    `Take` INTEGER NOT NULL DEFAULT 0,
+    `ProductID` INTEGER NULL,
+    `ProductInvID` INTEGER NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Purchase_All_bck` (
+    `Date1` DATE NULL,
+    `Vendor` VARCHAR(50) NULL,
+    `BillNo` VARCHAR(50) NULL,
+    `ItemName` VARCHAR(50) NULL,
+    `QTY` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `Total` FLOAT NULL,
+    `Category` VARCHAR(50) NULL,
+    `Units` FLOAT NULL,
+    `StockName` VARCHAR(50) NULL,
+    `STOCKQTY` FLOAT NULL,
+    `Take` INTEGER NOT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Purchase_All_dup` (
+    `Date1` DATE NULL,
+    `Vendor` VARCHAR(50) NULL,
+    `BillNo` VARCHAR(50) NULL,
+    `ItemName` VARCHAR(50) NULL,
+    `QTY` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `Total` FLOAT NULL,
+    `Category` VARCHAR(50) NULL,
+    `Units` FLOAT NULL,
+    `StockName` VARCHAR(50) NULL,
+    `STOCKQTY` FLOAT NULL,
+    `Take` INTEGER NOT NULL DEFAULT 0,
+    `ProductID` INTEGER NULL,
+    `ProductInvID` INTEGER NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ROLEMASTER` (
+    `ROLEID` INTEGER NOT NULL AUTO_INCREMENT,
+    `ROLENAME` VARCHAR(50) NULL,
+    `DESCRIPTION` VARCHAR(50) NULL,
+    `P_1` TINYTEXT NULL,
+    `P_10` TINYTEXT NULL,
+    `P_11` TINYTEXT NULL,
+    `P_12` TINYTEXT NULL,
+    `P_13` TINYTEXT NULL,
+    `P_14` TINYTEXT NULL,
+    `P_15` TINYTEXT NULL,
+    `P_16` TINYTEXT NULL,
+    `P_17` TINYTEXT NULL,
+    `P_18` TINYTEXT NULL,
+    `P_19` TINYTEXT NULL,
+    `P_2` TINYTEXT NULL,
+    `P_20` TINYTEXT NULL,
+    `P_21` TINYTEXT NULL,
+    `P_22` TINYTEXT NULL,
+    `P_23` TINYTEXT NULL,
+    `P_24` TINYTEXT NULL,
+    `P_25` TINYTEXT NULL,
+    `P_26` TINYTEXT NULL,
+    `P_3` TINYTEXT NULL,
+    `P_4` TINYTEXT NULL,
+    `P_5` TINYTEXT NULL,
+    `P_6` TINYTEXT NULL,
+    `P_7` TINYTEXT NULL,
+    `P_8` TINYTEXT NULL,
+    `P_9` TINYTEXT NULL,
+    `P_27` TINYTEXT NULL,
+    `P_28` TINYTEXT NULL,
+    `P_29` TINYTEXT NULL,
+
+    PRIMARY KEY (`ROLEID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ReOrderData` (
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` DOUBLE NOT NULL DEFAULT 0,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Sales1Wk` DOUBLE NOT NULL DEFAULT 0,
+    `Sales2Wk` DOUBLE NOT NULL DEFAULT 0,
+    `SalesMonth` DOUBLE NOT NULL DEFAULT 0,
+    `OpenorderQty` FLOAT NULL,
+    `ReorderQty` FLOAT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ReOrderData1` (
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` DOUBLE NOT NULL DEFAULT 0,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Sales1Wk` DOUBLE NOT NULL DEFAULT 0,
+    `Sales2Wk` DOUBLE NOT NULL DEFAULT 0,
+    `SalesMonth` DOUBLE NOT NULL DEFAULT 0,
+    `OpenorderQty` FLOAT NULL,
+    `ReorderQty` FLOAT NULL,
+    `CategoryName` VARCHAR(50) NULL,
+    `SubCategoryName` VARCHAR(50) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ReOrderData2` (
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` DOUBLE NOT NULL DEFAULT 0,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Sales1Wk` DOUBLE NOT NULL DEFAULT 0,
+    `Sales2Wk` DOUBLE NOT NULL DEFAULT 0,
+    `SalesMonth` DOUBLE NOT NULL DEFAULT 0,
+    `OpenorderQty` FLOAT NULL,
+    `ReorderQty` FLOAT NULL,
+    `CategoryName` VARCHAR(50) NULL,
+    `SubCategoryName` VARCHAR(50) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ReOrderData3` (
+    `StockName` VARCHAR(50) NOT NULL,
+    `Inventory` DOUBLE NOT NULL DEFAULT 0,
+    `ReOrderStockLevel` FLOAT NULL,
+    `ReOrderStockQty` FLOAT NULL,
+    `Sales1Wk` DOUBLE NOT NULL DEFAULT 0,
+    `Sales2Wk` DOUBLE NOT NULL DEFAULT 0,
+    `SalesMonth` DOUBLE NOT NULL DEFAULT 0,
+    `OpenorderQty` FLOAT NULL,
+    `ReorderQty` FLOAT NULL,
+    `CategoryName` VARCHAR(50) NULL,
+    `SubCategoryName` VARCHAR(50) NULL,
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `OrderNo` INTEGER NOT NULL,
+    `OrderItemNo` INTEGER NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ReportDefinedParams` (
+    `ParamID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ParamName` VARCHAR(20) NOT NULL,
+    `ActualColumnName` VARCHAR(20) NOT NULL,
+    `Type` VARCHAR(10) NOT NULL DEFAULT 'String',
+    `DataType` VARCHAR(10) NOT NULL DEFAULT 'String',
+    `TableNameToLookInto` VARCHAR(30) NOT NULL,
+    `ParamValue` VARCHAR(30) NULL,
+    `IsPreDefinedParam` TINYINT NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (`ParamID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Reports` (
+    `ReportID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `ReportName` VARCHAR(20) NULL,
+    `Description` VARCHAR(80) NULL,
+    `Query` VARCHAR(8000) NULL,
+    `ParamID` VARCHAR(20) NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `Active` TINYINT NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (`ReportID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `STATEMASTER` (
+    `STATEID` INTEGER NOT NULL AUTO_INCREMENT,
+    `STATE` VARCHAR(50) NULL,
+    `STATECODE` VARCHAR(4) NULL,
+
+    PRIMARY KEY (`STATEID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `STOREMASTER` (
+    `STOREID` INTEGER NOT NULL AUTO_INCREMENT,
+    `STORENAME` VARCHAR(50) NOT NULL DEFAULT '1',
+    `ADDRESS` VARCHAR(100) NULL,
+    `PHONENO` VARCHAR(20) NULL,
+    `STOREEXECUTIVE` VARCHAR(50) NULL,
+
+    PRIMARY KEY (`STOREID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `SettingsMaster` (
+    `SettingID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `XMLString` TEXT NOT NULL,
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`SettingID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `StockPrev` (
+    `ProductName` VARCHAR(50) NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL,
+    `sales` DOUBLE NULL,
+    `SalesAmt` DOUBLE NULL,
+    `Stock` DOUBLE NULL,
+    `StockAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TaxIDsales` (
+    `GSTTYPE` INTEGER NOT NULL DEFAULT 0,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `SubCategoryID` SMALLINT UNSIGNED NOT NULL,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `TaxID` SMALLINT UNSIGNED NULL,
+    `Sales` DOUBLE NULL,
+    `SalesAmt` DOUBLE NULL,
+    `IGSTSales` DOUBLE NULL,
+    `IGSTTaxableValue` DOUBLE NULL,
+    `IGSTValue` DOUBLE NULL,
+    `IGSTSalesAmt` DOUBLE NULL,
+    `LocalSales` DOUBLE NULL,
+    `LocalTaxableValue` DOUBLE NULL,
+    `LocalCGSTValue` DOUBLE NULL,
+    `LocalSGSTValue` DOUBLE NULL,
+    `LocalSalesAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TaxIDsales1` (
+    `GSTTYPE` INTEGER NOT NULL DEFAULT 0,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `HSNCode` VARCHAR(20) NULL,
+    `IGST` FLOAT NULL,
+    `Exempted` TINYINT NULL DEFAULT 0,
+    `UnitsOfMeasurement` VARCHAR(10) NULL,
+    `SalesQty` DOUBLE NULL,
+    `SalesAmt` DOUBLE NULL,
+    `LocalSalesQty` DOUBLE NULL,
+    `LocalTaxableValue` DOUBLE NULL,
+    `LocalCGSTValue` DOUBLE NULL,
+    `LocalSGSTValue` DOUBLE NULL,
+    `LocalSalesAmt` DOUBLE NULL,
+    `IGSTSalesQty` DOUBLE NULL,
+    `IGSTTaxableValue` DOUBLE NULL,
+    `IGSTValueTax` DOUBLE NULL,
+    `IGSTSalesAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TaxLedgerDetails` (
+    `TaxLedgerID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `TaxType` VARCHAR(200) NULL,
+    `TaxPercent` FLOAT NULL,
+    `AmountType` VARCHAR(200) NULL,
+    `LedgerName` VARCHAR(200) NULL,
+
+    PRIMARY KEY (`TaxLedgerID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TaxLedgerDetails_B4MH` (
+    `TaxLedgerID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `TaxType` VARCHAR(200) NULL,
+    `TaxPercent` FLOAT NULL,
+    `AmountType` VARCHAR(200) NULL,
+    `LedgerName` VARCHAR(200) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TaxMaster` (
+    `TaxID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `HSNCode` VARCHAR(20) NOT NULL,
+    `CGST` FLOAT NULL,
+    `SGST` FLOAT NULL,
+    `IGST` FLOAT NULL,
+    `Exempted` TINYINT NOT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TaxMaster_b4_PuneOff` (
+    `TaxID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `HSNCode` VARCHAR(20) NOT NULL,
+    `CGST` FLOAT NULL,
+    `SGST` FLOAT NULL,
+    `IGST` FLOAT NULL,
+    `Exempted` TINYINT NOT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TempPaymentsSummary` (
+    `CustomerID` BIGINT UNSIGNED NOT NULL,
+    `InvoiceID` BIGINT NOT NULL,
+    `DeliveryLineID` BIGINT NOT NULL,
+    `Cancel` FLOAT NULL DEFAULT 0,
+    `Return` FLOAT NULL DEFAULT 0,
+    `Discount` FLOAT NULL DEFAULT 0,
+    `Cash` FLOAT NULL,
+    `Debit Card` FLOAT NULL,
+    `Credit Card` FLOAT NULL,
+    `Cheque` FLOAT NULL,
+    `UPI` FLOAT NULL,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`CustomerID`, `InvoiceID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TempPurchase1` (
+    `PurchaseDate` DATE NULL,
+    `VendorID` SMALLINT UNSIGNED NOT NULL,
+    `PurchaseInvoiceNumber` VARCHAR(20) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `ReceivedQty` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `NetTotal` FLOAT NULL,
+    `CategoryName` VARCHAR(50) NOT NULL,
+    `Units` FLOAT NULL,
+    `ProductInvID` MEDIUMINT UNSIGNED NULL,
+    `STOCKQTY` DOUBLE NULL,
+    `Take` INTEGER NOT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TempVendorPaymentsSummary` (
+    `VendorID` MEDIUMINT UNSIGNED NOT NULL,
+    `PurchaseInvoiceID` INTEGER NOT NULL,
+    `Cancel` FLOAT NULL DEFAULT 0,
+    `Return` FLOAT NULL DEFAULT 0,
+    `Discount` FLOAT NULL DEFAULT 0,
+    `CreationDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `Cash` FLOAT NULL,
+    `Debit Card` FLOAT NULL,
+    `Credit Card` FLOAT NULL,
+    `Cheque` FLOAT NULL,
+    `UPI` FLOAT NULL,
+
+    PRIMARY KEY (`VendorID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Temp_OrderItems_pune` (
+    `OrderItemID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `OrderID` INTEGER UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `OrderQty` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `OrderItemStatus` VARCHAR(20) NULL,
+    `Comments` VARCHAR(200) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Temp_OrderItems_pune1` (
+    `OrderItemID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `OrderID` INTEGER UNSIGNED NOT NULL,
+    `ProductID` SMALLINT NOT NULL,
+    `OrderQty` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `OrderItemStatus` VARCHAR(20) NULL,
+    `Comments` VARCHAR(200) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `USERMASTER` (
+    `USERID` INTEGER NOT NULL AUTO_INCREMENT,
+    `USERNAME` VARCHAR(100) NOT NULL,
+    `PASSWORD` VARCHAR(100) NOT NULL,
+    `FULLNAME` VARCHAR(100) NOT NULL,
+    `ROLEID` INTEGER NOT NULL,
+    `EMAILID` VARCHAR(50) NULL,
+    `PHONENO` VARCHAR(20) NULL,
+    `STOREID` INTEGER NULL,
+    `LASTLOGIN` DATETIME(0) NULL,
+    `LASTPASSWORDCHANGED` DATETIME(0) NULL,
+    `LASTUPDATEDATE` DATETIME(0) NULL,
+    `CREATEDBY` INTEGER NULL DEFAULT 0,
+    `ACTIVE` BIT(1) NULL,
+    `USERGUID` CHAR(38) NULL,
+
+    PRIMARY KEY (`USERID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `VENDORACCOUNTHISTORY` (
+    `HISTORYENTRYID` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `PURCHASEACCOUNTID` MEDIUMINT UNSIGNED NOT NULL,
+    `PURCHASEPAYMENTID` INTEGER UNSIGNED NOT NULL,
+    `PURCHASEINVOICEID` MEDIUMINT NOT NULL,
+    `SALEAMOUNT` FLOAT NULL DEFAULT 0,
+    `CANCELAMOUNT` FLOAT NULL DEFAULT 0,
+    `RETURNAMOUNT` FLOAT NULL DEFAULT 0,
+    `DISCOUNTAMOUNT` FLOAT NULL DEFAULT 0,
+    `TOTALTAX` FLOAT NULL DEFAULT 0,
+    `NETSALEAMOUNT` FLOAT NULL DEFAULT 0,
+    `BALANCEAMOUNT` FLOAT NULL DEFAULT 0,
+    `AMOUNTRECEIVED` FLOAT NULL DEFAULT 0,
+    `NEWBALANCEAMOUNT` FLOAT NULL DEFAULT 0,
+    `ENTRYDATE` DATETIME(0) NULL,
+    `LASTUPDATEDDATE` DATETIME(0) NULL,
+
+    INDEX `PURCHASEACCOUNTIDIdx`(`PURCHASEACCOUNTID`),
+    INDEX `PURCHASEPAYMENTIDIdx`(`PURCHASEPAYMENTID`),
+    PRIMARY KEY (`HISTORYENTRYID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `VendorMaster` (
+    `VendorID` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `VendorName` VARCHAR(50) NOT NULL,
+    `Address` VARCHAR(1000) NULL,
+    `PhoneNo` VARCHAR(20) NULL,
+    `GSTIN` VARCHAR(20) NULL,
+    `StateID` SMALLINT UNSIGNED NOT NULL,
+    `Active` TINYINT NOT NULL DEFAULT 1,
+    `AddedDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `LastUpdateDate` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`VendorID`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `VishuSales` (
+    `StockName` VARCHAR(50) NOT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `Date1` DATE NULL,
+    `Sales1` DOUBLE NULL,
+    `SaleAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `VishuSales1` (
+    `StockName` VARCHAR(50) NOT NULL,
+    `DeliveryLineID` SMALLINT NULL,
+    `Date1` DATE NULL,
+    `Sales1` DOUBLE NULL,
+    `SaleAmt` DOUBLE NULL,
+    `LINENAME` VARCHAR(50) NULL,
+    `CategoryName` VARCHAR(50) NOT NULL,
+    `SubCategoryName` VARCHAR(50) NOT NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `josereport` (
+    `EInvoiceID` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceDate` DATE NULL,
+    `NetInvoiceAmount` FLOAT NULL,
+    `NetTotalexmpt` DOUBLE NULL,
+    `NetTotal0` DOUBLE NULL,
+    `CGST25` DOUBLE NULL,
+    `SGST25` DOUBLE NULL,
+    `IGST25` DOUBLE NULL,
+    `NetTotal25Tax` DOUBLE NULL,
+    `NetTotal25` DOUBLE NULL,
+    `CGST6` DOUBLE NULL,
+    `SGST6` DOUBLE NULL,
+    `IGST6` DOUBLE NULL,
+    `NetTotal6Tax` DOUBLE NULL,
+    `NetTotal6` DOUBLE NULL,
+    `CGST9` DOUBLE NULL,
+    `SGST9` DOUBLE NULL,
+    `IGST9` DOUBLE NULL,
+    `NetTotal9Tax` DOUBLE NULL,
+    `NetTotal9` DOUBLE NULL,
+    `AckNo` VARCHAR(50) NULL,
+    `GSTIN` VARCHAR(20) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `josereport1` (
+    `EInvoiceID` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceDate` DATE NULL,
+    `NetInvoiceAmount` FLOAT NULL,
+    `NetTotalexmpt` DOUBLE NULL,
+    `NetTotal0` DOUBLE NULL,
+    `CGST25` DOUBLE NULL,
+    `SGST25` DOUBLE NULL,
+    `IGST25` DOUBLE NULL,
+    `NetTotal25Tax` DOUBLE NULL,
+    `NetTotal25` DOUBLE NULL,
+    `CGST6` DOUBLE NULL,
+    `SGST6` DOUBLE NULL,
+    `IGST6` DOUBLE NULL,
+    `NetTotal6Tax` DOUBLE NULL,
+    `NetTotal6` DOUBLE NULL,
+    `CGST9` DOUBLE NULL,
+    `SGST9` DOUBLE NULL,
+    `IGST9` DOUBLE NULL,
+    `NetTotal9Tax` DOUBLE NULL,
+    `NetTotal9` DOUBLE NULL,
+    `AckNo` VARCHAR(50) NULL,
+    `GSTIN` VARCHAR(20) NULL,
+    `state` VARCHAR(50) NULL,
+    `CITY` VARCHAR(100) NULL,
+    `Exempted` INTEGER NOT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `josereport_DEP` (
+    `EInvoiceID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceDate` DATE NULL,
+    `NetInvoiceAmount` FLOAT NULL,
+    `NetTotalexmpt` DOUBLE NULL,
+    `NetTotal0` DOUBLE NULL,
+    `CGST25` DOUBLE NULL,
+    `SGST25` DOUBLE NULL,
+    `IGST25` DOUBLE NULL,
+    `NetTotal25Tax` DOUBLE NULL,
+    `NetTotal25` DOUBLE NULL,
+    `CGST6` DOUBLE NULL,
+    `SGST6` DOUBLE NULL,
+    `IGST6` DOUBLE NULL,
+    `NetTotal6Tax` DOUBLE NULL,
+    `NetTotal6` DOUBLE NULL,
+    `CGST9` DOUBLE NULL,
+    `SGST9` DOUBLE NULL,
+    `IGST9` DOUBLE NULL,
+    `NetTotal9Tax` DOUBLE NULL,
+    `NetTotal9` DOUBLE NULL,
+    `AckNo` VARCHAR(50) NULL,
+    `GSTIN` VARCHAR(20) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `josereport_Dep1` (
+    `EInvoiceID` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    `EInvoiceNumber` VARCHAR(20) NOT NULL,
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `CustomerID` INTEGER UNSIGNED NOT NULL,
+    `InvoiceDate` DATE NULL,
+    `NetInvoiceAmount` FLOAT NULL,
+    `NetTotalexmpt` DOUBLE NULL,
+    `NetTotal0` DOUBLE NULL,
+    `CGST25` DOUBLE NULL,
+    `SGST25` DOUBLE NULL,
+    `IGST25` DOUBLE NULL,
+    `NetTotal25Tax` DOUBLE NULL,
+    `NetTotal25` DOUBLE NULL,
+    `CGST6` DOUBLE NULL,
+    `SGST6` DOUBLE NULL,
+    `IGST6` DOUBLE NULL,
+    `NetTotal6Tax` DOUBLE NULL,
+    `NetTotal6` DOUBLE NULL,
+    `CGST9` DOUBLE NULL,
+    `SGST9` DOUBLE NULL,
+    `IGST9` DOUBLE NULL,
+    `NetTotal9Tax` DOUBLE NULL,
+    `NetTotal9` DOUBLE NULL,
+    `AckNo` VARCHAR(50) NULL,
+    `GSTIN` VARCHAR(20) NULL,
+    `state` VARCHAR(50) NULL,
+    `CITY` VARCHAR(100) NULL,
+    `Exempted` INTEGER NOT NULL DEFAULT 0
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `ordersall` (
+    `OrderID` INTEGER UNSIGNED NOT NULL,
+    `CUSTOMERNAME` VARCHAR(100) NULL,
+    `ProductName` VARCHAR(50) NULL,
+    `OrderQty` FLOAT NULL,
+    `Price` FLOAT NULL,
+    `NetTotal` DOUBLE NULL,
+    `CategoryName` VARCHAR(50) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `salesnew` (
+    `ProductInvID` INTEGER UNSIGNED NOT NULL DEFAULT 0,
+    `Sales` DOUBLE NULL,
+    `SalesAmt` DOUBLE NULL,
+    `Short` DOUBLE NULL,
+    `ShortAmt` DOUBLE NULL,
+    `SP` DECIMAL(10, 0) NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `temp1` (
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `DATE` DATE NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `temp4_gan` (
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `temp4_hen` (
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `temp4_jal` (
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `temp4_ver` (
+    `CUSTOMERNAME` VARCHAR(100) NOT NULL,
+    `ProductName` VARCHAR(50) NOT NULL,
+    `Purchase` DOUBLE NULL,
+    `PurchaseAmt` DOUBLE NULL
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+

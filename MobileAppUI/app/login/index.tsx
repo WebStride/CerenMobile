@@ -13,8 +13,7 @@ import {
 } from "react-native";
 import { useRouter, } from "expo-router";
 import { images } from "@/constants/images";
-import { app as firebaseApp } from "../firebaseConfig";
-import { getAuth, signInWithPhoneNumber } from "firebase/auth";
+
 import { useAuth } from "../context/AuthContext";
 
 

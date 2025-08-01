@@ -1,0 +1,12 @@
+/*
+  Warnings:
+
+  - You are about to drop the `OTP` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `USERCUSTOMERMASTER` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+-- DropTable
+DROP TABLE `OTP`;
+
+-- DropTable
+DROP TABLE `USERCUSTOMERMASTER`;

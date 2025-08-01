@@ -728,6 +728,24 @@ model ProductCategoryImages {
   LastUpdateDate         DateTime @default(now()) @db.DateTime(0)
 }
 
+model TEMPORARAYUSER {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  phoneNumber String   @unique @db.VarChar(20)
+  address     String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model USERCUSTOMERMASTER {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  phoneNumber String   @unique @db.VarChar(20)
+  address     String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model ProductCategoryMaster {
   CategoryID   Int    @id @default(autoincrement()) @db.UnsignedSmallInt
   CategoryName String @db.VarChar(50)
