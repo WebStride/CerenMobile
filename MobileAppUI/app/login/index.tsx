@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useRouter, } from "expo-router";
 import { images } from "@/constants/images";
+import { register } from "@/services/api";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -36,7 +37,33 @@ const { setConfirmation } = useAuth();
 
 
   const handleSendOTP = async () => {
-    router.push("/login/otp");
+    try {
+      setLoading(true);
+      const fullPhoneNumber = `${countryData.code}${phoneNumber}`; // Add country code
+      const response = await register(fullPhoneNumber, name);
+      if (response.success) {
+        Alert.alert(
+          "Success",
+          "OTP has been sent successfully to your phone number.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.push({
+                pathname: "/login/otp",
+                params: { phoneNumber: fullPhoneNumber, name },
+              }),
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Error", response.message || "Failed to send OTP. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

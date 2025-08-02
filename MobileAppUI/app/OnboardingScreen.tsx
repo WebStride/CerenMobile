@@ -2,8 +2,41 @@ import { View, Text, ImageBackground, Image, TouchableOpacity } from "react-nati
 import { useRouter } from "expo-router";
 import { logos } from "@/constants/logo";
 import { images } from "@/constants/images";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { validateTokens } from "@/services/api";
 export default function OnboardingScreen() {
   const router = useRouter();
+
+
+
+  const handleGetStarted = async () => {
+    console.log("handleGetStarted invoked");
+    try {
+      let accessToken = await AsyncStorage.getItem("accessToken");
+      console.log("Access token retrieved:", accessToken);
+      let refreshToken = await AsyncStorage.getItem("refreshToken");
+      console.log("Refresh token retrieved:", refreshToken);
+      refreshToken = "asdfasdfasdfadsf";
+
+
+      if (accessToken) {
+        console.log("Validating tokens with backend");
+        const isValid = await validateTokens(accessToken, refreshToken);
+        console.log("Token validation result:", isValid);
+        if (isValid) {
+          console.log("Tokens are valid, navigating to shop");
+          router.replace("/(tabs)/shop");
+          return;
+        }
+      }
+      console.log("No valid token found, navigating to login");
+      router.replace("/login");
+    } catch (error) {
+      console.error("Error checking authentication status:", error);
+      console.log("Navigating to login due to error");
+      router.replace("/login"); // Fallback to login on error
+    }
+  };
 
   return (
     <ImageBackground
@@ -32,7 +65,7 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           className="bg-[#BCD042] rounded-lg w-full py-4 mb-2 items-center"
           activeOpacity={0.85}
-          onPress={() => router.replace("/(tabs)/shop")}
+          onPress={handleGetStarted}
         >
           <Text className="text-white text-lg font-bold">Get Started</Text>
         </TouchableOpacity>

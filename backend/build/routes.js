@@ -40,6 +40,7 @@ function routes(app) {
     app.post("/auth/verify", auth_1.verifyPhoneNumber);
     app.post("/auth/refresh", auth_1.refreshToken);
     app.post("/auth/logout", auth_1.logout);
+    app.get('/auth/validate-token', auth_1.validateToken);
     // User routes
     app.post("/user/address", user_1.submitUserAddress);
     // Product routes (all protected with authentication)
