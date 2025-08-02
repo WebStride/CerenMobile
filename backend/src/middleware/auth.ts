@@ -20,6 +20,7 @@ function generateAccessToken(payload: TokenPayload) {
   return jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
 }
 
+
 export function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers['authorization'];
   const accessToken = authHeader && authHeader.split(' ')[1];

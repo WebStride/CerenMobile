@@ -12,6 +12,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const auth_1 = require("./controllers/auth");
 const user_1 = require("./controllers/user");
+const product_1 = require("./controllers/product");
+const auth_2 = require("./middleware/auth");
 const prisma = new client_1.PrismaClient();
 function routes(app) {
     app.get('/healthcheck', (req, res) => res.sendStatus(200));
@@ -40,5 +42,9 @@ function routes(app) {
     app.post("/auth/logout", auth_1.logout);
     // User routes
     app.post("/user/address", user_1.submitUserAddress);
+    // Product routes (all protected with authentication)
+    app.get("/products/exclusive", auth_2.authenticateToken, product_1.getExclusiveProductsList);
+    app.get("/products/best-selling", auth_2.authenticateToken, product_1.getBestSelling);
+    app.get("/products/categories", auth_2.authenticateToken, product_1.getCategoryList);
 }
 exports.default = routes;

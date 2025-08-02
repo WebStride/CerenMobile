@@ -59,6 +59,7 @@ model CUSTOMERMASTER {
   ORDERDAYS         String    @default("1") @db.VarChar(20)
   PINCODE           Int?
   CITY              String?   @db.VarChar(100)
+  USERID            Int? 
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
