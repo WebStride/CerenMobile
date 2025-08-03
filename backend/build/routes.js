@@ -14,6 +14,7 @@ const auth_1 = require("./controllers/auth");
 const user_1 = require("./controllers/user");
 const product_1 = require("./controllers/product");
 const auth_2 = require("./middleware/auth");
+const auth_3 = require("./controllers/auth");
 const prisma = new client_1.PrismaClient();
 function routes(app) {
     app.get('/healthcheck', (req, res) => res.sendStatus(200));
@@ -47,5 +48,7 @@ function routes(app) {
     app.get("/products/exclusive", auth_2.authenticateToken, product_1.getExclusiveProductsList);
     app.get("/products/best-selling", auth_2.authenticateToken, product_1.getBestSelling);
     app.get("/products/categories", auth_2.authenticateToken, product_1.getCategoryList);
+    // Customer routes
+    app.get('/customer/check', auth_2.authenticateToken, auth_3.checkCustomer);
 }
 exports.default = routes;

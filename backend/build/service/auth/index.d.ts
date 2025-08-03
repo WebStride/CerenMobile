@@ -22,4 +22,9 @@ export declare function saveUserAndGenerateTokens(name: string, phoneNumber: str
         refreshToken: string;
     };
 }>;
+export declare function checkCustomerExists(phoneNumber: string): Promise<{
+    success: boolean;
+    exists: boolean;
+    message: string;
+}>;
 export {};

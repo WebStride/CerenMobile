@@ -6,17 +6,21 @@ export async function getCustomerPricingInfo(userId: number) {
     const customer = await prisma.cUSTOMERMASTER.findFirst({
         where: { USERID: userId }
     });
-    
+
     if (!customer) {
-        throw new Error('Customer not found');
+        return {
+            customerPresent: false,
+            customerId: null,
+            priceColumn: null
+        };
     }
 
     const priceGroup = await prisma.pRICEGROUPMASTER.findUnique({
-        where: {  PriceGroupID: customer.PRICEGROUPID || 1 }
+        where: { PriceGroupID: customer.PRICEGROUPID || 1 }
     });
 
-
     return {
+        customerPresent: true,
         customerId: customer.CUSTOMERID,
         priceColumn: priceGroup?.PriceColumn || 'RetailPrice' // Default to RetailPrice if no price group found
     };
@@ -42,7 +46,7 @@ async function getProductImage(productId: number) {
     return imageData?.Url || null;
 }
 
-export async function getExclusiveProducts(customerId: number, priceColumn: string) {
+export async function getExclusiveProducts(customerId: number | null, priceColumn: string | null) {
     const catalogProducts = await prisma.productMaster.findMany({
         where: {
             OfferEnabled: 1,
@@ -53,21 +57,21 @@ export async function getExclusiveProducts(customerId: number, priceColumn: stri
             ProductName: true,
             Units: true,
             UnitsOfMeasurement: true,
-            [priceColumn]: true,
-            CatalogID: true
+            CatalogID: true,
+            ...(priceColumn ? { [priceColumn]: true } : {})
         }
     });
 
     // Fetch images for all products in parallel
     const productsWithImages = await Promise.all(
-        catalogProducts.map(async (product) => {
+        catalogProducts.map(async (product: any) => {
             const imageUrl = await getProductImage(product.ProductID);
             return {
                 productId: product.ProductID,
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: product[priceColumn] || 0,
+                price: priceColumn ? (product[priceColumn] || 0) : "",
                 image: imageUrl
             };
         })
@@ -76,7 +80,7 @@ export async function getExclusiveProducts(customerId: number, priceColumn: stri
     return productsWithImages;
 }
 
-export async function getBestSellingProducts(customerId: number, priceColumn: string, sortOrderLimit: number) {
+export async function getBestSellingProducts(customerId: number | null, priceColumn: string | null, sortOrderLimit: number) {
     const products = await prisma.productMaster.findMany({
         where: {
             Active: 1,
@@ -93,19 +97,20 @@ export async function getBestSellingProducts(customerId: number, priceColumn: st
             ProductName: true,
             Units: true,
             UnitsOfMeasurement: true,
-            [priceColumn]: true
+            ...(priceColumn ? { [priceColumn]: true } : {})
+
         }
     });
 
     const productsWithImages = await Promise.all(
-        products.map(async (product) => {
+        products.map(async (product: any) => {
             const imageUrl = await getProductImage(product.ProductID);
             return {
                 productId: product.ProductID,
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: product[priceColumn] || 0,
+                price: priceColumn ? (product[priceColumn] || 0) : "",
                 image: imageUrl
             };
         })

@@ -16,6 +16,7 @@ exports.sendOTP = sendOTP;
 exports.generateTokens = generateTokens;
 exports.verifyOTP = verifyOTP;
 exports.saveUserAndGenerateTokens = saveUserAndGenerateTokens;
+exports.checkCustomerExists = checkCustomerExists;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -101,5 +102,27 @@ function saveUserAndGenerateTokens(name, phoneNumber) {
             phoneNumber: user.phoneNumber
         });
         return { user, tokens };
+    });
+}
+function checkCustomerExists(phoneNumber) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const customer = yield prisma.cUSTOMERMASTER.findFirst({
+                where: { PHONENO: phoneNumber },
+            });
+            return {
+                success: true,
+                exists: !!customer,
+                message: customer ? 'Customer exists' : 'Customer does not exist'
+            };
+        }
+        catch (error) {
+            console.error('Error in checkCustomerExists service:', error);
+            return {
+                success: false,
+                exists: false,
+                message: 'Error checking customer existence'
+            };
+        }
     });
 }
