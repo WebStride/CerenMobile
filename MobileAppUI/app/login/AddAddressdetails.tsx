@@ -304,7 +304,8 @@ export default function AddAddressDetailsScreen() {
                 marginBottom: 24,
               }}
               onPress={() => {
-                // Save the address and go back or navigate as needed
+                // Save the address and navigate to tabs
+                router.replace("/(tabs)/shop");
               }}
               accessibilityLabel="Save Address"
               activeOpacity={0.85}
