@@ -11,9 +11,12 @@ import {
   TextInput,
   Linking,
   ScrollView,
+  Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { sendAddressDetails } from "@/services/api";
 
 const SAVE_AS_OPTIONS = [
   {
@@ -40,6 +43,50 @@ export default function AddAddressDetailsScreen() {
   const [buildingBlock, setBuildingBlock] = useState("");
   const [pinCode, setPinCode] = useState("");
   const [landmark, setLandmark] = useState("");
+  const params = useLocalSearchParams(); // Retrieve route parameters
+  const { phoneNumber, name } = params; // Destructure phoneNumber and name
+  const handleSaveAddress = async () => {
+    try {
+
+      if (!phoneNumber || !name) {
+        Alert.alert("Error", "Phone number or name is missing. Please log in again.");
+        return;
+      }
+
+      const payload = {
+        name,
+        phoneNumber,
+        city: params.city as string, // Ensure city is a string
+        district: params.district as string, // Ensure district is a string
+        houseNumber,
+        buildingBlock,
+        pinCode,
+        landmark,
+      };
+
+      console.log("Sending address details:", payload);
+
+      const response = await sendAddressDetails(payload);
+
+      if (response.success) {
+        Alert.alert(
+          "Success",
+          response.message || "User details sent to admin for verification.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.replace("/(tabs)/shop"),
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Error", response.message || "Failed to send details. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error saving address details:", error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -303,10 +350,7 @@ export default function AddAddressDetailsScreen() {
                 justifyContent: "center",
                 marginBottom: 24,
               }}
-              onPress={() => {
-                // Save the address and navigate to tabs
-                router.replace("/(tabs)/shop");
-              }}
+              onPress={handleSaveAddress}
               accessibilityLabel="Save Address"
               activeOpacity={0.85}
             >

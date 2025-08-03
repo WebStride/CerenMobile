@@ -15,6 +15,8 @@ import { useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import { useLocalSearchParams,  } from "expo-router";
 import { useAuth } from "../context/AuthContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { verify } from "@/services/api";
 
 
 export default function VerificationScreen() {
@@ -29,8 +31,40 @@ export default function VerificationScreen() {
   const isButtonDisabled = code.length < 4;
 
     const handleVerifyOTP = async () => {
-      router.push("/login/SelectLocation");
-  };
+      try {
+        setLoading(true);
+        const fullPhoneNumber = params.phoneNumber as string; // Ensure phoneNumber is a string
+        const name = params.name as string; // Ensure name is a string
+        console.log("Verifying OTP for:", fullPhoneNumber, "with code:", code, "and name:", name);
+        const response = await verify(fullPhoneNumber, code, name);
+        console.log("Verification response:", response);
+        if (response.success) {
+          console.log("Verification successful:", response);
+          if (response.accessToken) {
+            await AsyncStorage.setItem("accessToken", response.accessToken);
+          } else {
+            console.warn("accessToken is undefined");
+          }
+
+          if (response.refreshToken) {
+            await AsyncStorage.setItem("refreshToken", response.refreshToken);
+          } else {
+            console.warn("refreshToken is undefined");
+          }
+          router.push({
+                pathname: "/login/SelectLocation",
+                params: { phoneNumber: fullPhoneNumber, name },
+              })
+        } else {
+          Alert.alert("Error", response.message || "Failed to verify OTP. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error verifying OTP:", error);
+        Alert.alert("Error", "An unexpected error occurred. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
   return (
     <KeyboardAvoidingView
@@ -104,7 +138,7 @@ export default function VerificationScreen() {
                   placeholder="- - - -"
                   placeholderTextColor="#8F959E"
                   keyboardType="number-pad"
-                  maxLength={4}
+                  maxLength={6}
                   value={code}
                   onChangeText={setCode}
                   returnKeyType="done"

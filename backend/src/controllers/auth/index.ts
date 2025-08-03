@@ -90,3 +90,5 @@ export async function logout(req: Request, res: Response) {
     });
 }
 
+export { validateToken } from './validateToken';
+

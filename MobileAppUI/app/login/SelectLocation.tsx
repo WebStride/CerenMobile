@@ -12,7 +12,7 @@ import {
   FlatList,
   Pressable,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { images } from "@/constants/images";
 
 const cityOptions = [
@@ -34,6 +34,9 @@ export default function SelectRegionScreen() {
   const [district, setDistrict] = useState("");
   const [cityDropdownVisible, setCityDropdownVisible] = useState(false);
   const [districtDropdownVisible, setDistrictDropdownVisible] = useState(false);
+    const params = useLocalSearchParams(); // Retrieve route parameters
+
+  const {name, phoneNumber} = params; // Assuming params are passed correctly
 
   const districts = cityDistricts[city] || [];
 
@@ -283,8 +286,11 @@ export default function SelectRegionScreen() {
             <TouchableOpacity
               className="h-12 rounded-xl bg-[#BCD042] items-center justify-center"
               onPress={() => {
-                router.push("/login/AddAddressdetails")
-                }}
+                router.push({
+                  pathname: "/login/AddAddressdetails",
+                  params: { city, district, name, phoneNumber },
+                });
+              }}
               accessibilityLabel="Add Address"
             >
               <Text

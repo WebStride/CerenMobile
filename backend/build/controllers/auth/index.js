@@ -12,6 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.validateToken = void 0;
 exports.register = register;
 exports.verifyPhoneNumber = verifyPhoneNumber;
 exports.refreshToken = refreshToken;
@@ -97,3 +98,5 @@ function logout(req, res) {
         });
     });
 }
+var validateToken_1 = require("./validateToken");
+Object.defineProperty(exports, "validateToken", { enumerable: true, get: function () { return validateToken_1.validateToken; } });
