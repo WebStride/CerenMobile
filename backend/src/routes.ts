@@ -8,7 +8,7 @@ import {
     getCategoryList
 } from "./controllers/product";
 import { authenticateToken } from "./middleware/auth";
-
+import { checkCustomer } from "./controllers/auth";
 const prisma = new PrismaClient();
 
 function routes(app: Express) {
@@ -49,6 +49,9 @@ function routes(app: Express) {
     app.get("/products/exclusive", authenticateToken, getExclusiveProductsList);
     app.get("/products/best-selling", authenticateToken, getBestSelling);
     app.get("/products/categories", authenticateToken, getCategoryList);
+
+    // Customer routes
+    app.get('/customer/check', authenticateToken, checkCustomer);
 }
 
 

@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import jwt from 'jsonwebtoken';
 import { sendOTP, verifyOTP, saveUserAndGenerateTokens, generateTokens } from "../../service/auth";
-
+import { RequestWithUser } from '../../types/express';
+import {checkCustomerExists} from "../../service/auth"
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
 
 
@@ -92,3 +93,36 @@ export async function logout(req: Request, res: Response) {
 
 export { validateToken } from './validateToken';
 
+export async function checkCustomer(req: RequestWithUser, res: Response) {
+    try {
+        const tokenPayload = req.user;
+
+        if (!tokenPayload || !tokenPayload.phoneNumber) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Phone number not found in token' 
+            });
+        }
+
+        const result = await checkCustomerExists(tokenPayload.phoneNumber);
+
+        if (!result.success) {
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Internal server error' 
+            });
+        }
+
+        return res.status(200).json({ 
+            success: result.exists,  // true if customer exists, false if not
+            message: result.message,
+            exists: result.exists
+        });
+    } catch (error) {
+        console.error('Error in checkCustomer controller:', error);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error' 
+        });
+    }
+}

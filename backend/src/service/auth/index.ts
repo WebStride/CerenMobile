@@ -91,8 +91,30 @@ export async function saveUserAndGenerateTokens(name: string, phoneNumber: strin
     // Generate tokens
     const tokens = generateTokens({ 
         userId: user.id, 
-        phoneNumber: user.phoneNumber 
+        phoneNumber: user.phoneNumber
     });
 
     return { user, tokens };
+}
+
+
+export async function checkCustomerExists(phoneNumber: string) {
+    try {
+        const customer = await prisma.cUSTOMERMASTER.findFirst({
+            where: { PHONENO: phoneNumber },
+        });
+
+        return {
+            success: true,
+            exists: !!customer,
+            message: customer ? 'Customer exists' : 'Customer does not exist'
+        };
+    } catch (error) {
+        console.error('Error in checkCustomerExists service:', error);
+        return {
+            success: false,
+            exists: false,
+            message: 'Error checking customer existence'
+        };
+    }
 }

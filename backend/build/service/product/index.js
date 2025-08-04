@@ -21,12 +21,17 @@ function getCustomerPricingInfo(userId) {
             where: { USERID: userId }
         });
         if (!customer) {
-            throw new Error('Customer not found');
+            return {
+                customerPresent: false,
+                customerId: null,
+                priceColumn: null
+            };
         }
         const priceGroup = yield prisma.pRICEGROUPMASTER.findUnique({
             where: { PriceGroupID: customer.PRICEGROUPID || 1 }
         });
         return {
+            customerPresent: true,
             customerId: customer.CUSTOMERID,
             priceColumn: (priceGroup === null || priceGroup === void 0 ? void 0 : priceGroup.PriceColumn) || 'RetailPrice' // Default to RetailPrice if no price group found
         };
@@ -58,14 +63,7 @@ function getExclusiveProducts(customerId, priceColumn) {
                 OfferEnabled: 1,
                 CatalogDefault: 1
             },
-            select: {
-                ProductID: true,
-                ProductName: true,
-                Units: true,
-                UnitsOfMeasurement: true,
-                [priceColumn]: true,
-                CatalogID: true
-            }
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -75,7 +73,7 @@ function getExclusiveProducts(customerId, priceColumn) {
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: product[priceColumn] || 0,
+                price: priceColumn ? (product[priceColumn] || 0) : "",
                 image: imageUrl
             };
         })));
@@ -95,13 +93,7 @@ function getBestSellingProducts(customerId, priceColumn, sortOrderLimit) {
             orderBy: {
                 SortOrder: 'asc'
             },
-            select: {
-                ProductID: true,
-                ProductName: true,
-                Units: true,
-                UnitsOfMeasurement: true,
-                [priceColumn]: true
-            }
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true }, (priceColumn ? { [priceColumn]: true } : {}))
         });
         const productsWithImages = yield Promise.all(products.map((product) => __awaiter(this, void 0, void 0, function* () {
             const imageUrl = yield getProductImage(product.ProductID);
@@ -110,7 +102,7 @@ function getBestSellingProducts(customerId, priceColumn, sortOrderLimit) {
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: product[priceColumn] || 0,
+                price: priceColumn ? (product[priceColumn] || 0) : "",
                 image: imageUrl
             };
         })));

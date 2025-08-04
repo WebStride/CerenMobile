@@ -17,8 +17,10 @@ exports.register = register;
 exports.verifyPhoneNumber = verifyPhoneNumber;
 exports.refreshToken = refreshToken;
 exports.logout = logout;
+exports.checkCustomer = checkCustomer;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const auth_1 = require("../../service/auth");
+const auth_2 = require("../../service/auth");
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
 function register(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -100,3 +102,35 @@ function logout(req, res) {
 }
 var validateToken_1 = require("./validateToken");
 Object.defineProperty(exports, "validateToken", { enumerable: true, get: function () { return validateToken_1.validateToken; } });
+function checkCustomer(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const tokenPayload = req.user;
+            if (!tokenPayload || !tokenPayload.phoneNumber) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Phone number not found in token'
+                });
+            }
+            const result = yield (0, auth_2.checkCustomerExists)(tokenPayload.phoneNumber);
+            if (!result.success) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Internal server error'
+                });
+            }
+            return res.status(200).json({
+                success: result.exists, // true if customer exists, false if not
+                message: result.message,
+                exists: result.exists
+            });
+        }
+        catch (error) {
+            console.error('Error in checkCustomer controller:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Internal server error'
+            });
+        }
+    });
+}

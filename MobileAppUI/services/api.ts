@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 interface ValidateTokenResponse {
   isValid: boolean;
   user?: {
@@ -8,7 +10,18 @@ interface ValidateTokenResponse {
   error?: string;
   code?: string;
 }
+
 const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+
+// Helper functions to get tokens
+const getAccessToken = async () => {
+  const token = await AsyncStorage.getItem('accessToken');
+  return token ? `Bearer ${token}` : '';
+};
+
+const getRefreshToken = async () => {
+  return await AsyncStorage.getItem('refreshToken') || '';
+};
 if (!apiUrl) {
   throw new Error('API_URL is not defined in the environment variables');
 }
@@ -112,3 +125,101 @@ export const sendAddressDetails = async (payload: {
     return { success: false, message: 'An unexpected error occurred' };
   }
 };
+
+export const getExclusiveOffers = async () => {
+  try {
+    console.log("Fetching exclusive offers...");
+    const response = await fetch(`${apiUrl}/products/exclusive`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    console.log("Response status:", response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching exclusive offers:", errorData);
+      return { success: false, products: [], message: errorData.message };
+    }
+
+    const data = await response.json();
+    console.log("Exclusive offers fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching exclusive offers:", error);
+    return { success: false, products: [] };
+  }
+};
+
+export const getBestSelling = async (limit: number = 50) => {
+  try {
+    console.log("Fetching best selling products with limit:", limit);
+    const response = await fetch(`${apiUrl}/products/best-selling?limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    console.log("Response status:", response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching best selling products:", errorData);
+      return { success: false, products: [], message: errorData.message };
+    }
+
+    const data = await response.json();
+    console.log("Best selling products fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching best selling products:", error);
+    return { success: false, products: [] };
+  }
+};
+
+export const getCategories = async () => {
+  try {
+    console.log("Fetching categories...");
+    const response = await fetch(`${apiUrl}/products/categories`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    console.log("Response status:", response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching categories:", errorData);
+      return { success: false, categories: [], message: errorData.message };
+    }
+
+    const data = await response.json();
+    console.log("Categories fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return { success: false, categories: [] };
+  }
+};
+
+export async function checkCustomerExists() {
+  const response = await fetch(`${apiUrl}/customer/check`, {
+    method: "GET",
+    headers: {
+      'Authorization': await getAccessToken(),
+      'x-refresh-token': await getRefreshToken(),
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Error checking customer existence:", response.statusText);
+    return { success: false, exists: false, message: "Failed to check customer existence" };
+  }
+
+  return response.json();
+}
