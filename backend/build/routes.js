@@ -48,6 +48,8 @@ function routes(app) {
     app.get("/products/exclusive", auth_2.authenticateToken, product_1.getExclusiveProductsList);
     app.get("/products/best-selling", auth_2.authenticateToken, product_1.getBestSelling);
     app.get("/products/categories", auth_2.authenticateToken, product_1.getCategoryList);
+    app.get("/products/newProducts", auth_2.authenticateToken, product_1.newProductsList);
+    app.get("/products/buyAgain", auth_2.authenticateToken, product_1.buyAgainProductsList);
     // Customer routes
     app.get('/customer/check', auth_2.authenticateToken, auth_3.checkCustomer);
 }

@@ -15,6 +15,22 @@ export declare function getExclusiveProducts(customerId: number | null, priceCol
     price: any;
     image: string | null;
 }[]>;
+export declare function getCustomerPreferredProducts(customerId: number | null, priceColumn: string | null): Promise<{
+    productId: any;
+    productName: any;
+    productUnits: any;
+    unitsOfMeasurement: any;
+    price: any;
+    image: string | null;
+}[]>;
+export declare function getNewProducts(customerId: number | null, priceColumn: string | null): Promise<{
+    productId: any;
+    productName: any;
+    productUnits: any;
+    unitsOfMeasurement: any;
+    price: any;
+    image: string | null;
+}[]>;
 export declare function getBestSellingProducts(customerId: number | null, priceColumn: string | null, sortOrderLimit: number): Promise<{
     productId: any;
     productName: any;

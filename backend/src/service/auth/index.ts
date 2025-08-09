@@ -36,6 +36,7 @@ export async function sendOTP(phoneNumber: string) {
   if (!verifyServiceSid) {
     throw new Error('TWILIO_VERIFY_SERVICE_SID is not defined in environment variables');
   }
+ 
   try {
     const verification = await client.verify.v2.services(verifyServiceSid)
       .verifications

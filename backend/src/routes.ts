@@ -2,10 +2,12 @@ import { Express, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
 import { register, verifyPhoneNumber, refreshToken, logout, validateToken } from "./controllers/auth";
 import { submitUserAddress } from "./controllers/user";
-import { 
+import {
     getExclusiveProductsList,
     getBestSelling,
-    getCategoryList
+    getCategoryList,
+    newProductsList,
+    buyAgainProductsList
 } from "./controllers/product";
 import { authenticateToken } from "./middleware/auth";
 import { checkCustomer } from "./controllers/auth";
@@ -49,6 +51,10 @@ function routes(app: Express) {
     app.get("/products/exclusive", authenticateToken, getExclusiveProductsList);
     app.get("/products/best-selling", authenticateToken, getBestSelling);
     app.get("/products/categories", authenticateToken, getCategoryList);
+    app.get("/products/newProducts", authenticateToken, newProductsList);
+    app.get("/products/buyAgain", authenticateToken, buyAgainProductsList);
+
+
 
     // Customer routes
     app.get('/customer/check', authenticateToken, checkCustomer);

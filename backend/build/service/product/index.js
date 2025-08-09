@@ -11,6 +11,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCustomerPricingInfo = getCustomerPricingInfo;
 exports.getExclusiveProducts = getExclusiveProducts;
+exports.getCustomerPreferredProducts = getCustomerPreferredProducts;
+exports.getNewProducts = getNewProducts;
 exports.getBestSellingProducts = getBestSellingProducts;
 exports.getCategories = getCategories;
 const client_1 = require("@prisma/client");
@@ -61,6 +63,65 @@ function getExclusiveProducts(customerId, priceColumn) {
         const catalogProducts = yield prisma.productMaster.findMany({
             where: {
                 OfferEnabled: 1,
+                CatalogDefault: 1
+            },
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
+        });
+        // Fetch images for all products in parallel
+        const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
+            const imageUrl = yield getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                image: imageUrl
+            };
+        })));
+        return productsWithImages;
+    });
+}
+function getCustomerPreferredProducts(customerId, priceColumn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!customerId) {
+            return [];
+        }
+        // Fetch product preferences for the customer, sorted by SortID
+        const customerPreferences = yield prisma.customerProductPreferenceMaster.findMany({
+            where: { CustomerID: customerId },
+            orderBy: { SortID: 'asc' },
+            select: { ProductID: true }
+        });
+        const productIds = customerPreferences.map((preference) => preference.ProductID);
+        // Fetch product details for the preferred products
+        const catalogProducts = yield prisma.productMaster.findMany({
+            where: {
+                ProductID: { in: productIds }, // Filter by preferred product IDs
+                CatalogDefault: 1
+            },
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
+        });
+        // Fetch images for all products in parallel
+        const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
+            const imageUrl = yield getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                image: imageUrl
+            };
+        })));
+        return productsWithImages;
+    });
+}
+function getNewProducts(customerId, priceColumn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const catalogProducts = yield prisma.productMaster.findMany({
+            where: {
+                IsNewProduct: 1,
                 CatalogDefault: 1
             },
             select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))

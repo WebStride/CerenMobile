@@ -4,7 +4,9 @@ import {
     getCustomerPricingInfo,
     getExclusiveProducts,
     getBestSellingProducts,
-    getCategories
+    getCategories,
+    getNewProducts,
+    getCustomerPreferredProducts
 } from '../../service/product';
 
 export async function getExclusiveProductsList(req: AuthRequest, res: Response) {
@@ -15,6 +17,51 @@ export async function getExclusiveProductsList(req: AuthRequest, res: Response) 
 
         const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
         const products = await getExclusiveProducts(customerId, priceColumn);
+
+        res.json({
+            success: true,
+            products
+        });
+    } catch (error: any) {
+        console.error('Error fetching exclusive products:', error);
+        res.status(500).json({
+            error: 'Failed to fetch exclusive products',
+            details: error.message
+        });
+    }
+}
+
+
+export async function newProductsList(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
+        const products = await getNewProducts(customerId, priceColumn);
+
+        res.json({
+            success: true,
+            products
+        });
+    } catch (error: any) {
+        console.error('Error fetching exclusive products:', error);
+        res.status(500).json({
+            error: 'Failed to fetch exclusive products',
+            details: error.message
+        });
+    }
+}
+
+export async function buyAgainProductsList(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
+        const products = await getCustomerPreferredProducts(customerId, priceColumn);
 
         res.json({
             success: true,

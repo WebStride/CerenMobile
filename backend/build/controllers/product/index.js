@@ -10,6 +10,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getExclusiveProductsList = getExclusiveProductsList;
+exports.newProductsList = newProductsList;
+exports.buyAgainProductsList = buyAgainProductsList;
 exports.getBestSelling = getBestSelling;
 exports.getCategoryList = getCategoryList;
 const product_1 = require("../../service/product");
@@ -22,6 +24,52 @@ function getExclusiveProductsList(req, res) {
             }
             const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
             const products = yield (0, product_1.getExclusiveProducts)(customerId, priceColumn);
+            res.json({
+                success: true,
+                products
+            });
+        }
+        catch (error) {
+            console.error('Error fetching exclusive products:', error);
+            res.status(500).json({
+                error: 'Failed to fetch exclusive products',
+                details: error.message
+            });
+        }
+    });
+}
+function newProductsList(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const products = yield (0, product_1.getNewProducts)(customerId, priceColumn);
+            res.json({
+                success: true,
+                products
+            });
+        }
+        catch (error) {
+            console.error('Error fetching exclusive products:', error);
+            res.status(500).json({
+                error: 'Failed to fetch exclusive products',
+                details: error.message
+            });
+        }
+    });
+}
+function buyAgainProductsList(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const products = yield (0, product_1.getCustomerPreferredProducts)(customerId, priceColumn);
             res.json({
                 success: true,
                 products

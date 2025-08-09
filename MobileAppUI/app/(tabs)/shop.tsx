@@ -3,7 +3,7 @@ import { View, Text, TextInput, Image, ScrollView, TouchableOpacity, FlatList, A
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { getExclusiveOffers, getBestSelling, getCategories, checkCustomerExists } from "@/services/api";
+import { getExclusiveOffers, getBestSelling, getCategories, checkCustomerExists, getNewProducts, getBuyAgainProducts } from "@/services/api";
 
 // Types
 interface Product {
@@ -25,8 +25,10 @@ const defaultImage = require("../../assets/images/Banana.png");
 
 // Product Card Component
 const ProductCard = ({ item, onAdd, isCustomerExists }: { item: Product, onAdd: () => void, isCustomerExists: boolean }) => (
-  <View className="bg-white rounded-xl p-3 items-center mr-4 w-36 border border-gray-100">
-    <Image source={item.image || defaultImage} className="w-20 h-20 mb-2" resizeMode="contain" />
+  <View className="bg-white rounded-xl p-3 mr-4 w-36 border border-gray-100">
+    <View className="flex-1 items-center mb-2">
+      <Image source={item.image || defaultImage} className="w-20 h-20 mb-2" resizeMode="contain" />
+    </View>
     <Text className="text-base font-semibold text-gray-900" numberOfLines={1} ellipsizeMode="tail">
       {item.productName}
     </Text>
@@ -34,8 +36,8 @@ const ProductCard = ({ item, onAdd, isCustomerExists }: { item: Product, onAdd: 
       {item.productUnits} {item.unitsOfMeasurement}
     </Text>
     <View className="flex-row items-center justify-between w-full">
-      { !isCustomerExists ? (
-        <Text className="font-bold text-base text-red-500">Prices after verification</Text>
+      {!isCustomerExists ? (
+        <Text className="font-bold text-base text-red-500"></Text>
       ) : (
         <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
       )}
@@ -75,6 +77,9 @@ const HomeScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
+  const [newProducts, setNewProducts] = useState<Product[]>([]);
+  const [buyAgainProducts, setBuyAgainProducts] = useState<Product[]>([]);
+
 
   useEffect(() => {
     const checkCustomer = async () => {
@@ -107,15 +112,19 @@ const HomeScreen = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [exclusiveRes, bestSellingRes, categoriesRes] = await Promise.all([
+      const [exclusiveRes, bestSellingRes, categoriesRes, newProductsRes, buyAgainProductsRes] = await Promise.all([
         getExclusiveOffers(),
         getBestSelling(50),
-        getCategories()
+        getCategories(),
+        getNewProducts(),
+        getBuyAgainProducts()
       ]);
 
       if (exclusiveRes.success) setExclusiveOffers(exclusiveRes.products);
       if (bestSellingRes.success) setBestSelling(bestSellingRes.products);
       if (categoriesRes.success) setCategories(categoriesRes.categories);
+      if (newProductsRes.success) setNewProducts(newProductsRes.products);
+      if (buyAgainProductsRes.success) setBuyAgainProducts(buyAgainProductsRes.products);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -179,7 +188,7 @@ const HomeScreen = () => {
                           AsyncStorage.removeItem("accessToken"),
                           AsyncStorage.removeItem("refreshToken")
                         ]);
-                        
+
                         // Redirect to Onboarding screen
                         router.replace("/OnboardingScreen");
                       } catch (error) {
@@ -249,6 +258,11 @@ const HomeScreen = () => {
                 )}
               />
 
+
+
+
+
+
               {/* Best Selling */}
               <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
                 <Text className="text-lg font-bold text-gray-900">Best Selling</Text>
@@ -286,6 +300,45 @@ const HomeScreen = () => {
                   <Text className="text-center text-gray-500 mx-4">No categories available</Text>
                 )}
               />
+
+              {/* New Products */}
+              <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
+                <Text className="text-lg font-bold text-gray-900">New Products</Text>
+                <TouchableOpacity onPress={handleSeeAllPress}>
+                  <Text className="text-green-700 font-medium text-base">See all</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={newProducts}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.productId.toString()}
+                renderItem={({ item }) => <ProductCard item={item} onAdd={handleAddProduct} isCustomerExists={isCustomerExists} />}
+                contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
+                ListEmptyComponent={() => (
+                  <Text className="text-center text-gray-500 mx-4">No new products available</Text>
+                )}
+              />
+
+              {/* Buy Again Products */}
+              <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
+                <Text className="text-lg font-bold text-gray-900">Buy Again Products</Text>
+                <TouchableOpacity onPress={handleSeeAllPress}>
+                  <Text className="text-green-700 font-medium text-base">See all</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={buyAgainProducts}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.productId.toString()}
+                renderItem={({ item }) => <ProductCard item={item} onAdd={handleAddProduct} isCustomerExists={isCustomerExists} />}
+                contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
+                ListEmptyComponent={() => (
+                  <Text className="text-center text-gray-500 mx-4">No buy again products available</Text>
+                )}
+              />
+
             </>
           )}
         </ScrollView>

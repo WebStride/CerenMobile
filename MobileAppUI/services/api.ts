@@ -153,6 +153,65 @@ export const getExclusiveOffers = async () => {
   }
 };
 
+
+
+export const getNewProducts = async () => {
+  try {
+    console.log("Fetching new products...");
+    const response = await fetch(`${apiUrl}/products/newProducts`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    console.log("Response status:", response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching  new products:", errorData);
+      return { success: false, products: [], message: errorData.message };
+    }
+
+    const data = await response.json();
+    console.log("New products fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching new products:", error);
+    return { success: false, products: [] };
+  }
+};
+
+
+export const getBuyAgainProducts = async () => {
+  try {
+    console.log("Fetching buy again products...");
+    const response = await fetch(`${apiUrl}/products/buyAgain`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    console.log("Response status:", response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching buy again products:", errorData);
+      return { success: false, products: [], message: errorData.message };
+    }
+
+    const data = await response.json();
+    console.log("Buy again products fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching buy again products:", error);
+    return { success: false, products: [] };
+  }
+};
+
+
+
 export const getBestSelling = async (limit: number = 50) => {
   try {
     console.log("Fetching best selling products with limit:", limit);
