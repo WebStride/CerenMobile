@@ -23,6 +23,14 @@ export declare function getCustomerPreferredProducts(customerId: number | null, 
     price: any;
     image: string | null;
 }[]>;
+export declare function getAllProducts(customerId: number | null, priceColumn: string | null): Promise<{
+    productId: any;
+    productName: any;
+    productUnits: any;
+    unitsOfMeasurement: any;
+    price: any;
+    image: string | null;
+}[]>;
 export declare function getNewProducts(customerId: number | null, priceColumn: string | null): Promise<{
     productId: any;
     productName: any;
@@ -43,4 +51,19 @@ export declare function getCategories(): Promise<{
     categoryId: number;
     categoryName: string;
     categoryImage: string | null | undefined;
+}[]>;
+export declare function getSubCategoriesByCategoryId(categoryId: number): Promise<{
+    subCategoryId: number;
+    subCategoryName: string;
+    description: string;
+    subCategoryImage: string | null;
+}[]>;
+export declare function getProductsBySubCategory(subCategoryId: number, priceColumn: string | null): Promise<{
+    productId: any;
+    productName: any;
+    productUnits: any;
+    unitsOfMeasurement: any;
+    price: any;
+    catalogId: any;
+    image: string | null;
 }[]>;

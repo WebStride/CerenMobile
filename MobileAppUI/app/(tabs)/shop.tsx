@@ -203,7 +203,7 @@ const HomeScreen = () => {
               <Image source={require("../../assets/images/AccountProfile.png")} className="w-8 h-8 rounded-full bg-gray-200" />
             </TouchableOpacity>
           </View>
-
+          
           {/* Search Box */}
           <View className="flex-row items-center bg-gray-100 rounded-xl mx-4 mt-4 px-3 h-12">
             <Ionicons name="search" size={20} color="#888" />

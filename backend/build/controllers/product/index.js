@@ -11,9 +11,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getExclusiveProductsList = getExclusiveProductsList;
 exports.newProductsList = newProductsList;
+exports.allProductsList = allProductsList;
 exports.buyAgainProductsList = buyAgainProductsList;
 exports.getBestSelling = getBestSelling;
 exports.getCategoryList = getCategoryList;
+exports.getSubCategories = getSubCategories;
+exports.productsBySubCategory = productsBySubCategory;
 const product_1 = require("../../service/product");
 function getExclusiveProductsList(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -47,6 +50,29 @@ function newProductsList(req, res) {
             }
             const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
             const products = yield (0, product_1.getNewProducts)(customerId, priceColumn);
+            res.json({
+                success: true,
+                products
+            });
+        }
+        catch (error) {
+            console.error('Error fetching exclusive products:', error);
+            res.status(500).json({
+                error: 'Failed to fetch exclusive products',
+                details: error.message
+            });
+        }
+    });
+}
+function allProductsList(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const products = yield (0, product_1.getAllProducts)(customerId, priceColumn);
             res.json({
                 success: true,
                 products
@@ -126,6 +152,55 @@ function getCategoryList(req, res) {
             res.status(500).json({
                 error: 'Failed to fetch categories',
                 details: error.message
+            });
+        }
+    });
+}
+function getSubCategories(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const categoryId = parseInt(req.params.categoryId);
+            if (isNaN(categoryId)) {
+                return res.status(400).json({ error: 'Invalid categoryId' });
+            }
+            const subCategories = yield (0, product_1.getSubCategoriesByCategoryId)(categoryId);
+            res.json({
+                success: true,
+                subCategories
+            });
+        }
+        catch (error) {
+            console.error('Error fetching subcategories:', error);
+            res.status(500).json({
+                error: 'Failed to fetch subcategories',
+                details: error.message
+            });
+        }
+    });
+}
+function productsBySubCategory(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const subCategoryId = parseInt(req.params.subCategoryId);
+            if (isNaN(subCategoryId)) {
+                return res.status(400).json({ error: 'Invalid subCategoryId' });
+            }
+            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const products = yield (0, product_1.getProductsBySubCategory)(subCategoryId, priceColumn);
+            res.json({
+                success: true,
+                products,
+            });
+        }
+        catch (error) {
+            console.error('Error fetching products by subcategory:', error);
+            res.status(500).json({
+                error: 'Failed to fetch products by subcategory',
+                details: error.message,
             });
         }
     });
