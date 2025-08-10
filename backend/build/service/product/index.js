@@ -12,9 +12,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCustomerPricingInfo = getCustomerPricingInfo;
 exports.getExclusiveProducts = getExclusiveProducts;
 exports.getCustomerPreferredProducts = getCustomerPreferredProducts;
+exports.getAllProducts = getAllProducts;
 exports.getNewProducts = getNewProducts;
 exports.getBestSellingProducts = getBestSellingProducts;
 exports.getCategories = getCategories;
+exports.getSubCategoriesByCategoryId = getSubCategoriesByCategoryId;
+exports.getProductsBySubCategory = getProductsBySubCategory;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 function getCustomerPricingInfo(userId) {
@@ -98,6 +101,29 @@ function getCustomerPreferredProducts(customerId, priceColumn) {
         const catalogProducts = yield prisma.productMaster.findMany({
             where: {
                 ProductID: { in: productIds }, // Filter by preferred product IDs
+                CatalogDefault: 1
+            },
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
+        });
+        // Fetch images for all products in parallel
+        const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
+            const imageUrl = yield getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                image: imageUrl
+            };
+        })));
+        return productsWithImages;
+    });
+}
+function getAllProducts(customerId, priceColumn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const catalogProducts = yield prisma.productMaster.findMany({
+            where: {
                 CatalogDefault: 1
             },
             select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
@@ -205,5 +231,68 @@ function getCategories() {
             };
         })));
         return categoriesWithImages;
+    });
+}
+// ...existing code...
+function getSubCategoriesByCategoryId(categoryId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Fetch subcategories for the given categoryId
+        const subCategories = yield prisma.productSubCategoryMaster.findMany({
+            where: {
+                CategoryID: categoryId,
+                Active: 1
+            },
+            select: {
+                SubCategoryID: true,
+                SubCategoryName: true,
+                Description: true
+            }
+        });
+        // Fetch images for all subcategories in parallel
+        const subCategoriesWithImages = yield Promise.all(subCategories.map((subCategory) => __awaiter(this, void 0, void 0, function* () {
+            const subCategoryImage = yield prisma.productSubCategoryImages.findFirst({
+                where: { SubCategoryID: subCategory.SubCategoryID },
+                select: { ImageID: true }
+            });
+            let imageUrl = null;
+            if (subCategoryImage) {
+                const imageData = yield prisma.imageMaster.findUnique({
+                    where: { ImageID: subCategoryImage.ImageID },
+                    select: { Url: true }
+                });
+                imageUrl = (imageData === null || imageData === void 0 ? void 0 : imageData.Url) || null;
+            }
+            return {
+                subCategoryId: subCategory.SubCategoryID,
+                subCategoryName: subCategory.SubCategoryName,
+                description: subCategory.Description,
+                subCategoryImage: imageUrl
+            };
+        })));
+        return subCategoriesWithImages;
+    });
+}
+function getProductsBySubCategory(subCategoryId, priceColumn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const catalogProducts = yield prisma.productMaster.findMany({
+            where: {
+                CatalogDefault: 1,
+                SubCategoryID: subCategoryId,
+            },
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {})),
+        });
+        const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
+            const imageUrl = yield getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? product[priceColumn] || 0 : '',
+                catalogId: product.CatalogID,
+                image: imageUrl,
+            };
+        })));
+        return productsWithImages;
     });
 }

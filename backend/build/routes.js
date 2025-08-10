@@ -47,9 +47,12 @@ function routes(app) {
     // Product routes (all protected with authentication)
     app.get("/products/exclusive", auth_2.authenticateToken, product_1.getExclusiveProductsList);
     app.get("/products/best-selling", auth_2.authenticateToken, product_1.getBestSelling);
-    app.get("/products/categories", auth_2.authenticateToken, product_1.getCategoryList);
     app.get("/products/newProducts", auth_2.authenticateToken, product_1.newProductsList);
     app.get("/products/buyAgain", auth_2.authenticateToken, product_1.buyAgainProductsList);
+    app.get("/products/allProducts", auth_2.authenticateToken, product_1.allProductsList);
+    app.get("/categories/subCategories/:categoryId", auth_2.authenticateToken, product_1.getSubCategories);
+    app.get("/products/categories", auth_2.authenticateToken, product_1.getCategoryList);
+    app.get("/products/productsBySubCategory/:subCategoryId", auth_2.authenticateToken, product_1.productsBySubCategory);
     // Customer routes
     app.get('/customer/check', auth_2.authenticateToken, auth_3.checkCustomer);
 }

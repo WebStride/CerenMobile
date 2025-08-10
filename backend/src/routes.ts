@@ -7,7 +7,11 @@ import {
     getBestSelling,
     getCategoryList,
     newProductsList,
-    buyAgainProductsList
+    buyAgainProductsList,
+    allProductsList,
+    
+    getSubCategories,
+    productsBySubCategory
 } from "./controllers/product";
 import { authenticateToken } from "./middleware/auth";
 import { checkCustomer } from "./controllers/auth";
@@ -50,14 +54,24 @@ function routes(app: Express) {
     // Product routes (all protected with authentication)
     app.get("/products/exclusive", authenticateToken, getExclusiveProductsList);
     app.get("/products/best-selling", authenticateToken, getBestSelling);
-    app.get("/products/categories", authenticateToken, getCategoryList);
     app.get("/products/newProducts", authenticateToken, newProductsList);
     app.get("/products/buyAgain", authenticateToken, buyAgainProductsList);
+    app.get("/products/allProducts", authenticateToken, allProductsList);
 
+    app.get("/categories/subCategories/:categoryId", authenticateToken, getSubCategories);
+    app.get("/products/categories", authenticateToken, getCategoryList);
+
+    app.get(
+  "/products/productsBySubCategory/:subCategoryId",
+  authenticateToken,
+  productsBySubCategory
+);
 
 
     // Customer routes
     app.get('/customer/check', authenticateToken, checkCustomer);
+    
+    
 }
 
 

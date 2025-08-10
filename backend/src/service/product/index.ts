@@ -129,6 +129,40 @@ export async function getCustomerPreferredProducts(customerId: number | null, pr
     return productsWithImages;
 }
 
+export async function getAllProducts(customerId: number | null, priceColumn: string | null) {
+
+    const catalogProducts = await prisma.productMaster.findMany({
+        where: {
+            CatalogDefault: 1
+        },
+        select: {
+            ProductID: true,
+            ProductName: true,
+            Units: true,
+            UnitsOfMeasurement: true,
+            CatalogID: true,
+            ...(priceColumn ? { [priceColumn]: true } : {})
+        }
+    });
+
+    // Fetch images for all products in parallel
+    const productsWithImages = await Promise.all(
+        catalogProducts.map(async (product: any) => {
+            const imageUrl = await getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                image: imageUrl
+            };
+        })
+    );
+
+    return productsWithImages;
+}
+
 
 export async function getNewProducts(customerId: number | null, priceColumn: string | null) {
     const catalogProducts = await prisma.productMaster.findMany({
@@ -242,4 +276,93 @@ export async function getCategories() {
     );
 
     return categoriesWithImages;
+}
+
+
+
+
+// ...existing code...
+
+export async function getSubCategoriesByCategoryId(categoryId: number) {
+    // Fetch subcategories for the given categoryId
+    const subCategories = await prisma.productSubCategoryMaster.findMany({
+        where: {
+            CategoryID: categoryId,
+            Active: 1
+        },
+        select: {
+            SubCategoryID: true,
+            SubCategoryName: true,
+            Description: true
+        }
+    });
+
+    // Fetch images for all subcategories in parallel
+    const subCategoriesWithImages = await Promise.all(
+        subCategories.map(async (subCategory) => {
+            const subCategoryImage = await prisma.productSubCategoryImages.findFirst({
+                where: { SubCategoryID: subCategory.SubCategoryID },
+                select: { ImageID: true }
+            });
+
+            let imageUrl = null;
+            if (subCategoryImage) {
+                const imageData = await prisma.imageMaster.findUnique({
+                    where: { ImageID: subCategoryImage.ImageID },
+                    select: { Url: true }
+                });
+                imageUrl = imageData?.Url || null;
+            }
+
+            return {
+                subCategoryId: subCategory.SubCategoryID,
+                subCategoryName: subCategory.SubCategoryName,
+                description: subCategory.Description,
+                subCategoryImage: imageUrl
+            };
+        })
+    );
+
+    return subCategoriesWithImages;
+}
+
+
+
+
+
+export async function getProductsBySubCategory(
+  subCategoryId: number,
+  priceColumn: string | null
+) {
+  const catalogProducts = await prisma.productMaster.findMany({
+    where: {
+      CatalogDefault: 1,
+      SubCategoryID: subCategoryId,
+    },
+    select: {
+      ProductID: true,
+      ProductName: true,
+      Units: true,
+      UnitsOfMeasurement: true,
+      CatalogID: true,
+      ...(priceColumn ? { [priceColumn]: true } : {}),
+    },
+  });
+
+  const productsWithImages = await Promise.all(
+    catalogProducts.map(async (product: any) => {
+      const imageUrl = await getProductImage(product.ProductID);
+      return {
+        productId: product.ProductID,
+        productName: product.ProductName,
+        productUnits: product.Units || 0,
+        unitsOfMeasurement: product.UnitsOfMeasurement || '',
+        price: priceColumn ? product[priceColumn] || 0 : '',
+        catalogId: product.CatalogID,  
+        image: imageUrl,
+      };
+    })
+  );
+
+  return productsWithImages;
 }
