@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
+import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 export default function SelectStore() {
   const router = useRouter();
@@ -29,11 +30,8 @@ export default function SelectStore() {
     router.replace("/(tabs)/shop");
   };
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-    >
+    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor : "#FFFFFF" }} behavior="padding">
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="flex-1">
           {/* Top background and back arrow */}
@@ -113,6 +111,6 @@ export default function SelectStore() {
           </ScrollView>
         </View>
       </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingAnimatedView>
   );
 }

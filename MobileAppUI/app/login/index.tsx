@@ -16,6 +16,7 @@ import { images } from "@/constants/images";
 import { register } from "@/services/api";
 
 import { useAuth } from "../context/AuthContext";
+import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 
 const countryData = {
@@ -67,11 +68,8 @@ const { setConfirmation } = useAuth();
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-    >
+    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor : "#FFFFFF" }} behavior="padding">
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="flex-1">
           {/* Top background and back arrow */}
@@ -187,6 +185,6 @@ const { setConfirmation } = useAuth();
           </View>
         </View>
       </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingAnimatedView>
   );
 }
