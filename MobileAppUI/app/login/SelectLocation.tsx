@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { images } from "@/constants/images";
+import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 const cityOptions = [
   { label: "Bengaluru", value: "Bengaluru" },
@@ -41,11 +42,8 @@ export default function SelectRegionScreen() {
   const districts = cityDistricts[city] || [];
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-    >
+    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor : "#FFFFFF" }} behavior="padding">
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="flex-1">
           {/* Top background and back arrow */}
@@ -287,7 +285,7 @@ export default function SelectRegionScreen() {
               className="h-12 rounded-xl bg-[#BCD042] items-center justify-center"
               onPress={() => {
                 router.push({
-                  pathname: "/login/AddAddressdetails",
+                  pathname: "/login/PinLocation",
                   params: { city, district, name, phoneNumber },
                 });
               }}
@@ -307,6 +305,6 @@ export default function SelectRegionScreen() {
           </View>
         </View>
       </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingAnimatedView>
   );
 }

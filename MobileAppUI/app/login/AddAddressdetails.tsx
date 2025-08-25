@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendAddressDetails } from "@/services/api";
+import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 const SAVE_AS_OPTIONS = [
   {
@@ -44,14 +45,15 @@ export default function AddAddressDetailsScreen() {
   const [pinCode, setPinCode] = useState("");
   const [landmark, setLandmark] = useState("");
   const params = useLocalSearchParams(); // Retrieve route parameters
-  const { phoneNumber, name } = params; // Destructure phoneNumber and name
+  const { phoneNumber, name, location, city, district, address } = params; // Destructure phoneNumber and name
   const handleSaveAddress = async () => {
     try {
+          console.log("Received params:", params);
 
-      if (!phoneNumber || !name) {
-        Alert.alert("Error", "Phone number or name is missing. Please log in again.");
-        return;
-      }
+      // if (!phoneNumber || !name) {
+      //   Alert.alert("Error", "Phone number or name is missing. Please log in again.");
+      //   return;
+      // }
 
       const payload = {
         name,
@@ -75,7 +77,19 @@ export default function AddAddressDetailsScreen() {
           [
             {
               text: "OK",
-              onPress: () => router.replace("/(tabs)/shop"),
+              onPress: () => {
+                router.push({
+                  pathname: "/(tabs)/shop",
+                  params: {
+                    city,
+                    district,
+                    location,
+                    address,
+                    name,
+                    phoneNumber
+                  },
+                });
+              },
             },
           ]
         );
@@ -89,11 +103,7 @@ export default function AddAddressDetailsScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-    >
+    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="flex-1">
           {/* Top background and back arrow */}
@@ -368,6 +378,6 @@ export default function AddAddressDetailsScreen() {
           </ScrollView>
         </View>
       </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingAnimatedView>
   );
 }

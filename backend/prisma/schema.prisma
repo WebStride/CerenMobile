@@ -59,7 +59,7 @@ model CUSTOMERMASTER {
   ORDERDAYS         String    @default("1") @db.VarChar(20)
   PINCODE           Int?
   CITY              String?   @db.VarChar(100)
-  USERID            Int? 
+  USERID            Int?
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -856,54 +856,56 @@ model ProductInventory_bck1 {
 }
 
 model ProductMaster {
-  ProductID                Int       @id @default(autoincrement()) @db.UnsignedMediumInt
-  ProductSKU               String    @db.VarChar(15)
-  ProductName              String    @db.VarChar(50)
-  Description              String    @db.VarChar(200)
-  SubCategoryID            Int       @db.UnsignedSmallInt
-  PurchasePrice            Float?    @db.Float
-  WholesalePrice           Float?    @db.Float
-  RetailPrice              Float?    @db.Float
-  MaxRetailPrice           Float?    @db.Float
-  Units                    Float?    @db.Float
-  UnitsOfMeasurement       String?   @db.VarChar(10)
-  SortName                 String    @db.VarChar(50)
-  DisplayName              String?   @db.VarChar(100)
-  TaxID                    Int?      @db.UnsignedSmallInt
-  ProductInvID             Int?      @db.UnsignedMediumInt
-  VendorID                 Int?      @db.UnsignedSmallInt
-  Barcode                  String?   @db.VarChar(200)
-  IsRetailProduct          Int       @default(0) @db.TinyInt
-  Active                   Int       @default(1) @db.TinyInt
-  AddedUserID              Int?
-  AddedPOSNumber           String?   @db.VarChar(50)
-  AddedDate                DateTime? @default(now()) @db.Timestamp(0)
+  ProductID                Int     @id @default(autoincrement()) @map("# ProductID")  // Remove the "?" here
+  ProductSKU               String? @db.VarChar(50)
+  ProductName              String? @db.VarChar(50)
+  Description              String? @db.VarChar(50)
+  SubCategoryID            Int?
+  PurchasePrice            Int?
+  WholesalePrice           Int?
+  RetailPrice              Int?
+  MaxRetailPrice           Int?
+  Units                    Int?
+  UnitsOfMeasurement       String? @db.VarChar(50)
+  SortName                 String? @db.VarChar(50)
+  DisplayName              String? @db.VarChar(50)
+  TaxID                    Int?
+  ProductInvID             Int?
+  VendorID                 Int?
+  Barcode                  String? @db.VarChar(50)
+  IsRetailProduct          Int?
+  Active                   Int?
+  AddedUserID              String? @db.VarChar(50)
+  AddedPOSNumber           String? @db.VarChar(50)
+  AddedDate                String? @db.VarChar(50)
   LastUpdatedUserID        Int?
-  LastUpdatedPOSNumber     String?   @db.VarChar(50)
-  LastUpdateDate           DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedPOSNumber     String? @db.VarChar(50)
+  LastUpdateDate           String? @db.VarChar(50)
   SuperCategoryID          Int?
-  CategoryID               Int       @db.UnsignedSmallInt
-  OTSPrePR                 Float?    @db.Float
-  OTSRegPR                 Float?    @db.Float
-  Aliases                  String?   @db.VarChar(200)
+  CategoryID               Int?
+  OTSPrePR                 Int?
+  OTSRegPR                 Int?
+  Aliases                  String? @db.VarChar(50)
   CategoryIDForApp         Int?
   SubCategoryIDForApp      Int?
-  IsNewProduct             Int?      @db.TinyInt
-  Parcelable               Int?      @db.TinyInt
-  OfferEnabled             Int?      @db.TinyInt
-  MinimumQty               Float?    @db.Float
-  DefaultLSQty             Float?    @db.Float
+  IsNewProduct             Int?
+  Parcelable               Int?
+  OfferEnabled             Int?
+  MinimumQty               Int?
+  DefaultLSQty             Int?
   ProductInvIDForApp       Int?
   CatalogID                Int?
-  CatalogDefault           Int?      @db.TinyInt
+  CatalogDefault           Int?
   SortOrder                Int?
-  PremiumPrice             Float?    @db.Float
-  UnitsForApp              Float?    @db.Float
-  UnitsOfMeasurementForApp String?   @db.VarChar(20)
-  Measure                  String?   @db.VarChar(20)
+  PremiumPrice             Int?
+  UnitsForApp              Int?
+  UnitsOfMeasurementForApp String? @db.VarChar(50)
+  Measure                  Int?
 
-  @@index([SubCategoryID], map: "CategoryIDIdx")
+  @@map("ProductMaster")
+  // Remove @@ignore directive
 }
+
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model ProductMaster_b4_PuneOff {
