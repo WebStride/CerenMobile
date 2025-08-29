@@ -13,6 +13,8 @@ const client_1 = require("@prisma/client");
 const auth_1 = require("./controllers/auth");
 const user_1 = require("./controllers/user");
 const product_1 = require("./controllers/product");
+const favourites_1 = require("./controllers/favourites");
+const cart_1 = require("./controllers/cart");
 const auth_2 = require("./middleware/auth");
 const auth_3 = require("./controllers/auth");
 const prisma = new client_1.PrismaClient();
@@ -52,7 +54,23 @@ function routes(app) {
     app.get("/products/allProducts", auth_2.authenticateToken, product_1.allProductsList);
     app.get("/categories/subCategories/:categoryId", auth_2.authenticateToken, product_1.getSubCategories);
     app.get("/products/categories", auth_2.authenticateToken, product_1.getCategoryList);
+    // Favourites routes
+    app.get('/favourites', auth_2.authenticateToken, favourites_1.getFavourites);
+    app.post('/favourites', auth_2.authenticateToken, favourites_1.postFavourite);
+    app.delete('/favourites/:productId', auth_2.authenticateToken, favourites_1.deleteFavourite);
+    // Cart routes
+    app.get('/cart', auth_2.authenticateToken, cart_1.getCartList);
+    app.post('/cart', auth_2.authenticateToken, cart_1.postCart);
+    app.put('/cart/:productId', auth_2.authenticateToken, cart_1.putCartItem);
+    app.delete('/cart/:productId', auth_2.authenticateToken, cart_1.deleteCartItem);
+    app.post('/cart/clear', auth_2.authenticateToken, cart_1.postClearCart);
     app.get("/products/productsBySubCategory/:subCategoryId", auth_2.authenticateToken, product_1.productsBySubCategory);
+    // Similar products by productId (returns other products in same CategoryID)
+    app.get('/products/similar/:productId', auth_2.authenticateToken, product_1.similarProductsList);
+    // Products by catalog - given a productId, return other products in same CatalogID
+    app.get('/products/catalog/:productId', auth_2.authenticateToken, (req, res, next) => {
+        return require('./controllers/product').productsByCatalog(req, res);
+    });
     // Customer routes
     app.get('/customer/check', auth_2.authenticateToken, auth_3.checkCustomer);
 }

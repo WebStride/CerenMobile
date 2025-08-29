@@ -8,3 +8,5 @@ export declare function getBestSelling(req: AuthRequest, res: Response): Promise
 export declare function getCategoryList(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 export declare function getSubCategories(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 export declare function productsBySubCategory(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+export declare function productsByCatalog(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+export declare function similarProductsList(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

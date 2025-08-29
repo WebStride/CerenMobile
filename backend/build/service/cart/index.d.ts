@@ -1,0 +1,31 @@
+export declare function getCart(userId: number): Promise<{
+    id: number;
+    createdAt: Date;
+    updatedAt: Date;
+    productId: number;
+    productName: string;
+    image: string | null;
+    productUnits: number | null;
+    unitsOfMeasurement: string | null;
+    price: number;
+    userId: number;
+    minOrderQuantity: number | null;
+    quantity: number;
+}[]>;
+export declare function addOrIncrementCartItem(userId: number, product: any): Promise<{
+    id: number;
+    createdAt: Date;
+    updatedAt: Date;
+    productId: number;
+    productName: string;
+    image: string | null;
+    productUnits: number | null;
+    unitsOfMeasurement: string | null;
+    price: number;
+    userId: number;
+    minOrderQuantity: number | null;
+    quantity: number;
+}>;
+export declare function updateCartQuantity(userId: number, productId: number, quantity: number): Promise<import("@prisma/client").Prisma.BatchPayload>;
+export declare function removeCartItem(userId: number, productId: number): Promise<import("@prisma/client").Prisma.BatchPayload>;
+export declare function clearCart(userId: number): Promise<import("@prisma/client").Prisma.BatchPayload>;

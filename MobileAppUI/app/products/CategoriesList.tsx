@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
     View,
     Text,
@@ -8,10 +8,11 @@ import {
     FlatList,
     ActivityIndicator,
     Alert,
-    SafeAreaView
+    SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { getCategories } from "@/services/api";
 
 // Types
 interface Category {
@@ -21,56 +22,46 @@ interface Category {
 }
 
 const defaultImage = require("../../assets/images/Banana.png");
-
-// Mock data for 50+ categories
-const generateMockCategories = (count: number): Category[] => {
-    const categoryNames = [
-        "Fresh Fruits", "Vegetables", "Dairy Products", "Meat & Fish", "Bakery Items",
-        "Beverages", "Snacks", "Frozen Foods", "Organic Products", "Spices & Herbs",
-        "Cereals & Grains", "Canned Foods", "Personal Care", "Household Items", "Baby Care",
-        "Health & Wellness", "Pet Supplies", "Kitchen Essentials", "Cleaning Supplies", "Breakfast Items",
-        "Condiments & Sauces", "Nuts & Dry Fruits", "International Foods", "Ready to Cook", "Instant Foods",
-        "Protein Supplements", "Energy Drinks", "Tea & Coffee", "Cooking Oil", "Sugar & Salt",
-        "Ice Cream", "Chocolates", "Biscuits & Cookies", "Pasta & Noodles", "Rice & Pulses",
-        "Pickle & Chutneys", "Sweets & Desserts", "Juice & Smoothies", "Water & Soft Drinks", "Wine & Beer",
-        "Seasonal Fruits", "Exotic Vegetables", "Regional Specialties", "Gourmet Foods", "Diet Foods",
-        "Vegan Products", "Gluten Free", "Sugar Free", "Low Fat", "Artisanal Products"
-    ];
-
-    return Array.from({ length: count }, (_, index) => ({
-        categoryId: index + 1,
-        categoryName: categoryNames[index % categoryNames.length],
-        categoryImage: defaultImage
-    }));
-};
+// A small set of bundled fallback images to display when the API returns no image
+const fallbackImages = [
+    require("../../assets/images/Banana.png"),
+    require("../../assets/images/PulsesCategory.png"),
+    require("../../assets/images/LocationThumbnail.png"),
+    require("../../assets/images/HomeLogo.png"),
+];
 
 // Category Card Component (Grid Layout)
-const CategoryCard = ({ item, onPress }: { item: Category, onPress: () => void }) => {
+const CategoryCard = ({ item, onPress }: { item: Category; onPress: () => void }) => {
     const getRandomColor = () => {
-        const colors = ['bg-amber-100', 'bg-green-100', 'bg-blue-100', 'bg-purple-100', 'bg-pink-100', 'bg-orange-100', 'bg-red-100', 'bg-indigo-100'];
+        const colors = [
+            "bg-amber-100",
+            "bg-green-100",
+            "bg-blue-100",
+            "bg-purple-100",
+            "bg-pink-100",
+            "bg-orange-100",
+            "bg-red-100",
+            "bg-indigo-100",
+        ];
         return colors[Math.floor(Math.random() * colors.length)];
     };
 
-    return (
-        <TouchableOpacity
-            onPress={onPress}
-            className={`rounded-xl flex-col items-center justify-start m-2 px-4 py-3 flex-1 ${getRandomColor()} min-h-[120px]`}
-            activeOpacity={0.7}
-        >
-            <Image
-                source={item.categoryImage || defaultImage}
-                className="w-16 h-16 mb-2"
-                resizeMode="contain"
-            />
-            <Text
-                className="font-semibold text-sm text-gray-800 flex-1"
-                numberOfLines={2}
-                ellipsizeMode="tail"
+        // Choose a deterministic fallback image when categoryImage is null
+        const fallback = fallbackImages[item.categoryId % fallbackImages.length];
+        const imageSource = item.categoryImage ? { uri: item.categoryImage } : fallback;
+
+        return (
+            <TouchableOpacity
+                onPress={onPress}
+                className={`rounded-xl flex-col items-center justify-start m-2 px-4 py-3 flex-1 ${getRandomColor()} min-h-[120px]`}
+                activeOpacity={0.8}
             >
-                {item.categoryName}
-            </Text>
-        </TouchableOpacity>
-    );
+                <Image source={imageSource} className="w-16 h-16 mb-2" resizeMode="cover" />
+                <Text className="font-semibold text-sm text-gray-800 flex-1" numberOfLines={2} ellipsizeMode="tail">
+                    {item.categoryName}
+                </Text>
+            </TouchableOpacity>
+        );
 };
 
 const AllCategoriesScreen = () => {
@@ -84,37 +75,35 @@ const AllCategoriesScreen = () => {
     const [hasMoreData, setHasMoreData] = useState(true);
 
     const ITEMS_PER_PAGE = 20;
-    const mockData = generateMockCategories(50); // Generate 50 mock categories
+    const fullCategoryList = useRef<Category[]>([]);
 
-    // Initial load
+    // Initial load - fetch categories from API
     useEffect(() => {
         loadInitialData();
     }, []);
 
-    // Filter categories when search changes
-    useEffect(() => {
-        if (searchQuery.trim() === "") {
-            setFilteredCategories(categories);
-        } else {
-            const filtered = categories.filter(category =>
-                category.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-            setFilteredCategories(filtered);
-        }
-    }, [searchQuery, categories]);
-
     const loadInitialData = async () => {
         setLoading(true);
         try {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const res = await getCategories();
+            if (!res.success) {
+                console.error("getCategories failed:", res.message);
+                Alert.alert("Error", res.message || "Failed to fetch categories");
+                setCategories([]);
+                setFilteredCategories([]);
+                setHasMoreData(false);
+                return;
+            }
 
-            const initialCategories = mockData.slice(0, ITEMS_PER_PAGE);
-            setCategories(initialCategories);
+            const fetchedCategories: Category[] = res.categories || [];
+            fullCategoryList.current = fetchedCategories;
+
+            setCategories(fetchedCategories.slice(0, ITEMS_PER_PAGE));
+            setFilteredCategories(fetchedCategories.slice(0, ITEMS_PER_PAGE));
             setCurrentPage(1);
-            setHasMoreData(mockData.length > ITEMS_PER_PAGE);
+            setHasMoreData(fetchedCategories.length > ITEMS_PER_PAGE);
         } catch (error) {
-            console.error("Error loading initial data:", error);
+            console.error("Error fetching categories:", error);
             Alert.alert("Error", "Failed to load categories");
         } finally {
             setLoading(false);
@@ -126,44 +115,55 @@ const AllCategoriesScreen = () => {
 
         setLoadingMore(true);
         try {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 800));
-
             const nextPage = currentPage + 1;
             const startIndex = (nextPage - 1) * ITEMS_PER_PAGE;
             const endIndex = startIndex + ITEMS_PER_PAGE;
-            const newCategories = mockData.slice(startIndex, endIndex);
+            const newCategories = fullCategoryList.current.slice(startIndex, endIndex);
 
             if (newCategories.length > 0) {
-                setCategories(prev => [...prev, ...newCategories]);
+                setCategories((prev) => [...prev, ...newCategories]);
+                setFilteredCategories((prev) => [...prev, ...newCategories]);
                 setCurrentPage(nextPage);
-                setHasMoreData(endIndex < mockData.length);
+                setHasMoreData(endIndex < fullCategoryList.current.length);
             } else {
                 setHasMoreData(false);
             }
         } catch (error) {
-            console.error("Error loading more data:", error);
+            console.error("Error loading more categories:", error);
         } finally {
             setLoadingMore(false);
         }
     };
 
-  const handleCategoryPress = useCallback((category: Category) => {
-    router.push({
-      pathname: "/products/CategoryProductsScreen",
-      params: {
-        categoryId: category.categoryId.toString(),
-        categoryName: category.categoryName,
-      },
-    });
-  }, [router]);
+    // Filter categories when search changes
+    useEffect(() => {
+        if (searchQuery.trim() === "") {
+            setFilteredCategories(categories);
+        } else {
+            const filtered = fullCategoryList.current.filter((category) =>
+                category.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+            setFilteredCategories(filtered);
+        }
+    }, [searchQuery, categories]);
 
-    const renderCategory = useCallback(({ item }: { item: Category }) => (
-        <CategoryCard
-            item={item}
-            onPress={() => handleCategoryPress(item)}
-        />
-    ), [handleCategoryPress]);
+    const handleCategoryPress = useCallback(
+        (category: Category) => {
+            router.push({
+                pathname: "/products/CategoryProductsScreen",
+                params: {
+                    categoryId: category.categoryId.toString(),
+                    categoryName: category.categoryName,
+                },
+            });
+        },
+        [router]
+    );
+
+    const renderCategory = useCallback(
+        ({ item }: { item: Category }) => <CategoryCard item={item} onPress={() => handleCategoryPress(item)} />,
+        [handleCategoryPress]
+    );
 
     const renderFooter = () => {
         if (!loadingMore) return null;
@@ -199,15 +199,10 @@ const AllCategoriesScreen = () => {
         <SafeAreaView className="flex-1 bg-white">
             {/* Header */}
             <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    className="mr-3"
-                >
+                <TouchableOpacity onPress={() => router.back()} className="mr-3">
                     <Ionicons name="arrow-back" size={24} color="#374151" />
                 </TouchableOpacity>
-                <Text className="text-lg font-semibold text-gray-900 flex-1">
-                    All Categories
-                </Text>
+                <Text className="text-lg font-semibold text-gray-900 flex-1">All Categories</Text>
                 <TouchableOpacity>
                     <Ionicons name="grid" size={24} color="#374151" />
                 </TouchableOpacity>
@@ -237,14 +232,10 @@ const AllCategoriesScreen = () => {
                 data={filteredCategories}
                 renderItem={renderCategory}
                 keyExtractor={(item) => item.categoryId.toString()}
-                columnWrapperStyle={{ justifyContent: 'space-between' }}
+                columnWrapperStyle={{ justifyContent: "space-between" }}
                 numColumns={2}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{
-                    paddingHorizontal: 8,
-                    paddingBottom: 100,
-                    flexGrow: 1
-                }}
+                contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 100, flexGrow: 1 }}
                 onEndReached={loadMoreData}
                 onEndReachedThreshold={0.1}
                 ListFooterComponent={renderFooter}
@@ -265,7 +256,9 @@ const AllCategoriesScreen = () => {
                 <View className="absolute bottom-4 left-4 right-4">
                     <View className="bg-black/80 rounded-full px-4 py-2 self-center">
                         <Text className="text-white text-sm">
-                            {searchQuery ? `${filteredCategories.length} results` : `${categories.length} of ${mockData.length} categories`}
+                            {searchQuery
+                                ? `${filteredCategories.length} results`
+                                : `${categories.length} of ${fullCategoryList.current.length} categories`}
                         </Text>
                     </View>
                 </View>

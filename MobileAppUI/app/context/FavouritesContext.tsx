@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchFavourites, addFavouriteApi, removeFavouriteApi } from '../../services/api';
 
 interface Product {
   productId: number;
@@ -23,11 +24,51 @@ const FavouritesContext = createContext<FavouritesContextType | undefined>(undef
 export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [favourites, setFavourites] = useState<Product[]>([]);
 
+  // Load favourites from server (or fallback to AsyncStorage)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res: any = await fetchFavourites();
+        if (mounted && res?.success) {
+          // map server shape to Product type if needed
+          const mapped = res.favourites.map((f: any) => ({
+            productId: f.productId || f.productId,
+            productName: f.productName,
+            productUnits: f.productUnits || 0,
+            unitsOfMeasurement: f.unitsOfMeasurement || '',
+            price: f.price || 0,
+            image: f.image || null
+          }));
+          setFavourites(mapped);
+          await AsyncStorage.setItem('favourites', JSON.stringify(mapped));
+          return;
+        }
+      } catch (e) {
+        // ignore and fallback to AsyncStorage
+      }
+
+      // fallback: load from AsyncStorage
+      try {
+        const local = await AsyncStorage.getItem('favourites');
+        if (local && mounted) setFavourites(JSON.parse(local));
+      } catch (e) {
+        console.error('Failed to load favourites from storage', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const addToFavourites = useCallback(async (product: Product) => {
     try {
+      // optimistic update
       const updatedFavourites = [...favourites, product];
       setFavourites(updatedFavourites);
       await AsyncStorage.setItem('favourites', JSON.stringify(updatedFavourites));
+      // persist to server
+      addFavouriteApi(product).catch(err => {
+        console.error('Persisting favourite failed:', err);
+      });
     } catch (error) {
       console.error('Error adding to favourites:', error);
     }
@@ -38,6 +79,10 @@ export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const updatedFavourites = favourites.filter(item => item.productId !== productId);
       setFavourites(updatedFavourites);
       await AsyncStorage.setItem('favourites', JSON.stringify(updatedFavourites));
+      // persist removal
+      removeFavouriteApi(productId).catch(err => {
+        console.error('Removing favourite on server failed:', err);
+      });
     } catch (error) {
       console.error('Error removing from favourites:', error);
     }

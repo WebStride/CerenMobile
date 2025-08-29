@@ -11,8 +11,12 @@ import {
     allProductsList,
     
     getSubCategories,
-    productsBySubCategory
+    productsBySubCategory,
+    similarProductsList,
+    productsByCatalog
 } from "./controllers/product";
+import { getFavourites, postFavourite, deleteFavourite } from "./controllers/favourites";
+import { getCartList, postCart, putCartItem, deleteCartItem, postClearCart } from "./controllers/cart";
 import { authenticateToken } from "./middleware/auth";
 import { checkCustomer } from "./controllers/auth";
 const prisma = new PrismaClient();
@@ -58,8 +62,21 @@ function routes(app: Express) {
     app.get("/products/buyAgain", authenticateToken, buyAgainProductsList);
     app.get("/products/allProducts", authenticateToken, allProductsList);
 
+
     app.get("/categories/subCategories/:categoryId", authenticateToken, getSubCategories);
     app.get("/products/categories", authenticateToken, getCategoryList);
+
+    // Favourites routes
+    app.get('/favourites', authenticateToken, getFavourites);
+    app.post('/favourites', authenticateToken, postFavourite);
+    app.delete('/favourites/:productId', authenticateToken, deleteFavourite);
+
+    // Cart routes
+    app.get('/cart', authenticateToken, getCartList);
+    app.post('/cart', authenticateToken, postCart);
+    app.put('/cart/:productId', authenticateToken, putCartItem);
+    app.delete('/cart/:productId', authenticateToken, deleteCartItem);
+    app.post('/cart/clear', authenticateToken, postClearCart);
 
     app.get(
   "/products/productsBySubCategory/:subCategoryId",
@@ -67,6 +84,11 @@ function routes(app: Express) {
   productsBySubCategory
 );
 
+        // Similar products by productId (returns other products in same CategoryID)
+        app.get('/products/similar/:productId', authenticateToken, similarProductsList);
+
+        // Products by catalog - given a productId, return other products in same CatalogID
+        app.get('/products/catalog/:productId', authenticateToken, productsByCatalog);
 
     // Customer routes
     app.get('/customer/check', authenticateToken, checkCustomer);

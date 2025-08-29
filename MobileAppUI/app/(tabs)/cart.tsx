@@ -8,7 +8,7 @@ const defaultImage = require("../../assets/images/Banana.png");
 
 export default function CartScreen() {
   const router = useRouter();
-  const { cart, increase, decrease, removeFromCart, cartTotal } = useCart();
+  const { cart, increase, decrease, removeFromCart, cartTotal, clearCart } = useCart();
 
   const handleQuantityChange = (productId: number, newQuantity: string) => {
     const numVal = Number(newQuantity.replace(/[^0-9]/g, ""));
@@ -275,7 +275,13 @@ export default function CartScreen() {
       {/* Bottom Checkout Bar */}
       <View className="absolute left-0 right-0 bottom-0 bg-white border-t border-gray-200 px-4 py-4">
         <TouchableOpacity
-          onPress={() => Alert.alert("Checkout", "Checkout flow coming soon!")}
+          onPress={() => {
+            // clear local cart and trigger server clear in background
+            clearCart();
+            Alert.alert("Order placed", "Your order has been placed and the cart is cleared.", [
+              { text: 'OK', onPress: () => router.push('/shop') }
+            ]);
+          }}
           className="bg-green-700 rounded-full py-4 px-6 flex-row items-center justify-between"
           activeOpacity={0.8}
         >

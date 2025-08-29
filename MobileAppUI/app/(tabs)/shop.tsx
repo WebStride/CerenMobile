@@ -31,7 +31,10 @@ interface Product {
   productUnits: number;
   unitsOfMeasurement: string;
   price: number;
-  image: string | null;
+  // API may return a URL (string) or we'll use a local require (number)
+  image: string | number | null;
+  // minimum order quantity from API may be named minimumOrderQuantity or minOrderQuantity
+  minOrderQuantity?: number;
 }
 
 interface Category {
@@ -41,6 +44,12 @@ interface Category {
 }
 
 const defaultImage = require("../../assets/images/Banana.png");
+const fallbackImages = [
+  require("../../assets/images/Banana.png"),
+  require("../../assets/images/PulsesCategory.png"),
+  require("../../assets/images/LocationThumbnail.png"),
+  require("../../assets/images/HomeLogo.png"),
+];
 
 // ---------- Complete ProductCard with Cart + Favorites + Navigation Functionality ----------
 const ProductCard = React.memo(({
@@ -64,7 +73,7 @@ const ProductCard = React.memo(({
   // Find cart item
   const cartItem = cart.find(x => x.productId === item.productId);
   const isProductFavourite = isFavourite(item.productId);
-  const minOrder = item.minOrderQuantity || 1;
+  const minOrder = item.minOrderQuantity || (item as any).minimumOrderQuantity || 1;
 
   // Local state - simple and isolated
   const [showControls, setShowControls] = useState(!!cartItem);
@@ -93,7 +102,7 @@ const ProductCard = React.memo(({
         productUnits: item.productUnits.toString(),
         unitsOfMeasurement: item.unitsOfMeasurement,
         price: item.price.toString(),
-        image: item.image || '',
+        image: (typeof (item as any).image === 'number') ? '' : (item.image || ''),
         minOrderQuantity: minOrder.toString(),
         description: `Fresh and natural ${item.productName} sourced directly from farms. Rich in nutrients and perfect for daily consumption.`,
         nutritionInfo: "100gm",
@@ -102,13 +111,25 @@ const ProductCard = React.memo(({
     });
   }, [item, minOrder, router]);
 
+  // Correctly shape image source for React Native Image
+  const getImageSource = () => {
+    const img = (item as any).image;
+    if (img && typeof img === 'string' && (img.startsWith('http') || img.startsWith('https'))) {
+      return { uri: img };
+    }
+    return img || defaultImage;
+  };
+
   // Handle favorites toggle
   const handleFavouriteToggle = useCallback((event: any) => {
     event.stopPropagation(); // Prevent navigation when heart is pressed
     if (isProductFavourite) {
       removeFromFavourites(item.productId);
     } else {
-      addToFavourites(item);
+      addToFavourites({
+        ...item,
+        image: typeof (item as any).image === 'number' ? '' : (item.image as string | null)
+      } as any);
     }
   }, [isProductFavourite, item, addToFavourites, removeFromFavourites]);
 
@@ -119,7 +140,7 @@ const ProductCard = React.memo(({
         productId: item.productId,
         productName: item.productName,
         price: item.price,
-        image: item.image,
+        image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
         productUnits: item.productUnits,
         unitsOfMeasurement: item.unitsOfMeasurement,
       });
@@ -144,7 +165,7 @@ const ProductCard = React.memo(({
           productId: item.productId,
           productName: item.productName,
           price: item.price,
-          image: item.image,
+          image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
           productUnits: item.productUnits,
           unitsOfMeasurement: item.unitsOfMeasurement,
         });
@@ -183,7 +204,7 @@ const ProductCard = React.memo(({
         activeOpacity={0.7}
       >
         <Image
-          source={item.image || defaultImage}
+          source={getImageSource()}
           className="w-28 h-28 mb-2"
           resizeMode="contain"
         />
@@ -207,6 +228,11 @@ const ProductCard = React.memo(({
       <Text className="text-gray-500 text-xs mb-1">
         {item.productUnits} {item.unitsOfMeasurement}
       </Text>
+
+      {/* MOQ Info - show when greater than 1 */}
+      {minOrder > 1 && (
+        <Text className="text-red-500 text-xs mb-1 font-medium">Min: {minOrder}</Text>
+      )}
 
       {/* Price */}
       <View className="w-full mb-2">
@@ -241,7 +267,7 @@ const ProductCard = React.memo(({
                   minWidth: 40,
                 }}
                 selectionColor="#fff"
-                placeholder="0"
+                placeholder={String(minOrder)}
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 textAlign="center"
               />
@@ -260,7 +286,7 @@ const ProductCard = React.memo(({
             onPress={handleAddToCartPress}
             activeOpacity={0.8}
           >
-            <Text className="text-white font-semibold text-sm">Add to Cart</Text>
+            <Text className="text-white font-semibold text-sm">Add {minOrder > 1 ? `${minOrder}` : ''} to Cart</Text>
           </TouchableOpacity>
         )
       ) : (
@@ -289,7 +315,8 @@ const GroceryCategoryCard = ({
       activeOpacity={0.8}
       className={`rounded-xl flex-row items-center justify-start mr-3 px-3 py-2 w-48 h-auto ${getRandomColor()} gap-x-3`}
     >
-      <Image source={item.categoryImage || defaultImage} className="w-12 h-12 mb-2" resizeMode="contain" />
+  {/* handle remote category images */}
+  <Image source={typeof item.categoryImage === 'string' ? { uri: item.categoryImage } : (item.categoryImage || defaultImage)} className="w-12 h-12 mb-2" resizeMode="contain" />
       <Text className="font-semibold text-sm text-gray-800 flex-1">
         {item.categoryName}
       </Text>
@@ -308,8 +335,7 @@ const HomeScreen = () => {
 
   // Create a display-friendly location string from the params
   const getLocationDisplay = () => {
-    if (location) return location as string;
-    if (address) return address as string;
+  if (address) return address as string;
     if (city && district) return `${city}, ${district}`;
     if (city) return city as string;
     return "Set your location";
@@ -379,11 +405,33 @@ const HomeScreen = () => {
         getNewProducts(),
         getBuyAgainProducts()
       ]);
-      if (exclusiveRes.success) setExclusiveOffers(exclusiveRes.products);
-      if (bestSellingRes.success) setBestSelling(bestSellingRes.products);
+
+      // Normalizer - prefer API field names flexibly
+      const normalize = (p: any, idx: number): Product => {
+        const id = p.productId ?? p.id ?? p.product_id ?? (idx + 1);
+        const name = p.productName ?? p.name ?? p.product_name ?? "";
+        const units = p.productUnits ?? p.units ?? p.packetWeight ?? 1;
+        const measurement = p.unitsOfMeasurement ?? p.unit ?? p.uom ?? "pcs";
+        const price = p.price ?? p.mrp ?? p.sellingPrice ?? 0;
+        const img = p.image ?? p.imageUrl ?? p.productImage ?? null;
+        const minOrder = p.minimumOrderQuantity ?? p.minOrderQuantity ?? p.minOrder ?? 1;
+
+        return {
+          productId: Number(id),
+          productName: String(name),
+          productUnits: Number(units),
+          unitsOfMeasurement: String(measurement),
+          price: Number(price),
+          image: img && typeof img === 'string' && img.length > 0 ? img : fallbackImages[Number(id) % fallbackImages.length],
+          minOrderQuantity: Number(minOrder),
+        } as Product;
+      };
+
+      if (exclusiveRes.success) setExclusiveOffers((exclusiveRes.products || []).map((p: any, i: number) => normalize(p, i)));
+      if (bestSellingRes.success) setBestSelling((bestSellingRes.products || []).map((p: any, i: number) => normalize(p, i)));
       if (categoriesRes.success) setCategories(categoriesRes.categories);
-      if (newProductsRes.success) setNewProducts(newProductsRes.products);
-      if (buyAgainProductsRes.success) setBuyAgainProducts(buyAgainProductsRes.products);
+      if (newProductsRes.success) setNewProducts((newProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
+      if (buyAgainProductsRes.success) setBuyAgainProducts((buyAgainProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -395,6 +443,23 @@ const HomeScreen = () => {
     router.push("/products/AllProductsList");
   };
 
+  const handleSeeAllExclusive = useCallback(() => {
+    
+    router.push({ pathname: "/products/AllProductsList", params: { feedType: "exclusive" } });
+  }, [router]);
+
+  const handleSeeAllBestSelling = useCallback(() => {
+    router.push({ pathname: "/products/AllProductsList", params: { feedType: "bestselling" } });
+  }, [router]);
+
+  const handleSeeAllNew = useCallback(() => {
+    router.push({ pathname: "/products/AllProductsList", params: { feedType: "newproducts" } });
+  }, [router]);
+
+  const handleSeeAllBuyAgain = useCallback(() => {
+    router.push({ pathname: "/products/AllProductsList", params: { feedType: "buyagain" } });
+  }, [router]);
+
   if (loading) {
     return (
       <View className="flex-1 justify-center items-center">
@@ -402,7 +467,6 @@ const HomeScreen = () => {
       </View>
     );
   }
-
   return (
     <View className="flex-1 bg-white">
       {isCustomerExists === null ? (
@@ -499,7 +563,7 @@ const HomeScreen = () => {
                 {/* Exclusive Offer */}
                 <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
                   <Text className="text-lg font-bold text-gray-900">Exclusive Offer</Text>
-                  <TouchableOpacity onPress={handleSeeAllPress}>
+                  <TouchableOpacity onPress={handleSeeAllExclusive}>
                     <Text className="text-green-700 font-medium text-base">See all</Text>
                   </TouchableOpacity>
                 </View>
@@ -525,7 +589,7 @@ const HomeScreen = () => {
                 {/* Best Selling */}
                 <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
                   <Text className="text-lg font-bold text-gray-900">Best Selling</Text>
-                  <TouchableOpacity onPress={handleSeeAllPress}>
+                  <TouchableOpacity onPress={handleSeeAllBestSelling}>
                     <Text className="text-green-700 font-medium text-base">See all</Text>
                   </TouchableOpacity>
                 </View>
@@ -551,7 +615,7 @@ const HomeScreen = () => {
                 {/* New Products */}
                 <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
                   <Text className="text-lg font-bold text-gray-900">New Products</Text>
-                  <TouchableOpacity onPress={handleSeeAllPress}>
+                  <TouchableOpacity onPress={handleSeeAllNew}>
                     <Text className="text-green-700 font-medium text-base">See all</Text>
                   </TouchableOpacity>
                 </View>
@@ -577,7 +641,7 @@ const HomeScreen = () => {
                 {/* Buy Again Products */}
                 <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
                   <Text className="text-lg font-bold text-gray-900">Buy Again Products</Text>
-                  <TouchableOpacity onPress={handleSeeAllPress}>
+                  <TouchableOpacity onPress={handleSeeAllBuyAgain}>
                     <Text className="text-green-700 font-medium text-base">See all</Text>
                   </TouchableOpacity>
                 </View>

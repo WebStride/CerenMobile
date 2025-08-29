@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
+import { getSubCategories, getProductsBySubCategory } from "../../services/api";
 
 // Types
 interface Product {
@@ -44,6 +45,18 @@ interface Category {
 }
 
 const defaultImage = require("../../assets/images/Banana.png");
+
+// Placeholder image URLs to use when API returns null
+const placeholderImageUrls = [
+  "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=400&h=400&fit=crop",
+  "https://images.unsplash.com/photo-1502741126161-b048400d7c6f?w=400&h=400&fit=crop",
+];
+
+const getRandomImage = () => placeholderImageUrls[Math.floor(Math.random() * placeholderImageUrls.length)];
 
 // Mock data generators
 const generateMockSubcategories = (categoryId: number): Subcategory[] => {
@@ -390,7 +403,7 @@ const SubcategoryItem = ({
     {/* Circular Image */}
     <View className={`w-20 h-20 rounded-full p-3 overflow-hidden mb-2 ${isSelected ? 'border-2 border-green-500' : 'border border-gray-200'}`}>
       <Image 
-        source={item.subcategoryImage || defaultImage} 
+        source={ typeof item.subcategoryImage === 'string' ? { uri: item.subcategoryImage } : (item.subcategoryImage || defaultImage) }
         className="w-full h-full" 
         resizeMode="cover" 
       />
@@ -419,6 +432,7 @@ const CategoryProductsScreen = () => {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [selectedSubcategory, setSelectedSubcategory] = useState<Subcategory | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]); // for client-side pagination
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -450,15 +464,30 @@ const CategoryProductsScreen = () => {
   const loadSubcategories = async () => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const mockSubcategories = generateMockSubcategories(categoryId);
-      setSubcategories(mockSubcategories);
-      
-      // Auto-select first subcategory
-      if (mockSubcategories.length > 0) {
-        setSelectedSubcategory(mockSubcategories[0]);
-        loadProducts(mockSubcategories[0].subcategoryId, true);
+      // Fetch from API
+      const res = await getSubCategories(categoryId);
+      if (res && res.success && Array.isArray(res.subCategories)) {
+        const mapped: Subcategory[] = res.subCategories.map((s: any) => ({
+          subcategoryId: s.subCategoryId,
+          subcategoryName: s.subCategoryName,
+          categoryId: categoryId,
+          productCount: 0,
+          subcategoryImage: s.subCategoryImage || getRandomImage(),
+        }));
+        setSubcategories(mapped);
+
+        if (mapped.length > 0) {
+          setSelectedSubcategory(mapped[0]);
+          await loadProducts(mapped[0].subcategoryId, true);
+        }
+      } else {
+        // Fallback to mock if API fails
+        const mockSubcategories = generateMockSubcategories(categoryId);
+        setSubcategories(mockSubcategories);
+        if (mockSubcategories.length > 0) {
+          setSelectedSubcategory(mockSubcategories[0]);
+          loadProducts(mockSubcategories[0].subcategoryId, true);
+        }
       }
     } catch (error) {
       console.error("Error loading subcategories:", error);
@@ -472,32 +501,56 @@ const CategoryProductsScreen = () => {
       setLoadingProducts(true);
       setProducts([]);
       setCurrentPage(1);
+      setAllProducts([]);
     } else {
       setLoadingMore(true);
     }
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      const totalProducts = Math.floor(Math.random() * 100) + 50;
-      const startIndex = isInitial ? 0 : (currentPage - 1) * ITEMS_PER_PAGE;
-      const endIndex = startIndex + ITEMS_PER_PAGE;
-      
-      const newProducts = generateMockProducts(
-        subcategoryId, 
-        Math.min(ITEMS_PER_PAGE, totalProducts - startIndex),
-        startIndex
-      );
+      // Fetch products from API
+      const res = await getProductsBySubCategory(subcategoryId);
+      if (res && res.success && Array.isArray(res.products)) {
+        // Map API product fields to local Product type
+        const mapped: Product[] = res.products.map((p: any) => ({
+          productId: p.productId,
+          productName: p.productName,
+          productUnits: p.productUnits,
+          unitsOfMeasurement: p.unitsOfMeasurement,
+          price: p.price,
+          image: p.image || getRandomImage(),
+          subcategoryId: subcategoryId,
+          minOrderQuantity: p.minimumOrderQuantity ?? p.minOrderQuantity ?? 1,
+          description: p.description || '',
+        }));
 
-      if (isInitial) {
-        setProducts(newProducts);
+        // Client-side pagination: store all and slice
+        setAllProducts(mapped);
+        const startIndex = 0;
+        const firstPage = mapped.slice(startIndex, ITEMS_PER_PAGE);
+        setProducts(firstPage);
         setCurrentPage(2);
+        setHasMoreData(mapped.length > firstPage.length);
       } else {
-        setProducts(prev => [...prev, ...newProducts]);
-        setCurrentPage(prev => prev + 1);
-      }
+        // Fallback to mock data
+        await new Promise(resolve => setTimeout(resolve, 600));
+        const totalProducts = Math.floor(Math.random() * 100) + 50;
+        const startIndex = isInitial ? 0 : (currentPage - 1) * ITEMS_PER_PAGE;
+        const newProducts = generateMockProducts(
+          subcategoryId,
+          Math.min(ITEMS_PER_PAGE, totalProducts - startIndex),
+          startIndex
+        );
 
-      setHasMoreData(endIndex < totalProducts);
+        if (isInitial) {
+          setProducts(newProducts);
+          setCurrentPage(2);
+        } else {
+          setProducts(prev => [...prev, ...newProducts]);
+          setCurrentPage(prev => prev + 1);
+        }
+
+        setHasMoreData((startIndex + newProducts.length) < totalProducts);
+      }
     } catch (error) {
       console.error("Error loading products:", error);
     } finally {
@@ -514,6 +567,25 @@ const CategoryProductsScreen = () => {
 
   const loadMoreProducts = useCallback(() => {
     if (loadingMore || !hasMoreData || !selectedSubcategory || searchQuery.trim() !== "") return;
+
+    // If we have allProducts (fetched from API), perform client-side pagination
+    if (allProducts && allProducts.length > 0) {
+      setLoadingMore(true);
+      try {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        const nextSlice = allProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+        if (nextSlice.length > 0) {
+          setProducts(prev => [...prev, ...nextSlice]);
+          setCurrentPage(prev => prev + 1);
+          setHasMoreData((startIndex + nextSlice.length) < allProducts.length);
+        }
+      } finally {
+        setLoadingMore(false);
+      }
+      return;
+    }
+
+    // Fallback to server/mock pagination
     loadProducts(selectedSubcategory.subcategoryId, false);
   }, [loadingMore, hasMoreData, selectedSubcategory, searchQuery]);
 
@@ -631,7 +703,7 @@ const CategoryProductsScreen = () => {
             <FlatList
               data={filteredProducts}
               renderItem={renderProduct}
-              keyExtractor={(item, index) => `category_${item.productId}_${item.subcategoryId}_${index}_${Math.random()}`}
+              keyExtractor={(item) => `category_${item.productId}`}
               numColumns={2}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ 

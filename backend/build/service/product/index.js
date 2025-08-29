@@ -18,6 +18,8 @@ exports.getBestSellingProducts = getBestSellingProducts;
 exports.getCategories = getCategories;
 exports.getSubCategoriesByCategoryId = getSubCategoriesByCategoryId;
 exports.getProductsBySubCategory = getProductsBySubCategory;
+exports.getProductsByCatalogOfProduct = getProductsByCatalogOfProduct;
+exports.getSimilarProducts = getSimilarProducts;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 function getCustomerPricingInfo(userId) {
@@ -68,7 +70,7 @@ function getExclusiveProducts(customerId, priceColumn) {
                 OfferEnabled: 1,
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -79,7 +81,8 @@ function getExclusiveProducts(customerId, priceColumn) {
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })));
         return productsWithImages;
@@ -103,7 +106,7 @@ function getCustomerPreferredProducts(customerId, priceColumn) {
                 ProductID: { in: productIds }, // Filter by preferred product IDs
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -114,7 +117,8 @@ function getCustomerPreferredProducts(customerId, priceColumn) {
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })));
         return productsWithImages;
@@ -126,7 +130,7 @@ function getAllProducts(customerId, priceColumn) {
             where: {
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -137,7 +141,8 @@ function getAllProducts(customerId, priceColumn) {
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })));
         return productsWithImages;
@@ -150,7 +155,7 @@ function getNewProducts(customerId, priceColumn) {
                 IsNewProduct: 1,
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -161,7 +166,8 @@ function getNewProducts(customerId, priceColumn) {
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })));
         return productsWithImages;
@@ -180,7 +186,7 @@ function getBestSellingProducts(customerId, priceColumn, sortOrderLimit) {
             orderBy: {
                 SortOrder: 'asc'
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign(Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true }, (priceColumn ? { [priceColumn]: true } : {})), { MinimumQty: true })
         });
         const productsWithImages = yield Promise.all(products.map((product) => __awaiter(this, void 0, void 0, function* () {
             const imageUrl = yield getProductImage(product.ProductID);
@@ -190,7 +196,8 @@ function getBestSellingProducts(customerId, priceColumn, sortOrderLimit) {
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })));
         return productsWithImages;
@@ -279,7 +286,7 @@ function getProductsBySubCategory(subCategoryId, priceColumn) {
                 CatalogDefault: 1,
                 SubCategoryID: subCategoryId,
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true }, (priceColumn ? { [priceColumn]: true } : {})),
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {})),
         });
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
             const imageUrl = yield getProductImage(product.ProductID);
@@ -291,6 +298,76 @@ function getProductsBySubCategory(subCategoryId, priceColumn) {
                 price: priceColumn ? product[priceColumn] || 0 : '',
                 catalogId: product.CatalogID,
                 image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
+            };
+        })));
+        return productsWithImages;
+    });
+}
+// Given a productId, find its CatalogID and return all products under that CatalogID
+function getProductsByCatalogOfProduct(productId, priceColumn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Find the product to get its CatalogID
+        const source = yield prisma.productMaster.findUnique({
+            where: { ProductID: productId },
+            select: { CatalogID: true }
+        });
+        if (!source || !source.CatalogID)
+            return [];
+        const catalogId = source.CatalogID;
+        const catalogProducts = yield prisma.productMaster.findMany({
+            where: {
+                CatalogID: catalogId,
+                CatalogDefault: 1
+            },
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
+        });
+        const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
+            const imageUrl = yield getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                catalogId: product.CatalogID,
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
+            };
+        })));
+        return productsWithImages;
+    });
+}
+// Returns products similar to a given product (by CategoryID). Excludes the source product.
+function getSimilarProducts(productId, priceColumn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Find the product to get its CategoryID
+        const source = yield prisma.productMaster.findUnique({
+            where: { ProductID: productId },
+            select: { CategoryID: true }
+        });
+        if (!source || !source.CategoryID)
+            return [];
+        const categoryId = source.CategoryID;
+        const catalogProducts = yield prisma.productMaster.findMany({
+            where: {
+                CatalogDefault: 1,
+                CategoryID: categoryId,
+                ProductID: { not: productId }
+            },
+            take: 50,
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
+        });
+        const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
+            const imageUrl = yield getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })));
         return productsWithImages;

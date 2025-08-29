@@ -58,6 +58,7 @@ export async function getExclusiveProducts(customerId: number | null, priceColum
             Units: true,
             UnitsOfMeasurement: true,
             CatalogID: true,
+            MinimumQty: true,
             ...(priceColumn ? { [priceColumn]: true } : {})
         }
     });
@@ -72,7 +73,8 @@ export async function getExclusiveProducts(customerId: number | null, priceColum
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })
     );
@@ -107,6 +109,7 @@ export async function getCustomerPreferredProducts(customerId: number | null, pr
             Units: true,
             UnitsOfMeasurement: true,
             CatalogID: true,
+            MinimumQty: true,
             ...(priceColumn ? { [priceColumn]: true } : {})
         }
     });
@@ -121,7 +124,8 @@ export async function getCustomerPreferredProducts(customerId: number | null, pr
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })
     );
@@ -141,6 +145,7 @@ export async function getAllProducts(customerId: number | null, priceColumn: str
             Units: true,
             UnitsOfMeasurement: true,
             CatalogID: true,
+            MinimumQty: true,
             ...(priceColumn ? { [priceColumn]: true } : {})
         }
     });
@@ -155,7 +160,8 @@ export async function getAllProducts(customerId: number | null, priceColumn: str
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })
     );
@@ -176,6 +182,7 @@ export async function getNewProducts(customerId: number | null, priceColumn: str
             Units: true,
             UnitsOfMeasurement: true,
             CatalogID: true,
+            MinimumQty: true,
             ...(priceColumn ? { [priceColumn]: true } : {})
         }
     });
@@ -190,7 +197,8 @@ export async function getNewProducts(customerId: number | null, priceColumn: str
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })
     );
@@ -214,7 +222,8 @@ export async function getBestSellingProducts(customerId: number | null, priceCol
             ProductName: true,
             Units: true,
             UnitsOfMeasurement: true,
-            ...(priceColumn ? { [priceColumn]: true } : {})
+            ...(priceColumn ? { [priceColumn]: true } : {}),
+            MinimumQty : true
 
         }
     });
@@ -228,7 +237,8 @@ export async function getBestSellingProducts(customerId: number | null, priceCol
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
                 price: priceColumn ? (product[priceColumn] || 0) : "",
-                image: imageUrl
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
             };
         })
     );
@@ -345,6 +355,7 @@ export async function getProductsBySubCategory(
       Units: true,
       UnitsOfMeasurement: true,
       CatalogID: true,
+      MinimumQty : true,
       ...(priceColumn ? { [priceColumn]: true } : {}),
     },
   });
@@ -360,9 +371,105 @@ export async function getProductsBySubCategory(
         price: priceColumn ? product[priceColumn] || 0 : '',
         catalogId: product.CatalogID,  
         image: imageUrl,
+        minimumOrderQuantity: product.MinimumQty || 1
       };
     })
   );
 
   return productsWithImages;
+}
+
+// Given a productId, find its CatalogID and return all products under that CatalogID
+export async function getProductsByCatalogOfProduct(productId: number, priceColumn: string | null) {
+    // Find the product to get its CatalogID
+    const source = await prisma.productMaster.findUnique({
+        where: { ProductID: productId },
+        select: { CatalogID: true }
+    });
+
+    if (!source || !source.CatalogID) return [];
+
+    const catalogId = source.CatalogID;
+
+    const catalogProducts = await prisma.productMaster.findMany({
+        where: {
+            CatalogID: catalogId,
+            CatalogDefault: 1
+        },
+        select: {
+            ProductID: true,
+            ProductName: true,
+            Units: true,
+            UnitsOfMeasurement: true,
+            CatalogID: true,
+            MinimumQty: true,
+            ...(priceColumn ? { [priceColumn]: true } : {})
+        }
+    });
+
+    const productsWithImages = await Promise.all(
+        catalogProducts.map(async (product: any) => {
+            const imageUrl = await getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                catalogId: product.CatalogID,
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
+            };
+        })
+    );
+
+    return productsWithImages;
+}
+
+// Returns products similar to a given product (by CategoryID). Excludes the source product.
+export async function getSimilarProducts(productId: number, priceColumn: string | null) {
+    // Find the product to get its CategoryID
+    const source = await prisma.productMaster.findUnique({
+        where: { ProductID: productId },
+        select: { CategoryID: true }
+    });
+
+    if (!source || !source.CategoryID) return [];
+
+    const categoryId = source.CategoryID;
+
+    const catalogProducts = await prisma.productMaster.findMany({
+        where: {
+            CatalogDefault: 1,
+            CategoryID: categoryId,
+            ProductID: { not: productId }
+        },
+        take: 50,
+        select: {
+            ProductID: true,
+            ProductName: true,
+            Units: true,
+            UnitsOfMeasurement: true,
+            CatalogID: true,
+            MinimumQty: true,
+            ...(priceColumn ? { [priceColumn]: true } : {})
+        }
+    });
+
+    const productsWithImages = await Promise.all(
+        catalogProducts.map(async (product: any) => {
+            const imageUrl = await getProductImage(product.ProductID);
+            return {
+                productId: product.ProductID,
+                productName: product.ProductName,
+                productUnits: product.Units || 0,
+                unitsOfMeasurement: product.UnitsOfMeasurement || '',
+                price: priceColumn ? (product[priceColumn] || 0) : "",
+                image: imageUrl,
+                minimumOrderQuantity: product.MinimumQty || 1
+            };
+        })
+    );
+
+    return productsWithImages;
 }

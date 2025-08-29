@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
+import { getProductsByCatalog, getSimilarProductsApi } from "@/services/api";
 
 const { width } = Dimensions.get('window');
 const defaultImage = require("../../assets/images/Banana.png");
@@ -346,55 +347,22 @@ export default function ProductDetailsScreen() {
     otherDetails: stableParams.otherDetails || "Store in a cool, dry place. Best consumed within 3-5 days."
   }), [stableParams]);
 
-  // Product variants with proper MOQ
-  const productVariants = useMemo<ProductVariant[]>(() => [
+  // Product variants with proper MOQ - will be replaced from API when available
+  const [productVariants, setProductVariants] = useState<ProductVariant[]>([
     {
-      variantId: '5kg',
-      units: 5,
-      unitsOfMeasurement: 'KG',
-      price: 331,
-      originalPrice: 441,
-      image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300&h=300&fit=crop",
-      minOrderQuantity: 2, // Different MOQ for different variants
-      description: "5 KG pack - Best for large families.",
-      isAvailable: true
-    },
-    {
-      variantId: '2kg',
-      units: 2,
-      unitsOfMeasurement: 'KG',
-      price: 132,
-      originalPrice: 176,
-      image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=300&h=300&fit=crop",
-      minOrderQuantity: 1,
-      description: "2 KG pack - Perfect for medium families.",
-      isAvailable: true
-    },
-    {
-      variantId: '1kg',
-      units: 1,
-      unitsOfMeasurement: 'KG',
-      price: 63,
-      originalPrice: 86,
-      image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300&h=300&fit=crop",
-      minOrderQuantity: 3, // Different MOQ
-      description: "1 KG pack - Ideal for small families.",
-      isAvailable: true
-    },
-    {
-      variantId: '10kg',
-      units: 10,
-      unitsOfMeasurement: 'KG',
-      price: 656,
-      originalPrice: 874,
-      image: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=300&fit=crop",
-      minOrderQuantity: 1,
-      description: "10 KG pack - Bulk pack for businesses.",
+      variantId: 'default',
+      units: baseProduct.productUnits,
+      unitsOfMeasurement: baseProduct.unitsOfMeasurement,
+      price: baseProduct.price,
+      originalPrice: undefined,
+      image: baseProduct.image || undefined,
+      minOrderQuantity: baseProduct.minOrderQuantity,
+      description: baseProduct.description,
       isAvailable: true
     }
-  ], []);
+  ]);
 
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(productVariants[1]);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(productVariants[0]);
   
   const currentProduct = useMemo<ProductDetailsProps>(() => ({
     ...baseProduct,
@@ -426,41 +394,50 @@ export default function ProductDetailsScreen() {
     }
   }, []);
 
+  // Load catalog variants and similar products from API on mount
   useEffect(() => {
-    const loadSimilarProducts = async () => {
-      const mockSimilarProducts: Product[] = [
-        {
-          productId: currentProduct.productId + 1001,
-          productName: "Double Horse Palada Mix",
-          price: 85,
-          productUnits: 200,
-          unitsOfMeasurement: "g",
-          image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300&h=300&fit=crop",
-          minOrderQuantity: 2
-        },
-        {
-          productId: currentProduct.productId + 1002,
-          productName: "Suraj Palada Big Pack",
-          price: 60,
-          productUnits: 300,
-          unitsOfMeasurement: "g",
-          image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=300&h=300&fit=crop",
-          minOrderQuantity: 1
-        },
-        {
-          productId: currentProduct.productId + 1003,
-          productName: "Double Horse Premium",
-          price: 115,
-          productUnits: 200,
-          unitsOfMeasurement: "g",
-          image: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300&h=300&fit=crop",
-          minOrderQuantity: 3
+    let mounted = true;
+
+    const loadCatalogAndSimilar = async () => {
+      try {
+        const pid = baseProduct.productId;
+
+        const catRes = await getProductsByCatalog(pid);
+        if (mounted && catRes && catRes.success) {
+          // Map catalog products into variants
+          const variants: ProductVariant[] = (catRes.products || []).map((p: any) => ({
+            variantId: String(p.productId),
+            units: p.productUnits || 1,
+            unitsOfMeasurement: p.unitsOfMeasurement || '',
+            price: Number(p.price) || 0,
+            originalPrice: undefined,
+            image: p.image || undefined,
+            minOrderQuantity: p.minimumOrderQuantity || p.minOrderQuantity || 1,
+            description: p.productName || '',
+            isAvailable: true
+          }));
+
+          if (variants.length > 0) {
+            setProductVariants(variants);
+            // choose a variant that matches base product units, or first one
+            const match = variants.find(v => v.units === baseProduct.productUnits) || variants[0];
+            setSelectedVariant(match);
+          }
         }
-      ];
-      setSimilarProducts(mockSimilarProducts);
+
+        const simRes = await getSimilarProductsApi(pid);
+        if (mounted && simRes && simRes.success) {
+          setSimilarProducts((simRes.products || []) as Product[]);
+        }
+      } catch (err) {
+        console.error('Error loading catalog/similar:', err);
+      }
     };
-    loadSimilarProducts();
-  }, []);
+
+    loadCatalogAndSimilar();
+
+    return () => { mounted = false; };
+  }, [baseProduct.productId]);
 
   const getImageSource = useCallback((imageUrl: string | null) => {
     if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {

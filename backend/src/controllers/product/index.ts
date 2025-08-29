@@ -11,6 +11,8 @@ import {
     getSubCategoriesByCategoryId,
     getProductsBySubCategory
 } from '../../service/product';
+import { getProductsByCatalogOfProduct } from '../../service/product';
+import { getSimilarProducts } from '../../service/product';
 
 export async function getExclusiveProductsList(req: AuthRequest, res: Response) {
     try {
@@ -195,4 +197,42 @@ export async function productsBySubCategory(req: AuthRequest, res: Response) {
       details: error.message,
     });
   }
+}
+
+export async function productsByCatalog(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const productId = parseInt(req.params.productId);
+        if (isNaN(productId)) return res.status(400).json({ error: 'Invalid productId' });
+
+        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
+        const products = await getProductsByCatalogOfProduct(productId, priceColumn);
+
+        res.json({ success: true, products });
+    } catch (error: any) {
+        console.error('Error fetching products by catalog:', error);
+        res.status(500).json({ error: 'Failed to fetch products by catalog', details: error.message });
+    }
+}
+
+export async function similarProductsList(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const productId = parseInt(req.params.productId);
+        if (isNaN(productId)) return res.status(400).json({ error: 'Invalid productId' });
+
+        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
+        const products = await getSimilarProducts(productId, priceColumn);
+
+        res.json({ success: true, products });
+    } catch (error: any) {
+        console.error('Error fetching similar products:', error);
+        res.status(500).json({ error: 'Failed to fetch similar products', details: error.message });
+    }
 }

@@ -17,7 +17,11 @@ exports.getBestSelling = getBestSelling;
 exports.getCategoryList = getCategoryList;
 exports.getSubCategories = getSubCategories;
 exports.productsBySubCategory = productsBySubCategory;
+exports.productsByCatalog = productsByCatalog;
+exports.similarProductsList = similarProductsList;
 const product_1 = require("../../service/product");
+const product_2 = require("../../service/product");
+const product_3 = require("../../service/product");
 function getExclusiveProductsList(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
@@ -202,6 +206,46 @@ function productsBySubCategory(req, res) {
                 error: 'Failed to fetch products by subcategory',
                 details: error.message,
             });
+        }
+    });
+}
+function productsByCatalog(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const productId = parseInt(req.params.productId);
+            if (isNaN(productId))
+                return res.status(400).json({ error: 'Invalid productId' });
+            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const products = yield (0, product_2.getProductsByCatalogOfProduct)(productId, priceColumn);
+            res.json({ success: true, products });
+        }
+        catch (error) {
+            console.error('Error fetching products by catalog:', error);
+            res.status(500).json({ error: 'Failed to fetch products by catalog', details: error.message });
+        }
+    });
+}
+function similarProductsList(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const productId = parseInt(req.params.productId);
+            if (isNaN(productId))
+                return res.status(400).json({ error: 'Invalid productId' });
+            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const products = yield (0, product_3.getSimilarProducts)(productId, priceColumn);
+            res.json({ success: true, products });
+        }
+        catch (error) {
+            console.error('Error fetching similar products:', error);
+            res.status(500).json({ error: 'Failed to fetch similar products', details: error.message });
         }
     });
 }

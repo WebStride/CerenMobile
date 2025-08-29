@@ -11,7 +11,8 @@ import {
   SafeAreaView
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { getExclusiveOffers, getBestSelling, getNewProducts, getBuyAgainProducts } from "@/services/api";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
 
@@ -22,7 +23,8 @@ interface Product {
   productUnits: number;
   unitsOfMeasurement: string;
   price: number;
-  image: string | null;
+  // API may return URL (string) or we will assign local require (number)
+  image: string | number | null;
   minOrderQuantity: number; // Made required instead of optional
   description?: string;
   nutritionInfo?: string;
@@ -30,6 +32,12 @@ interface Product {
 }
 
 const defaultImage = require("../../assets/images/Banana.png");
+const fallbackImages = [
+  require("../../assets/images/Banana.png"),
+  require("../../assets/images/PulsesCategory.png"),
+  require("../../assets/images/LocationThumbnail.png"),
+  require("../../assets/images/HomeLogo.png"),
+];
 
 // Mock data for 100+ products with guaranteed minOrderQuantity
 const generateMockProducts = (count: number): Product[] => {
@@ -152,7 +160,10 @@ const ProductCard = React.memo(({
     if (isProductFavourite) {
       removeFromFavourites(item.productId);
     } else {
-      addToFavourites(item);
+      addToFavourites({
+        ...item,
+        image: typeof item.image === 'number' ? '' : (item.image as string | null)
+      } as any);
     }
   }, [isProductFavourite, item, addToFavourites, removeFromFavourites]);
 
@@ -174,7 +185,7 @@ const ProductCard = React.memo(({
         productId: item.productId,
         productName: item.productName,
         price: item.price,
-        image: item.image,
+  image: typeof item.image === 'number' ? '' : (item.image as string | null),
         productUnits: item.productUnits,
         unitsOfMeasurement: item.unitsOfMeasurement,
       });
@@ -355,6 +366,8 @@ const ProductCard = React.memo(({
 
 const AllProductsList = () => {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const feedType = (params.feedType as string) || "all"; // exclusive|bestselling|newproducts|buyagain|all
   const { cartCount } = useCart();
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -368,11 +381,14 @@ const AllProductsList = () => {
 
   const ITEMS_PER_PAGE = 20;
   const mockData = generateMockProducts(100);
+  const fullFeedRef = React.useRef<Product[] | null>(null);
+
+  const getFallbackImageFor = (id: number) => fallbackImages[id % fallbackImages.length];
 
   // Initial load
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [feedType]);
 
   // Filter products when search changes
   useEffect(() => {
@@ -389,12 +405,68 @@ const AllProductsList = () => {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const initialProducts = mockData.slice(0, ITEMS_PER_PAGE);
-      setProducts(initialProducts);
-      setCurrentPage(1);
-      setHasMoreData(mockData.length > ITEMS_PER_PAGE);
+      // show quick spinner
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      let apiProducts: any[] | null = null;
+      try {
+        if (feedType === "exclusive") {
+          const res = await getExclusiveOffers();
+          if (res && res.success) apiProducts = res.products;
+        } else if (feedType === "bestselling") {
+          const res = await getBestSelling(200);
+          if (res && res.success) apiProducts = res.products;
+        } else if (feedType === "newproducts") {
+          const res = await getNewProducts();
+          if (res && res.success) apiProducts = res.products;
+        } else if (feedType === "buyagain") {
+          const res = await getBuyAgainProducts();
+          if (res && res.success) apiProducts = res.products;
+        }
+      } catch (err) {
+        console.warn("API fetch error for feed", feedType, err);
+      }
+
+      // If API returned (even an empty) array and success, respect it.
+      if (apiProducts !== null) {
+        // normalize and ensure minOrderQuantity and image when there are products
+        if (apiProducts.length > 0) {
+          const normalized = apiProducts.map((p: any, idx: number) => {
+            const pid = Number(p.productId || p.id || idx);
+            const minOrder = Number(p.minimumOrderQuantity || p.minOrderQuantity || p.min_order_quantity || p.minOrder || 1) || 1;
+            const img = p.image && p.image !== "" ? p.image : getFallbackImageFor(pid || idx);
+            return {
+              productId: pid,
+              productName: p.productName || p.name || p.title || "Product",
+              productUnits: Number(p.productUnits || p.units || 1),
+              unitsOfMeasurement: p.unitsOfMeasurement || p.measurement || "unit",
+              price: Number(p.price || 0),
+              image: img,
+              minOrderQuantity: minOrder,
+              description: p.description || "",
+              nutritionInfo: p.nutritionInfo || "",
+              otherDetails: p.otherDetails || "",
+            } as Product;
+          });
+
+          fullFeedRef.current = normalized;
+          setProducts(normalized.slice(0, ITEMS_PER_PAGE));
+          setCurrentPage(1);
+          setHasMoreData(normalized.length > ITEMS_PER_PAGE);
+        } else {
+          // API explicitly returned an empty array: show empty list (no mock fallback)
+          fullFeedRef.current = [];
+          setProducts([]);
+          setCurrentPage(1);
+          setHasMoreData(false);
+        }
+      } else {
+        // fallback to mock only when API failed or didn't return data
+        const initialProducts = mockData.slice(0, ITEMS_PER_PAGE);
+        setProducts(initialProducts);
+        setCurrentPage(1);
+        setHasMoreData(mockData.length > ITEMS_PER_PAGE);
+      }
     } catch (error) {
       console.error("Error loading initial data:", error);
       Alert.alert("Error", "Failed to load products");
@@ -413,12 +485,14 @@ const AllProductsList = () => {
       const nextPage = currentPage + 1;
       const startIndex = (nextPage - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;
-      const newProducts = mockData.slice(startIndex, endIndex);
+
+      const source = fullFeedRef.current && fullFeedRef.current.length > 0 ? fullFeedRef.current : mockData;
+      const newProducts = source.slice(startIndex, endIndex);
 
       if (newProducts.length > 0) {
         setProducts(prev => [...prev, ...newProducts]);
         setCurrentPage(nextPage);
-        setHasMoreData(endIndex < mockData.length);
+        setHasMoreData(endIndex < source.length);
       } else {
         setHasMoreData(false);
       }

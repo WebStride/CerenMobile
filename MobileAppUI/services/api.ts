@@ -266,6 +266,117 @@ export const getCategories = async () => {
   }
 };
 
+// Fetch subcategories for a given categoryId
+export const getSubCategories = async (categoryId: number) => {
+  try {
+    console.log(`Fetching subcategories for categoryId=${categoryId}...`);
+    const response = await fetch(`${apiUrl}/categories/subCategories/${categoryId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    console.log('Response status:', response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error fetching subcategories:', errorData);
+      return { success: false, subCategories: [], message: errorData.message };
+    }
+
+    const data = await response.json();
+    console.log('Subcategories fetched successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching subcategories:', error);
+    return { success: false, subCategories: [] };
+  }
+};
+
+// Fetch products belonging to a subcategory
+export const getProductsBySubCategory = async (subCategoryId: number) => {
+  try {
+    console.log(`Fetching products for subCategoryId=${subCategoryId}...`);
+    const response = await fetch(`${apiUrl}/products/productsBySubCategory/${subCategoryId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    console.log('Response status:', response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error fetching products by subcategory:', errorData);
+      return { success: false, products: [], message: errorData.message };
+    }
+
+    const data = await response.json();
+    console.log('Products by subcategory fetched successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching products by subcategory:', error);
+    return { success: false, products: [] };
+  }
+};
+
+// Given a productId, fetch other products that belong to the same CatalogID
+export const getProductsByCatalog = async (productId: number) => {
+  try {
+    console.log(`Fetching products for catalog of productId=${productId}...`);
+    const response = await fetch(`${apiUrl}/products/catalog/${productId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    console.log('Response status:', response.status);
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Error fetching products by catalog:', err);
+      return { success: false, products: [], message: err.message };
+    }
+
+    const data = await response.json();
+    console.log('Products by catalog fetched successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching products by catalog:', error);
+    return { success: false, products: [] };
+  }
+};
+
+export const getSimilarProductsApi = async (productId: number) => {
+  try {
+    console.log(`Fetching similar products for productId=${productId}...`);
+    const response = await fetch(`${apiUrl}/products/similar/${productId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    console.log('Response status:', response.status);
+    if (!response.ok) {
+      const err = await response.json();
+      console.error('Error fetching similar products:', err);
+      return { success: false, products: [], message: err.message };
+    }
+
+    const data = await response.json();
+    console.log('Similar products fetched successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching similar products:', error);
+    return { success: false, products: [] };
+  }
+};
+
 export async function checkCustomerExists() {
   const response = await fetch(`${apiUrl}/customer/check`, {
     method: "GET",
@@ -282,3 +393,160 @@ export async function checkCustomerExists() {
 
   return response.json();
 }
+
+// Favourites API helpers
+export const fetchFavourites = async () => {
+  try {
+    const response = await fetch(`${apiUrl}/favourites`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, favourites: [], message: err.message };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching favourites:', error);
+    return { success: false, favourites: [] };
+  }
+};
+
+export const addFavouriteApi = async (product: any) => {
+  try {
+    const response = await fetch(`${apiUrl}/favourites`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+      body: JSON.stringify(product)
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, message: err.message };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding favourite:', error);
+    return { success: false };
+  }
+};
+
+export const removeFavouriteApi = async (productId: number) => {
+  try {
+    const response = await fetch(`${apiUrl}/favourites/${productId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, message: err.message };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error removing favourite:', error);
+    return { success: false };
+  }
+};
+
+// Cart API helpers
+export const getCart = async () => {
+  try {
+    const response = await fetch(`${apiUrl}/cart`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+    if (!response.ok) return { success: false, cart: [] };
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching cart:', error);
+    return { success: false, cart: [] };
+  }
+};
+
+export const addToCartApi = async (product: any) => {
+  try {
+    const response = await fetch(`${apiUrl}/cart`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+      body: JSON.stringify(product)
+    });
+    if (!response.ok) return { success: false };
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    return { success: false };
+  }
+};
+
+export const updateCartApi = async (productId: number, quantity: number) => {
+  try {
+    const response = await fetch(`${apiUrl}/cart/${productId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+      body: JSON.stringify({ quantity })
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error updating cart:', error);
+    return false;
+  }
+};
+
+export const removeCartApi = async (productId: number) => {
+  try {
+    const response = await fetch(`${apiUrl}/cart/${productId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error removing cart item:', error);
+    return false;
+  }
+};
+
+export const clearCartApi = async () => {
+  try {
+    const response = await fetch(`${apiUrl}/cart/clear`, {
+      method: 'POST',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error clearing cart:', error);
+    return false;
+  }
+};

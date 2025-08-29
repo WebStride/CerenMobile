@@ -17,6 +17,21 @@ app.use(cors({
 
 app.use(express.json());
 
+// Simple request timing middleware to log response durations
+app.use((req: any, res: any, next: any) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    console.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} ${ms}ms`);
+  });
+  next();
+});
+
+// Health endpoint for quick reachability and latency checks
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({ ok: true, now: new Date().toISOString() });
+});
+
 
 const port = parseInt(process.env.PORT || '3002');
 

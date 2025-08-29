@@ -26,6 +26,19 @@ app.use((0, cors_1.default)({
     credentials: true // Set to true if the frontend uses cookies/auth headers
 }));
 app.use(express_1.default.json());
+// Simple request timing middleware to log response durations
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const ms = Date.now() - start;
+        console.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} ${ms}ms`);
+    });
+    next();
+});
+// Health endpoint for quick reachability and latency checks
+app.get('/health', (_req, res) => {
+    res.json({ ok: true, now: new Date().toISOString() });
+});
 const port = parseInt(process.env.PORT || '3002');
 const host = process.env.HOST || '0.0.0.0';
 app.listen(port, host, () => __awaiter(void 0, void 0, void 0, function* () {
