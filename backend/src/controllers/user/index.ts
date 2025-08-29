@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { AuthRequest } from '../../middleware/auth';
 import { sendUserDetailsToAdmin } from '../../service/notification';
 
 const prisma = new PrismaClient();
 
-export async function submitUserAddress(req: Request, res: Response) {
+export async function submitUserAddress(req: AuthRequest, res: Response) {
     const {
         name,
         phoneNumber,
@@ -13,18 +14,26 @@ export async function submitUserAddress(req: Request, res: Response) {
         houseNumber,
         buildingBlock,
         pinCode,
-        landmark
+        landmark,
+        saveAs,
+        isDefault = false
     } = req.body;
 
     // Validate required fields
-    if (!phoneNumber) {
+    if (!phoneNumber || !city || !district || !houseNumber || !buildingBlock || !pinCode) {
         return res.status(400).json({
             error: 'Missing required fields',
-            fields: ['phoneNumber', 'name', 'city', 'district', 'houseNumber', 'buildingBlock', 'pinCode']
+            fields: ['phoneNumber', 'city', 'district', 'houseNumber', 'buildingBlock', 'pinCode']
         });
     }
 
     try {
+        // Get the authenticated user's ID
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
         // Check if user exists in CustomerMaster
         const existingUser = await prisma.cUSTOMERMASTER.findFirst({
             where: { PHONENO: phoneNumber }
@@ -49,24 +58,178 @@ export async function submitUserAddress(req: Request, res: Response) {
             });
         }
 
-        // If user exists, update their address details
-        const updatedUser = await prisma.uSERCUSTOMERMASTER.update({
-            where: { phoneNumber },
-            data: {
-                address: `${houseNumber}, ${buildingBlock}, ${landmark || ''}, ${city}, ${district}, ${pinCode}`.trim()
+        // If setting as default, unset all other defaults first
+        if (isDefault) {
+            await prisma.deliveryAddress.updateMany({
+                where: { UserID: parseInt(authenticatedUserId) },
+                data: { IsDefault: false }
+            });
+        }
+
+        // Check if address with same SaveAs already exists
+        const existingAddress = await prisma.deliveryAddress.findFirst({
+            where: {
+                UserID: parseInt(authenticatedUserId),
+                SaveAs: saveAs || 'home',
+                Active: true
             }
         });
 
+        let deliveryAddress;
+        if (existingAddress) {
+            // Update existing address
+            deliveryAddress = await prisma.deliveryAddress.update({
+                where: { DeliveryAddressID: existingAddress.DeliveryAddressID },
+                data: {
+                    HouseNumber: houseNumber,
+                    BuildingBlock: buildingBlock,
+                    PinCode: pinCode,
+                    Landmark: landmark,
+                    City: city,
+                    District: district,
+                    IsDefault: isDefault,
+                    UpdatedAt: new Date()
+                }
+            });
+        } else {
+            // Create new address
+            deliveryAddress = await prisma.deliveryAddress.create({
+                data: {
+                    UserID: parseInt(authenticatedUserId),
+                    HouseNumber: houseNumber,
+                    BuildingBlock: buildingBlock,
+                    PinCode: pinCode,
+                    Landmark: landmark,
+                    City: city,
+                    District: district,
+                    SaveAs: saveAs || 'home',
+                    IsDefault: isDefault,
+                    Active: true
+                }
+            });
+        }
+
         return res.json({
             success: true,
-            message: 'Address updated successfully',
-            user: updatedUser
+            message: isDefault ? 'Address saved and set as default' : 'Address saved successfully',
+            address: deliveryAddress
         });
 
     } catch (error: any) {
         console.error('Error in submitUserAddress:', error);
         return res.status(500).json({
             error: 'Failed to process address submission',
+            details: error.message
+        });
+    }
+}
+
+// Get all addresses for authenticated user
+export async function getUserAddresses(req: AuthRequest, res: Response) {
+    try {
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const addresses = await prisma.deliveryAddress.findMany({
+            where: {
+                UserID: parseInt(authenticatedUserId),
+                Active: true
+            },
+            orderBy: [
+                { IsDefault: 'desc' }, // Default address first
+                { CreatedAt: 'desc' }  // Then by creation date
+            ]
+        });
+
+        res.json({
+            success: true,
+            addresses
+        });
+    } catch (error: any) {
+        console.error('Error fetching user addresses:', error);
+        res.status(500).json({
+            error: 'Failed to fetch addresses',
+            details: error.message
+        });
+    }
+}
+
+// Set address as default for authenticated user
+export async function setDefaultAddress(req: AuthRequest, res: Response) {
+    try {
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const addressId = parseInt(req.params.addressId);
+        if (isNaN(addressId)) {
+            return res.status(400).json({ error: 'Invalid address ID' });
+        }
+
+        // First, unset all default addresses for this user
+        await prisma.deliveryAddress.updateMany({
+            where: { UserID: parseInt(authenticatedUserId) },
+            data: { IsDefault: false }
+        });
+
+        // Then set the selected address as default
+        const updatedAddress = await prisma.deliveryAddress.update({
+            where: {
+                DeliveryAddressID: addressId,
+                UserID: parseInt(authenticatedUserId) // Ensure user owns this address
+            },
+            data: { IsDefault: true }
+        });
+
+        res.json({
+            success: true,
+            message: 'Default address updated successfully',
+            address: updatedAddress
+        });
+    } catch (error: any) {
+        console.error('Error setting default address:', error);
+        res.status(500).json({
+            error: 'Failed to set default address',
+            details: error.message
+        });
+    }
+}
+
+// Get current default address for authenticated user
+export async function getDefaultAddress(req: AuthRequest, res: Response) {
+    try {
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const defaultAddress = await prisma.deliveryAddress.findFirst({
+            where: {
+                UserID: parseInt(authenticatedUserId),
+                IsDefault: true,
+                Active: true
+            }
+        });
+
+        if (!defaultAddress) {
+            return res.json({
+                success: true,
+                address: null,
+                message: 'No default address set'
+            });
+        }
+
+        res.json({
+            success: true,
+            address: defaultAddress
+        });
+    } catch (error: any) {
+        console.error('Error fetching default address:', error);
+        res.status(500).json({
+            error: 'Failed to fetch default address',
             details: error.message
         });
     }
