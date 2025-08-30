@@ -496,50 +496,41 @@ model Invoices {
   @@index([CustomerID], map: "CustomerIDIdx")
 }
 
-
-// ...existing code...
 model UserFavourites {
-  id                 Int      @id @default(autoincrement())
+  id                 Int                @id @default(autoincrement())
   userId             Int
-  user               USERCUSTOMERMASTER @relation(fields: [userId], references: [id])
-
   productId          Int
-  productName        String   @db.VarChar(255)
-  price              Float?   @default(0)
-  image              String?  @db.VarChar(1000)
+  productName        String             @db.VarChar(255)
+  price              Float?             @default(0)
+  image              String?            @db.VarChar(1000)
   productUnits       Float?
-  unitsOfMeasurement String?  @db.VarChar(50)
-  minOrderQuantity   Int?     @default(1)
-
-  addedAt            DateTime @default(now())
+  unitsOfMeasurement String?            @db.VarChar(50)
+  minOrderQuantity   Int?               @default(1)
+  addedAt            DateTime           @default(now())
+  user               USERCUSTOMERMASTER @relation(fields: [userId], references: [id])
 
   @@unique([userId, productId], map: "UX_user_favourites_user_product")
   @@index([userId], map: "IDX_user_favourites_user")
 }
 
-
-// ...existing code...
 model Cart {
-  id                 Int      @id @default(autoincrement())
+  id                 Int                @id @default(autoincrement())
   userId             Int
-  user               USERCUSTOMERMASTER? @relation(fields: [userId], references: [id])
   productId          Int
-  productName        String   @db.VarChar(255)
+  productName        String             @db.VarChar(255)
   price              Float
-  image              String?  @db.VarChar(1000)
+  image              String?            @db.VarChar(1000)
   productUnits       Float?
-  unitsOfMeasurement String?  @db.VarChar(50)
-  quantity           Int      @default(1)
-  minOrderQuantity   Int?     @default(1)
-
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  unitsOfMeasurement String?            @db.VarChar(50)
+  quantity           Int                @default(1)
+  minOrderQuantity   Int?               @default(1)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  user               USERCUSTOMERMASTER @relation(fields: [userId], references: [id])
 
   @@unique([userId, productId], map: "UX_cart_user_product")
   @@index([userId], map: "IDX_cart_user")
 }
-// ...existing code...
-// ...existing code...
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model Invoices_BCK {
@@ -784,16 +775,14 @@ model TEMPORARAYUSER {
 }
 
 model USERCUSTOMERMASTER {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(100)
-  phoneNumber String   @unique @db.VarChar(20)
-  address     String?  @db.VarChar(255)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id             Int              @id @default(autoincrement())
+  name           String           @db.VarChar(100)
+  phoneNumber    String           @unique @db.VarChar(20)
+  address        String?          @db.VarChar(255)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  Cart           Cart[]
   UserFavourites UserFavourites[]
-
-  Cart Cart[]
 }
 
 model ProductCategoryMaster {
@@ -905,7 +894,7 @@ model ProductInventory_bck1 {
 }
 
 model ProductMaster {
-  ProductID                Int     @id @default(autoincrement()) @map("# ProductID")  // Remove the "?" here
+  ProductID                Int     @id @default(autoincrement()) @map("# ProductID")
   ProductSKU               String? @db.VarChar(50)
   ProductName              String? @db.VarChar(50)
   Description              String? @db.VarChar(50)
@@ -952,9 +941,7 @@ model ProductMaster {
   Measure                  Int?
 
   @@map("ProductMaster")
-  // Remove @@ignore directive
 }
-
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model ProductMaster_b4_PuneOff {
@@ -1881,4 +1868,22 @@ model temp4_ver {
   PurchaseAmt  Float?
 
   @@ignore
+}
+
+model DeliveryAddress {
+  DeliveryAddressID Int      @id @default(autoincrement())
+  UserID            Int?
+  Name              String?  @db.VarChar(100)
+  PhoneNumber       String?  @db.VarChar(20)
+  City              String?  @db.VarChar(100)
+  District          String?  @db.VarChar(100)
+  HouseNumber       String?  @db.VarChar(100)
+  BuildingBlock     String?  @db.VarChar(100)
+  PinCode           String?  @db.VarChar(10)
+  Landmark          String?  @db.VarChar(200)
+  SaveAs            String?  @db.VarChar(20)
+  CreatedAt         DateTime @default(now()) @db.Timestamp(0)
+  UpdatedAt         DateTime @db.Timestamp(0)
+  Active            Boolean  @default(dbgenerated("b'1'")) @db.Bit(1)
+  IsDefault         Boolean? @default(dbgenerated("b'0'")) @db.Bit(1)
 }

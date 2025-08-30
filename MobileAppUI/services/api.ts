@@ -550,3 +550,108 @@ export const clearCartApi = async () => {
     return false;
   }
 };
+
+// Address management API helpers
+export const sendAddressDetails = async (payload: {
+  name: string;
+  phoneNumber: string;
+  city: string;
+  district: string;
+  houseNumber: string;
+  buildingBlock: string;
+  pinCode: string;
+  landmark?: string;
+  saveAs?: string;
+  isDefault?: boolean;
+}): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const response = await fetch(`${apiUrl}/user/address`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return { success: false, message: errorData.message || 'Failed to send address details' };
+    }
+
+    const data = await response.json();
+    return { success: true, message: data.message };
+  } catch (error) {
+    console.error('Send Address Details API error:', error);
+    return { success: false, message: 'An unexpected error occurred' };
+  }
+};
+
+export const getUserAddresses = async () => {
+  try {
+    const response = await fetch(`${apiUrl}/user/addresses`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, addresses: [], message: err.message };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching user addresses:', error);
+    return { success: false, addresses: [] };
+  }
+};
+
+export const setDefaultAddress = async (addressId: number) => {
+  try {
+    const response = await fetch(`${apiUrl}/user/addresses/${addressId}/default`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, message: err.message };
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error setting default address:', error);
+    return { success: false };
+  }
+};
+
+export const getDefaultAddress = async () => {
+  try {
+    const response = await fetch(`${apiUrl}/user/default-address`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, address: null, message: err.message };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching default address:', error);
+    return { success: false, address: null };
+  }
+};

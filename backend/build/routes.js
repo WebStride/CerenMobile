@@ -45,7 +45,10 @@ function routes(app) {
     app.post("/auth/logout", auth_1.logout);
     app.get('/auth/validate-token', auth_1.validateToken);
     // User routes
-    app.post("/user/address", user_1.submitUserAddress);
+    app.post("/user/address", auth_2.authenticateToken, user_1.submitUserAddress);
+    app.get("/user/addresses", auth_2.authenticateToken, user_1.getUserAddresses);
+    app.put("/user/addresses/:addressId/default", auth_2.authenticateToken, user_1.setDefaultAddress);
+    app.get("/user/default-address", auth_2.authenticateToken, user_1.getDefaultAddress);
     // Product routes (all protected with authentication)
     app.get("/products/exclusive", auth_2.authenticateToken, product_1.getExclusiveProductsList);
     app.get("/products/best-selling", auth_2.authenticateToken, product_1.getBestSelling);
@@ -68,9 +71,7 @@ function routes(app) {
     // Similar products by productId (returns other products in same CategoryID)
     app.get('/products/similar/:productId', auth_2.authenticateToken, product_1.similarProductsList);
     // Products by catalog - given a productId, return other products in same CatalogID
-    app.get('/products/catalog/:productId', auth_2.authenticateToken, (req, res, next) => {
-        return require('./controllers/product').productsByCatalog(req, res);
-    });
+    app.get('/products/catalog/:productId', auth_2.authenticateToken, product_1.productsByCatalog);
     // Customer routes
     app.get('/customer/check', auth_2.authenticateToken, auth_3.checkCustomer);
 }
