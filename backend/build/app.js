@@ -17,7 +17,7 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 // import routes from "./routes";
 dotenv_1.default.config();
-const routes_js_1 = __importDefault(require("./routes.js"));
+const routes_1 = __importDefault(require("./routes"));
 const app = (0, express_1.default)();
 console.log("cors enabled");
 app.use((0, cors_1.default)({
@@ -43,6 +43,6 @@ const port = parseInt(process.env.PORT || '3002');
 const host = process.env.HOST || '0.0.0.0';
 app.listen(port, host, () => __awaiter(void 0, void 0, void 0, function* () {
     console.log(`App is running at port: http://${host}:${port}`);
-    yield (0, routes_js_1.default)(app);
+    yield (0, routes_1.default)(app);
 }));
 exports.default = app;

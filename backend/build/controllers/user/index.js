@@ -99,7 +99,8 @@ function submitUserAddress(req, res) {
                         District: district,
                         SaveAs: saveAs || 'home',
                         IsDefault: isDefault,
-                        Active: true
+                        Active: true,
+                        UpdatedAt: new Date()
                     }
                 });
             }

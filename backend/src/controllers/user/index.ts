@@ -104,7 +104,8 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
                     District: district,
                     SaveAs: saveAs || 'home',
                     IsDefault: isDefault,
-                    Active: true
+                    Active: true,
+                    UpdatedAt: new Date()
                 }
             });
         }

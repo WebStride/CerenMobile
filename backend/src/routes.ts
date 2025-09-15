@@ -1,6 +1,6 @@
 import { Express, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
-import { register, verifyPhoneNumber, refreshToken, logout, validateToken } from "./controllers/auth";
+import { register, verifyPhoneNumber, refreshToken, logout, validateToken, testOTP } from "./controllers/auth";
 import { submitUserAddress, getUserAddresses, setDefaultAddress, getDefaultAddress } from "./controllers/user";
 import {
     getExclusiveProductsList,
@@ -48,6 +48,7 @@ function routes(app: Express) {
     // Auth routes
     app.post("/auth/register", register);
     app.post("/auth/verify", verifyPhoneNumber);
+    app.post("/auth/test-otp", testOTP); // Debug route
     app.post("/auth/refresh", refreshToken);
     app.post("/auth/logout", logout);
     app.get('/auth/validate-token', validateToken);

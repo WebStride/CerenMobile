@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { RequestWithUser } from '../../types/express';
+export declare function testOTP(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 export declare function register(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 export declare function verifyPhoneNumber(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 export declare function refreshToken(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

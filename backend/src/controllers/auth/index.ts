@@ -4,6 +4,75 @@ import { sendOTP, verifyOTP, saveUserAndGenerateTokens, generateTokens } from ".
 import { RequestWithUser } from '../../types/express';
 import {checkCustomerExists} from "../../service/auth"
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
+export async function testOTP(req: Request, res: Response) {
+    const { phoneNumber } = req.body;
+
+    if (!phoneNumber) {
+        return res.status(400).json({ error: "Missing phoneNumber" });
+    }
+
+    try {
+        console.log('=== TEST OTP DEBUG ===');
+        console.log('Original phone number:', phoneNumber);
+
+        // Test phone number formatting
+        const twilio = require('twilio');
+        const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+        // Format phone number the same way as in the service
+        const formatPhoneNumber = (phone: string) => {
+            const cleaned = phone.replace(/\D/g, '');
+            if (cleaned.startsWith('91') && cleaned.length === 12) {
+                return `+${cleaned}`;
+            }
+            if (cleaned.length === 10) {
+                return `+91${cleaned}`;
+            }
+            if (phone.startsWith('+')) {
+                return phone;
+            }
+            return phone.startsWith('+') ? phone : `+${phone}`;
+        };
+
+        const formattedPhone = formatPhoneNumber(phoneNumber);
+        console.log('Formatted phone number:', formattedPhone);
+
+        // Test verification creation
+        const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+            .verifications
+            .create({
+                to: formattedPhone,
+                channel: 'sms',
+            });
+
+        console.log('Verification created:', {
+            sid: verification.sid,
+            status: verification.status,
+            to: verification.to
+        });
+
+        res.json({
+            success: true,
+            message: "Test OTP sent successfully",
+            debug: {
+                originalPhone: phoneNumber,
+                formattedPhone: formattedPhone,
+                verificationSid: verification.sid,
+                status: verification.status
+            }
+        });
+    } catch (error: any) {
+        console.error('Test OTP error:', error);
+        res.status(500).json({
+            error: "Test OTP failed",
+            details: error.message,
+            debug: {
+                originalPhone: phoneNumber,
+                errorCode: error.code
+            }
+        });
+    }
+}
 
 
 export async function register(req: Request, res: Response) {

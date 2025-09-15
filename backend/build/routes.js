@@ -41,6 +41,7 @@ function routes(app) {
     // Auth routes
     app.post("/auth/register", auth_1.register);
     app.post("/auth/verify", auth_1.verifyPhoneNumber);
+    app.post("/auth/test-otp", auth_1.testOTP); // Debug route
     app.post("/auth/refresh", auth_1.refreshToken);
     app.post("/auth/logout", auth_1.logout);
     app.get('/auth/validate-token', auth_1.validateToken);
