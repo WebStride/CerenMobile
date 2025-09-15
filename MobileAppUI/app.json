@@ -3,6 +3,7 @@
     "name": "MobileAppUI",
     "slug": "MobileAppUI",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "backgroundColor": "#BCD042",
     "icon": "./assets/images/splash-icon.png",

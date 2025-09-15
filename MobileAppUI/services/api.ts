@@ -94,37 +94,37 @@ export const verify = async (phoneNumber: string, code: string, name: string): P
     return { success: false, message: 'An unexpected error occurred' };
   }
 };
-export const sendAddressDetails = async (payload: {
-  name : any;
-  phoneNumber: any;
-  city: string;
-  district: string;
-  houseNumber: string;
-  buildingBlock: string;
-  pinCode: string;
-  landmark: string;
-}): Promise<{ success: boolean; message?: string }> => {
-  try {
-    const response = await fetch(`${apiUrl}/user/address`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+// export const sendAddressDetails = async (payload: {
+//   name : any;
+//   phoneNumber: any;
+//   city: string;
+//   district: string;
+//   houseNumber: string;
+//   buildingBlock: string;
+//   pinCode: string;
+//   landmark: string;
+// }): Promise<{ success: boolean; message?: string }> => {
+//   try {
+//     const response = await fetch(`${apiUrl}/user/address`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify(payload),
+//     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { success: false, message: errorData.message || 'Failed to send address details' };
-    }
+//     if (!response.ok) {
+//       const errorData = await response.json();
+//       return { success: false, message: errorData.message || 'Failed to send address details' };
+//     }
 
-    const data = await response.json();
-    return { success: true, message: data.message };
-  } catch (error) {
-    console.error('Send Address Details API error:', error);
-    return { success: false, message: 'An unexpected error occurred' };
-  }
-};
+//     const data = await response.json();
+//     return { success: true, message: data.message };
+//   } catch (error) {
+//     console.error('Send Address Details API error:', error);
+//     return { success: false, message: 'An unexpected error occurred' };
+//   }
+// };
 
 export const getExclusiveOffers = async () => {
   try {
