@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node --no-warnings=ExperimentalWarning --loader ts-node/esm build/app.js",
     "build": "tsc",
-    "dev": "nodemon src/app.ts"
+    "dev": "nodemon src/app.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",

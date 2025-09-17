@@ -35,9 +35,11 @@ export default function SelectRegionScreen() {
   const [district, setDistrict] = useState("");
   const [cityDropdownVisible, setCityDropdownVisible] = useState(false);
   const [districtDropdownVisible, setDistrictDropdownVisible] = useState(false);
-    const params = useLocalSearchParams(); // Retrieve route parameters
+  const params = useLocalSearchParams(); // Retrieve route parameters
 
-  const {name, phoneNumber} = params; // Assuming params are passed correctly
+  const {name, phoneNumber, fromLocationModal} = params; // Get all parameters including the flag
+
+  console.log("📍 SelectLocation - Received params:", { name, phoneNumber, fromLocationModal });
 
   const districts = cityDistricts[city] || [];
 
@@ -284,9 +286,10 @@ export default function SelectRegionScreen() {
             <TouchableOpacity
               className="h-12 rounded-xl bg-[#BCD042] items-center justify-center"
               onPress={() => {
+                console.log("🏙️ Navigating to PinLocation with:", { city, district, name, phoneNumber, fromLocationModal });
                 router.push({
                   pathname: "/login/PinLocation",
-                  params: { city, district, name, phoneNumber },
+                  params: { city, district, name, phoneNumber, fromLocationModal },
                 });
               }}
               accessibilityLabel="Add Address"

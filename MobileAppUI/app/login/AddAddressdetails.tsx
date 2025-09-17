@@ -39,13 +39,36 @@ const SAVE_AS_OPTIONS = [
 
 export default function AddAddressDetailsScreen() {
   const router = useRouter();
-  const [saveAs, setSaveAs] = useState("");
+  const [saveAs, setSaveAs] = useState("home"); // Default to "home"
   const [houseNumber, setHouseNumber] = useState("");
   const [buildingBlock, setBuildingBlock] = useState("");
   const [pinCode, setPinCode] = useState("");
   const [landmark, setLandmark] = useState("");
   const params = useLocalSearchParams(); // Retrieve route parameters
-  const { phoneNumber, name, location, city, district, address } = params; // Destructure phoneNumber and name
+  const {
+    phoneNumber: phoneNumberParam,
+    name: nameParam,
+    location: locationParam,
+    city: cityParam,
+    district: districtParam,
+    address: addressParam,
+    fromLocationModal: fromLocationModalParam,
+    latitude: latitudeParam,
+    longitude: longitudeParam
+  } = params;
+
+  // Ensure parameters are strings
+  const phoneNumber = Array.isArray(phoneNumberParam) ? phoneNumberParam[0] : phoneNumberParam || "";
+  const name = Array.isArray(nameParam) ? nameParam[0] : nameParam || "";
+  const location = Array.isArray(locationParam) ? locationParam[0] : locationParam || "";
+  const city = Array.isArray(cityParam) ? cityParam[0] : cityParam || "";
+  const district = Array.isArray(districtParam) ? districtParam[0] : districtParam || "";
+  const address = Array.isArray(addressParam) ? addressParam[0] : addressParam || "";
+  const fromLocationModal = Array.isArray(fromLocationModalParam) ? fromLocationModalParam[0] : fromLocationModalParam || "";
+  const latitude = Array.isArray(latitudeParam) ? latitudeParam[0] : latitudeParam || "";
+  const longitude = Array.isArray(longitudeParam) ? longitudeParam[0] : longitudeParam || "";
+
+  console.log("📍 AddAddressDetails - Received params:", { phoneNumber, name, location, city, district, address, fromLocationModal, latitude, longitude });
   const handleSaveAddress = async () => {
     try {
           console.log("Received params:", params);
@@ -58,12 +81,14 @@ export default function AddAddressDetailsScreen() {
       const payload = {
         name,
         phoneNumber,
-        city: params.city as string, // Ensure city is a string
-        district: params.district as string, // Ensure district is a string
+        city, // Use the properly typed city variable
+        district, // Use the properly typed district variable
         houseNumber,
         buildingBlock,
         pinCode,
         landmark,
+        saveAs: saveAs || "home", // Default to "home" if not selected
+        isDefault: false // New addresses are not default by default
       };
 
       console.log("Sending address details:", payload);
@@ -73,22 +98,30 @@ export default function AddAddressDetailsScreen() {
       if (response.success) {
         Alert.alert(
           "Success",
-          response.message || "User details sent to admin for verification.",
+          response.message || "Address saved successfully!",
           [
             {
               text: "OK",
               onPress: () => {
-                router.push({
-                  pathname: "/(tabs)/shop",
-                  params: {
-                    city,
-                    district,
-                    location,
-                    address,
-                    name,
-                    phoneNumber
-                  },
-                });
+                if (fromLocationModal === "true") {
+                  // User came from location modal, navigate back to home screen
+                  console.log("🏠 Navigating back to home screen after adding address");
+                  router.push("/(tabs)/shop");
+                } else {
+                  // Normal login flow, navigate to home with user data
+                  console.log("🔐 Normal login flow, navigating to home with user data");
+                  router.push({
+                    pathname: "/(tabs)/shop",
+                    params: {
+                      city,
+                      district,
+                      location,
+                      address,
+                      name,
+                      phoneNumber
+                    },
+                  });
+                }
               },
             },
           ]

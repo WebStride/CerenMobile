@@ -38,7 +38,8 @@ export default function VerificationScreen() {
         const name = params.name as string; // Ensure name is a string
         console.log("Verifying OTP for:", fullPhoneNumber, "with code:", code, "and name:", name);
         const response = await verify(fullPhoneNumber, code, name);
-        console.log("Verification response:", response);
+        console.log("📡 Verification response:", response);
+        console.log("👤 User data in response:", response.user);
         if (response.success) {
           console.log("Verification successful:", response);
           if (response.accessToken) {
@@ -52,6 +53,20 @@ export default function VerificationScreen() {
           } else {
             console.warn("refreshToken is undefined");
           }
+
+          // Store user data for later use
+          if (response.user) {
+            console.log("💾 Storing user data in AsyncStorage:", response.user);
+            await AsyncStorage.setItem("userData", JSON.stringify(response.user));
+            console.log("✅ User data stored successfully");
+
+            // Verify it was stored correctly
+            const storedData = await AsyncStorage.getItem("userData");
+            console.log("🔍 Verification - stored data:", storedData ? JSON.parse(storedData) : "Failed to store");
+          } else {
+            console.log("❌ No user data in response to store");
+          }
+
           router.push({
                 pathname: "/login/SelectLocation",
                 params: { phoneNumber: fullPhoneNumber, name },

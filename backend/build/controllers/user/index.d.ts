@@ -4,3 +4,5 @@ export declare function submitUserAddress(req: AuthRequest, res: Response): Prom
 export declare function getUserAddresses(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 export declare function setDefaultAddress(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 export declare function getDefaultAddress(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+export declare function updateUserAddress(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+export declare function deleteUserAddress(req: AuthRequest, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

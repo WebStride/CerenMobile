@@ -73,9 +73,10 @@ const params = useLocalSearchParams();
   const district = (params.district as string) ?? "";
   const name = (params.name as string) ?? "";
   const phoneNumber = (params.phoneNumber as string) ?? "";
+  const fromLocationModal = (params.fromLocationModal as string) ?? "";
 
   useEffect(() => {
-    console.log("Received params in PinLocation:", { city, district, name, phoneNumber });
+    console.log("📍 Received params in PinLocation:", { city, district, name, phoneNumber, fromLocationModal });
     // Set default location immediately for instant UI
     setToDefaultLocation();
     // Then try to get real location in background
@@ -341,6 +342,19 @@ const params = useLocalSearchParams();
   };
 
   const handleConfirmLocation = () => {
+    console.log("📍 Confirming location and navigating to AddAddressDetails");
+    console.log("📋 Navigation params:", {
+      latitude: Number(markerPosition.latitude),
+      longitude: Number(markerPosition.longitude),
+      address: currentAddress ?? "",
+      location: currentLocation ?? "",
+      city,
+      district,
+      name,
+      phoneNumber,
+      fromLocationModal
+    });
+
     // Navigate to add details page with location data
     router.push({
       pathname: "/login/AddAddressdetails",
@@ -353,6 +367,7 @@ const params = useLocalSearchParams();
         district,
         name,
         phoneNumber,
+        fromLocationModal,
       },
     });
   };

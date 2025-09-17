@@ -50,6 +50,8 @@ function routes(app) {
     app.get("/user/addresses", auth_2.authenticateToken, user_1.getUserAddresses);
     app.put("/user/addresses/:addressId/default", auth_2.authenticateToken, user_1.setDefaultAddress);
     app.get("/user/default-address", auth_2.authenticateToken, user_1.getDefaultAddress);
+    app.put("/user/addresses/:addressId", auth_2.authenticateToken, user_1.updateUserAddress);
+    app.delete("/user/addresses/:addressId", auth_2.authenticateToken, user_1.deleteUserAddress);
     // Product routes (all protected with authentication)
     app.get("/products/exclusive", auth_2.authenticateToken, product_1.getExclusiveProductsList);
     app.get("/products/best-selling", auth_2.authenticateToken, product_1.getBestSelling);

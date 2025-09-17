@@ -113,14 +113,22 @@ function verifyPhoneNumber(req, res) {
                 return res.status(400).json({ error: "Invalid OTP" });
             }
             const { user, tokens } = yield (0, auth_1.saveUserAndGenerateTokens)(name, phoneNumber);
+            console.log("📤 Sending verification response with user data:", {
+                success: true,
+                user: {
+                    id: user.CUSTOMERID,
+                    name: user.CUSTOMERNAME,
+                    phoneNumber: user.PHONENO
+                }
+            });
             res.json({
                 success: true,
                 accessToken: tokens.accessToken,
                 refreshToken: tokens.refreshToken,
                 user: {
-                    id: user.id,
-                    name: user.name,
-                    phoneNumber: user.phoneNumber
+                    id: user.CUSTOMERID,
+                    name: user.CUSTOMERNAME,
+                    phoneNumber: user.PHONENO
                 }
             });
         }

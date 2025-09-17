@@ -154,21 +154,38 @@ export async function verifyOTP(phoneNumber: string, code: string) {
         throw new Error(`Verification failed: ${error.message}`);
     }
 }export async function saveUserAndGenerateTokens(name: string, phoneNumber: string) {
-    // Create or update user
-    const user = await prisma.uSERCUSTOMERMASTER.upsert({
-        where: { phoneNumber },
-        update: { name },
-        create: {
-            name,
-            phoneNumber,
-        },
+    console.log("🔧 Creating/updating user:", { name, phoneNumber });
+
+    // Check if user already exists
+    let user = await prisma.cUSTOMERMASTER.findFirst({
+        where: { PHONENO: phoneNumber }
     });
 
+    if (user) {
+        // Update existing user
+        user = await prisma.cUSTOMERMASTER.update({
+            where: { CUSTOMERID: user.CUSTOMERID },
+            data: { CUSTOMERNAME: name }
+        });
+        console.log("✅ User updated:", user);
+    } else {
+        // Create new user
+        user = await prisma.cUSTOMERMASTER.create({
+            data: {
+                CUSTOMERNAME: name,
+                PHONENO: phoneNumber,
+            }
+        });
+        console.log("✅ User created:", user);
+    }
+
     // Generate tokens
-    const tokens = generateTokens({ 
-        userId: user.id, 
-        phoneNumber: user.phoneNumber
+    const tokens = generateTokens({
+        userId: user.CUSTOMERID,
+        phoneNumber: user.PHONENO || phoneNumber
     });
+
+    console.log("🎫 Tokens generated for user:", user.CUSTOMERID);
 
     return { user, tokens };
 }

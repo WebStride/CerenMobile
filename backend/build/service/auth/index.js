@@ -151,20 +151,35 @@ function verifyOTP(phoneNumber, code) {
 }
 function saveUserAndGenerateTokens(name, phoneNumber) {
     return __awaiter(this, void 0, void 0, function* () {
-        // Create or update user
-        const user = yield prisma.uSERCUSTOMERMASTER.upsert({
-            where: { phoneNumber },
-            update: { name },
-            create: {
-                name,
-                phoneNumber,
-            },
+        console.log("🔧 Creating/updating user:", { name, phoneNumber });
+        // Check if user already exists
+        let user = yield prisma.cUSTOMERMASTER.findFirst({
+            where: { PHONENO: phoneNumber }
         });
+        if (user) {
+            // Update existing user
+            user = yield prisma.cUSTOMERMASTER.update({
+                where: { CUSTOMERID: user.CUSTOMERID },
+                data: { CUSTOMERNAME: name }
+            });
+            console.log("✅ User updated:", user);
+        }
+        else {
+            // Create new user
+            user = yield prisma.cUSTOMERMASTER.create({
+                data: {
+                    CUSTOMERNAME: name,
+                    PHONENO: phoneNumber,
+                }
+            });
+            console.log("✅ User created:", user);
+        }
         // Generate tokens
         const tokens = generateTokens({
-            userId: user.id,
-            phoneNumber: user.phoneNumber
+            userId: user.CUSTOMERID,
+            phoneNumber: user.PHONENO || phoneNumber
         });
+        console.log("🎫 Tokens generated for user:", user.CUSTOMERID);
         return { user, tokens };
     });
 }

@@ -13,7 +13,7 @@ export interface CartItem {
 
 export interface CartContextProps {
   cart: CartItem[];
-  addToCart: (item: Omit<CartItem, "quantity">) => void;
+  addToCart: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeFromCart: (productId: number) => void;
   increase: (productId: number) => void;
   decrease: (productId: number) => void;
@@ -46,20 +46,20 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     return () => { mounted = false; };
   }, []);
 
-  const addToCart = (item: Omit<CartItem, "quantity">) => {
+  const addToCart = (item: Omit<CartItem, "quantity">, quantity: number = 1) => {
     setCart(prev => {
       const found = prev.find(x => x.productId === item.productId);
       if (found) {
         return prev.map(x =>
           x.productId === item.productId
-            ? { ...x, quantity: x.quantity + 1 }
+            ? { ...x, quantity: x.quantity + quantity }
             : x
         );
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { ...item, quantity }];
     });
 
-    // persist to server
+    // persist to server - send the actual quantity
     addToCartApi({
       productId: item.productId,
       productName: item.productName,
@@ -67,7 +67,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       image: typeof item.image === 'number' ? '' : item.image,
       productUnits: item.productUnits,
       unitsOfMeasurement: item.unitsOfMeasurement,
-      minOrderQuantity: 1
+      quantity: quantity, // Send the actual quantity instead of hardcoded 1
+      minOrderQuantity: quantity // Use the actual quantity as minOrderQuantity
     }).catch(err => console.error('addToCartApi failed', err));
   };
 

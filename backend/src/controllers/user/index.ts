@@ -20,7 +20,7 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
     } = req.body;
 
     // Validate required fields
-    if (!phoneNumber || !city || !district || !houseNumber || !buildingBlock || !pinCode) {
+    if (!phoneNumber  || !houseNumber || !buildingBlock || !pinCode) {
         return res.status(400).json({
             error: 'Missing required fields',
             fields: ['phoneNumber', 'city', 'district', 'houseNumber', 'buildingBlock', 'pinCode']
@@ -231,6 +231,134 @@ export async function getDefaultAddress(req: AuthRequest, res: Response) {
         console.error('Error fetching default address:', error);
         res.status(500).json({
             error: 'Failed to fetch default address',
+            details: error.message
+        });
+    }
+}
+
+// Update user address
+export async function updateUserAddress(req: AuthRequest, res: Response) {
+    const { addressId } = req.params;
+    const {
+        name,
+        phoneNumber,
+        city,
+        district,
+        houseNumber,
+        buildingBlock,
+        pinCode,
+        landmark,
+        saveAs,
+        isDefault = false
+    } = req.body;
+
+    // Validate required fields
+    if (!phoneNumber || !city || !district || !houseNumber || !buildingBlock || !pinCode) {
+        return res.status(400).json({
+            error: 'Missing required fields',
+            fields: ['phoneNumber', 'city', 'district', 'houseNumber', 'buildingBlock', 'pinCode']
+        });
+    }
+
+    try {
+        // Get the authenticated user's ID
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        // Check if address exists and belongs to user
+        const existingAddress = await prisma.deliveryAddress.findFirst({
+            where: {
+                DeliveryAddressID: parseInt(addressId),
+                UserID: parseInt(authenticatedUserId),
+                Active: true
+            }
+        });
+
+        if (!existingAddress) {
+            return res.status(404).json({ error: 'Address not found' });
+        }
+
+        // If setting as default, unset all other defaults first
+        if (isDefault) {
+            await prisma.deliveryAddress.updateMany({
+                where: { UserID: parseInt(authenticatedUserId) },
+                data: { IsDefault: false }
+            });
+        }
+
+        // Update the address
+        const updatedAddress = await prisma.deliveryAddress.update({
+            where: { DeliveryAddressID: parseInt(addressId) },
+            data: {
+                HouseNumber: houseNumber,
+                BuildingBlock: buildingBlock,
+                PinCode: pinCode,
+                Landmark: landmark,
+                City: city,
+                District: district,
+                SaveAs: saveAs,
+                IsDefault: isDefault,
+                UpdatedAt: new Date()
+            }
+        });
+
+        res.json({
+            success: true,
+            address: updatedAddress,
+            message: 'Address updated successfully'
+        });
+    } catch (error: any) {
+        console.error('Error updating address:', error);
+        res.status(500).json({
+            error: 'Failed to update address',
+            details: error.message
+        });
+    }
+}
+
+// Delete user address
+export async function deleteUserAddress(req: AuthRequest, res: Response) {
+    const { addressId } = req.params;
+
+    try {
+        // Get the authenticated user's ID
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        // Check if address exists and belongs to user
+        const existingAddress = await prisma.deliveryAddress.findFirst({
+            where: {
+                DeliveryAddressID: parseInt(addressId),
+                UserID: parseInt(authenticatedUserId),
+                Active: true
+            }
+        });
+
+        if (!existingAddress) {
+            return res.status(404).json({ error: 'Address not found' });
+        }
+
+        // Soft delete the address
+        await prisma.deliveryAddress.update({
+            where: { DeliveryAddressID: parseInt(addressId) },
+            data: {
+                Active: false,
+                UpdatedAt: new Date()
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Address deleted successfully'
+        });
+    } catch (error: any) {
+        console.error('Error deleting address:', error);
+        res.status(500).json({
+            error: 'Failed to delete address',
             details: error.message
         });
     }

@@ -94,37 +94,6 @@ export const verify = async (phoneNumber: string, code: string, name: string): P
     return { success: false, message: 'An unexpected error occurred' };
   }
 };
-// export const sendAddressDetails = async (payload: {
-//   name : any;
-//   phoneNumber: any;
-//   city: string;
-//   district: string;
-//   houseNumber: string;
-//   buildingBlock: string;
-//   pinCode: string;
-//   landmark: string;
-// }): Promise<{ success: boolean; message?: string }> => {
-//   try {
-//     const response = await fetch(`${apiUrl}/user/address`, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify(payload),
-//     });
-
-//     if (!response.ok) {
-//       const errorData = await response.json();
-//       return { success: false, message: errorData.message || 'Failed to send address details' };
-//     }
-
-//     const data = await response.json();
-//     return { success: true, message: data.message };
-//   } catch (error) {
-//     console.error('Send Address Details API error:', error);
-//     return { success: false, message: 'An unexpected error occurred' };
-//   }
-// };
 
 export const getExclusiveOffers = async () => {
   try {
@@ -653,5 +622,53 @@ export const getDefaultAddress = async () => {
   } catch (error) {
     console.error('Error fetching default address:', error);
     return { success: false, address: null };
+  }
+};
+
+export const updateUserAddress = async (addressId: number, addressData: any) => {
+  try {
+    const response = await fetch(`${apiUrl}/user/addresses/${addressId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(addressData)
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, message: err.message };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error updating address:', error);
+    return { success: false, message: 'Failed to update address' };
+  }
+};
+
+export const deleteUserAddress = async (addressId: number) => {
+  try {
+    const response = await fetch(`${apiUrl}/user/addresses/${addressId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, message: err.message };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error deleting address:', error);
+    return { success: false, message: 'Failed to delete address' };
   }
 };
