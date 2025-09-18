@@ -1,4 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+// API Logging Configuration:
+// 🔗 Shows which backend URL is being used (local vs production)
+// 📡 Shows full API endpoint URLs for each request
+// 🔐 Shows authentication-related API calls
+// 📂 Shows product/category API calls
+// 🛒 Shows cart-related API calls
 
 interface ValidateTokenResponse {
   isValid: boolean;
@@ -11,7 +19,38 @@ interface ValidateTokenResponse {
   code?: string;
 }
 
-const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+// Environment-based API URL configuration
+const getApiUrl = (): string => {
+  // Check if running in development mode
+  const isDevelopment = __DEV__ || Constants.appOwnership === 'expo';
+
+  // Check if we have an environment variable set
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+
+  if (envApiUrl) {
+    console.log('🌍 Using environment API URL:', envApiUrl);
+    console.log('📱 Environment detection - __DEV__:', __DEV__, '| appOwnership:', Constants.appOwnership);
+    return envApiUrl;
+  }
+
+  // Fallback to hardcoded URLs based on environment
+  if (isDevelopment) {
+    const devUrl = 'http://192.168.0.12:3002';
+    console.log('🏠 Using development API URL (fallback):', devUrl);
+    console.log('📱 Environment detection - __DEV__:', __DEV__, '| appOwnership:', Constants.appOwnership);
+    return devUrl;
+  } else {
+    const prodUrl = 'https://cerenmobile.onrender.com';
+    console.log('🚀 Using production API URL (fallback):', prodUrl);
+    console.log('📱 Environment detection - __DEV__:', __DEV__, '| appOwnership:', Constants.appOwnership);
+    return prodUrl;
+  }
+};
+
+const apiUrl = getApiUrl();
+
+// Log the current API URL for debugging
+console.log('🔗 API Service initialized with URL:', apiUrl);
 
 // Helper functions to get tokens
 const getAccessToken = async () => {
@@ -22,12 +61,13 @@ const getAccessToken = async () => {
 const getRefreshToken = async () => {
   return await AsyncStorage.getItem('refreshToken') || '';
 };
-if (!apiUrl) {
-  throw new Error('API_URL is not defined in the environment variables');
-}
+
 export const validateTokens = async (accessToken: string, refreshToken: string | null): Promise<ValidateTokenResponse> => {
+  const endpoint = `${apiUrl}/api/validate-token`;
+  console.log('🔐 Validate Token API call:', endpoint);
+
   try {
-    const response = await fetch(`${apiUrl}/api/validate-token`, {
+    const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -46,8 +86,11 @@ export const validateTokens = async (accessToken: string, refreshToken: string |
   }
 };
 export const register = async (phoneNumber: string, name: string): Promise<{ success: boolean; message?: string }> => {
+  const endpoint = `${apiUrl}/auth/register`;
+  console.log('📡 Register API call:', endpoint);
+
   try {
-    const response = await fetch(`${apiUrl}/auth/register`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,8 +111,11 @@ export const register = async (phoneNumber: string, name: string): Promise<{ suc
   }
 };
 export const verify = async (phoneNumber: string, code: string, name: string): Promise<{ success: boolean; accessToken?: string; refreshToken?: string; user?: { id: number; name: string; phoneNumber: string }; message?: string }> => {
+  const endpoint = `${apiUrl}/auth/verify`;
+  console.log('📡 Verify OTP API call:', endpoint);
+
   try {
-    const response = await fetch(`${apiUrl}/auth/verify`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -209,9 +255,12 @@ export const getBestSelling = async (limit: number = 50) => {
 };
 
 export const getCategories = async () => {
+  const endpoint = `${apiUrl}/products/categories`;
+  console.log('📂 Get Categories API call:', endpoint);
+
   try {
     console.log("Fetching categories...");
-    const response = await fetch(`${apiUrl}/products/categories`, {
+    const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
@@ -435,8 +484,11 @@ export const removeFavouriteApi = async (productId: number) => {
 
 // Cart API helpers
 export const getCart = async () => {
+  const endpoint = `${apiUrl}/cart`;
+  console.log('🛒 Get Cart API call:', endpoint);
+
   try {
-    const response = await fetch(`${apiUrl}/cart`, {
+    const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
