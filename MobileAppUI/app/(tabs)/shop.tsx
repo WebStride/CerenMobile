@@ -964,57 +964,51 @@ const ProductCard = React.memo(({
         <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
       </View>
 
-      {isCustomerExists ? (
-        showControls ? (
-          <View className="flex-row items-center justify-center rounded-full bg-green-700 px-1 py-1">
-            <TouchableOpacity
-              onPress={handleDecrease}
-              className="w-8 h-8 rounded-full items-center justify-center"
-            >
-              <Ionicons name="remove" size={20} color="#fff" />
-            </TouchableOpacity>
-            <View className="flex-1 mx-1 items-center justify-center">
-              <TextInput
-                className="w-full h-8 text-center text-white font-bold"
-                value={qtyInput}
-                onChangeText={handleInputChange}
-                keyboardType="number-pad"
-                maxLength={3}
-                style={{
-                  borderWidth: 0,
-                  backgroundColor: "transparent",
-                  fontSize: 16,
-                  color: "white",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                  minWidth: 40,
-                }}
-                selectionColor="#fff"
-                placeholder={String(minOrder)}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                textAlign="center"
-              />
-            </View>
-            <TouchableOpacity
-              onPress={handleIncrease}
-              className="w-8 h-8 rounded-full items-center justify-center"
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        ) : (
+      {showControls ? (
+        <View className="flex-row items-center justify-center rounded-full bg-green-700 px-1 py-1">
           <TouchableOpacity
-            className="w-full bg-green-700 rounded-full py-2 px-3 items-center justify-center"
-            onPress={handleAddToCartPress}
-            activeOpacity={0.8}
+            onPress={handleDecrease}
+            className="w-8 h-8 rounded-full items-center justify-center"
           >
-            <Text className="text-white font-semibold text-sm">Add {minOrder > 1 ? `${minOrder}` : ''} to Cart</Text>
+            <Ionicons name="remove" size={20} color="#fff" />
           </TouchableOpacity>
-        )
-      ) : (
-        <View className="w-full bg-gray-300 rounded-full py-2 px-3 items-center justify-center">
-          <Text className="text-gray-600 font-semibold text-sm">Verification Required</Text>
+          <View className="flex-1 mx-1 items-center justify-center">
+            <TextInput
+              className="w-full h-8 text-center text-white font-bold"
+              value={qtyInput}
+              onChangeText={handleInputChange}
+              keyboardType="number-pad"
+              maxLength={3}
+              style={{
+                borderWidth: 0,
+                backgroundColor: "transparent",
+                fontSize: 16,
+                color: "white",
+                fontWeight: "bold",
+                textAlign: "center",
+                minWidth: 40,
+              }}
+              selectionColor="#fff"
+              placeholder={String(minOrder)}
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              textAlign="center"
+            />
+          </View>
+          <TouchableOpacity
+            onPress={handleIncrease}
+            className="w-8 h-8 rounded-full items-center justify-center"
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
+      ) : (
+        <TouchableOpacity
+          className="w-full bg-green-700 rounded-full py-2 px-3 items-center justify-center"
+          onPress={handleAddToCartPress}
+          activeOpacity={0.8}
+        >
+          <Text className="text-white font-semibold text-sm">Add {minOrder > 1 ? `${minOrder}` : ''} to Cart</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -1447,7 +1441,10 @@ const HomeScreen = () => {
         </View>
       ) : (
         <>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 80 }}
+          >
             {/* Top Header with Dynamic Location */}
             <View className="flex-row items-center justify-between px-5 mt-20">
               <TouchableOpacity
@@ -1658,21 +1655,21 @@ const HomeScreen = () => {
 
           {/* Floating "Go to Cart" bar */}
           {cartCount > 0 && (
-            <View className="absolute left-0 right-0 bottom-6 px-4 z-50">
+            <View className="absolute left-0 right-0 bottom-36 px-8 z-50">
               <TouchableOpacity
-                className="bg-green-700 rounded-full flex-row items-center justify-between px-6 py-4 shadow-lg"
+                className="bg-green-700 rounded-full flex-row items-center justify-between px-4 py-4 shadow-lg mx-6"
                 activeOpacity={0.95}
                 onPress={() => router.push("/cart")}
               >
-                <View className="flex-row items-center space-x-2">
-                  <Ionicons name="cart-outline" size={22} color="#fff" />
-                  <Text className="text-white font-semibold text-base">
+                <View className="flex-row items-center space-x-1">
+                  <Ionicons name="cart-outline" size={20} color="#fff" />
+                  <Text className="text-white font-semibold text-sm">
                     Go to Cart
                   </Text>
                 </View>
-                <View className="px-3 py-1 rounded-full bg-white/10 items-center flex-row" style={{ minWidth: 48 }}>
-                  <Text className="text-white font-bold">
-                    {cartCount} {cartCount === 1 ? "item" : "items"}
+                <View className="px-2 py-1 rounded-full bg-white/10 items-center flex-row" style={{ minWidth: 36 }}>
+                  <Text className="text-white font-bold text-sm">
+                    {cartCount}
                   </Text>
                 </View>
               </TouchableOpacity>

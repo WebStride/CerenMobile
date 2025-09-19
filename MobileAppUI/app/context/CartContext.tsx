@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCart, addToCartApi, updateCartApi, removeCartApi } from "../../services/api";
 
 export interface CartItem {
@@ -38,9 +39,24 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     (async () => {
       try {
         const res: any = await getCart();
-        if (mounted && res?.success) setCart(res.cart || []);
+        if (mounted && res?.success) {
+          setCart(res.cart || []);
+          // Save to AsyncStorage as backup
+          await AsyncStorage.setItem('cart', JSON.stringify(res.cart || []));
+          return;
+        }
       } catch (err) {
         console.error('Failed to load cart from server', err);
+      }
+
+      // Fallback: load from AsyncStorage
+      try {
+        const localCart = await AsyncStorage.getItem('cart');
+        if (localCart && mounted) {
+          setCart(JSON.parse(localCart));
+        }
+      } catch (e) {
+        console.error('Failed to load cart from AsyncStorage', e);
       }
     })();
     return () => { mounted = false; };
@@ -49,14 +65,23 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const addToCart = (item: Omit<CartItem, "quantity">, quantity: number = 1) => {
     setCart(prev => {
       const found = prev.find(x => x.productId === item.productId);
+      let newCart;
       if (found) {
-        return prev.map(x =>
+        newCart = prev.map(x =>
           x.productId === item.productId
             ? { ...x, quantity: x.quantity + quantity }
             : x
         );
+      } else {
+        newCart = [...prev, { ...item, quantity }];
       }
-      return [...prev, { ...item, quantity }];
+      
+      // Save to AsyncStorage
+      AsyncStorage.setItem('cart', JSON.stringify(newCart)).catch(err => 
+        console.error('Failed to save cart to AsyncStorage', err)
+      );
+      
+      return newCart;
     });
 
     // persist to server - send the actual quantity
@@ -73,20 +98,37 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const removeFromCart = (productId: number) => {
-  setCart(prev => prev.filter(x => x.productId !== productId));
-  // persist removal
-  removeCartApi(productId).catch(err => console.error('removeCartApi failed', err));
+    setCart(prev => {
+      const newCart = prev.filter(x => x.productId !== productId);
+      // Save to AsyncStorage
+      AsyncStorage.setItem('cart', JSON.stringify(newCart)).catch(err => 
+        console.error('Failed to save cart to AsyncStorage', err)
+      );
+      return newCart;
+    });
+    // persist removal
+    removeCartApi(productId).catch(err => console.error('removeCartApi failed', err));
   };
 
   const increase = (productId: number) => {
     let newQty = 0;
-    setCart(prev => prev.map(x => {
-      if (x.productId === productId) {
-        newQty = x.quantity + 1;
-        return { ...x, quantity: newQty };
-      }
-      return x;
-    }));
+    setCart(prev => {
+      const newCart = prev.map(x => {
+        if (x.productId === productId) {
+          newQty = x.quantity + 1;
+          return { ...x, quantity: newQty };
+        }
+        return x;
+      });
+      
+      // Save to AsyncStorage
+      AsyncStorage.setItem('cart', JSON.stringify(newCart)).catch(err => 
+        console.error('Failed to save cart to AsyncStorage', err)
+      );
+      
+      return newCart;
+    });
+    
     if (newQty > 0) updateCartApi(productId, newQty).catch(err => console.error('updateCartApi failed', err));
   };
 
@@ -96,10 +138,19 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       const found = prev.find(x => x.productId === productId);
       if (!found) return prev;
       newQty = found.quantity - 1;
+      let newCart;
       if (newQty <= 0) {
-        return prev.filter(x => x.productId !== productId);
+        newCart = prev.filter(x => x.productId !== productId);
+      } else {
+        newCart = prev.map(x => x.productId === productId ? { ...x, quantity: newQty } : x);
       }
-      return prev.map(x => x.productId === productId ? { ...x, quantity: newQty } : x);
+      
+      // Save to AsyncStorage
+      AsyncStorage.setItem('cart', JSON.stringify(newCart)).catch(err => 
+        console.error('Failed to save cart to AsyncStorage', err)
+      );
+      
+      return newCart;
     });
 
     if (isNaN(newQty)) return;
@@ -112,6 +163,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearCart = () => {
     setCart([]);
+    // Save empty cart to AsyncStorage
+    AsyncStorage.setItem('cart', JSON.stringify([])).catch(err => 
+      console.error('Failed to save cart to AsyncStorage', err)
+    );
     // clear server cart in background
     // lazy import to avoid cycle at module load
     import('../../services/api').then(({ clearCartApi }) => {

@@ -815,14 +815,16 @@ export default function ProductDetailsScreen() {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={similarProducts}
-            renderItem={renderSimilarProduct}
-            keyExtractor={(item, index) => `similar_${item.productId}_${index}`}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 0 }}
-          />
+          <View style={{ height: 220 }}>
+            <FlatList
+              data={similarProducts}
+              renderItem={renderSimilarProduct}
+              keyExtractor={(item, index) => `similar_${item.productId}_${index}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 0 }}
+            />
+          </View>
         </View>
       </ScrollView>
 

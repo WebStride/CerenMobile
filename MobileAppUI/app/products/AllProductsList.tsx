@@ -614,20 +614,20 @@ const AllProductsList = () => {
 
       {/* Floating "Go to Cart" bar */}
       {cartCount > 0 && (
-        <View className="absolute left-0 right-0 bottom-6 px-4 z-50">
+        <View className="absolute left-0 right-0 bottom-36 px-8 z-50">
           <TouchableOpacity
-            className="bg-green-700 rounded-full flex-row items-center justify-between px-6 py-4 shadow-lg"
+            className="bg-green-700 rounded-full flex-row items-center justify-between px-4 py-4 shadow-lg mx-6"
             activeOpacity={0.95}
             onPress={() => router.push("/cart")}
           >
-            <View className="flex-row items-center space-x-2">
-              <Ionicons name="cart-outline" size={22} color="#fff" />
-              <Text className="text-white font-semibold text-base">
+            <View className="flex-row items-center space-x-1">
+              <Ionicons name="cart-outline" size={20} color="#fff" />
+              <Text className="text-white font-semibold text-sm">
                 Go to Cart
               </Text>
             </View>
-            <View className="px-3 py-1 rounded-full bg-white/10 items-center flex-row" style={{ minWidth: 48 }}>
-              <Text className="text-white font-bold">
+            <View className="px-2 py-1 rounded-full bg-white/10 items-center flex-row" style={{ minWidth: 36 }}>
+              <Text className="text-white font-bold text-sm">
                 {cartCount} {cartCount === 1 ? "item" : "items"}
               </Text>
             </View>

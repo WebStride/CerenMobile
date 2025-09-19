@@ -273,7 +273,7 @@ export default function CartScreen() {
       </ScrollView>
 
       {/* Bottom Checkout Bar */}
-      <View className="absolute left-0 right-0 bottom-0 bg-white border-t border-gray-200 px-4 py-4">
+      <View className="absolute left-0 right-0 bottom-24 bg-white border-t border-gray-200 px-4 py-4">
         <TouchableOpacity
           onPress={() => {
             // clear local cart and trigger server clear in background
