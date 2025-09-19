@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 export async function getCustomerPricingInfo(userId: number) {
     const customer = await prisma.cUSTOMERMASTER.findFirst({
-        where: { USERID: userId }
+        where: { CUSTOMERID: userId }
     });
 
     if (!customer) {

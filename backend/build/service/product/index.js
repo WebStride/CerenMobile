@@ -25,7 +25,7 @@ const prisma = new client_1.PrismaClient();
 function getCustomerPricingInfo(userId) {
     return __awaiter(this, void 0, void 0, function* () {
         const customer = yield prisma.cUSTOMERMASTER.findFirst({
-            where: { USERID: userId }
+            where: { CUSTOMERID: userId }
         });
         if (!customer) {
             return {
