@@ -713,7 +713,7 @@ export default function AccountScreen() {
     gender: "Male",
     customerType: "General",
     address: "121221, asdf, asdfasdf, Marathahalli, Bengaluru, Karnataka, India",
-    profileImage: require("../../assets/images/AccountProfile.png")
+    profileImage: require("../../assets/images/ProfileImageHomeScreen.png")
   };
 
   const handleSelectAddress = (address: any) => {

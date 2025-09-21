@@ -3,12 +3,18 @@ import { View, Text, Image, TouchableOpacity, ScrollView, Alert, SafeAreaView, T
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "../context/CartContext";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const defaultImage = require("../../assets/images/Banana.png");
 
 export default function CartScreen() {
   const router = useRouter();
   const { cart, increase, decrease, removeFromCart, cartTotal, clearCart } = useCart();
+  const insets = useSafeAreaInsets();
+  // height we'll reserve for the checkout bar (approximate)
+  const checkoutBarHeight = 72; // px
+  // ensure an extra gap above system navigation / gesture bar
+  const bottomOffset = (insets.bottom || 0) + 50;
 
   const handleQuantityChange = (productId: number, newQuantity: string) => {
     const numVal = Number(newQuantity.replace(/[^0-9]/g, ""));
@@ -72,7 +78,8 @@ export default function CartScreen() {
       {/* Scrollable Content */}
       <ScrollView 
         className="flex-1" 
-        contentContainerStyle={{ paddingBottom: 120 }}
+  // ensure content is fully visible above bottom checkout bar + safe area
+  contentContainerStyle={{ paddingBottom: checkoutBarHeight + bottomOffset + 16 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Cart Items */}
@@ -273,7 +280,13 @@ export default function CartScreen() {
       </ScrollView>
 
       {/* Bottom Checkout Bar */}
-      <View className="absolute left-0 right-0 bottom-24 bg-white border-t border-gray-200 px-4 py-4">
+      <View style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        // place the bar above the device bottom inset + extra spacing
+        bottom: bottomOffset,
+      }} className="bg-white border-t border-gray-200 px-4 py-4">
         <TouchableOpacity
           onPress={() => {
             // clear local cart and trigger server clear in background

@@ -130,7 +130,7 @@ const generateMockProducts = (subcategoryId: number, count: number, startIndex: 
   });
 };
 
-// Enhanced Product Card Component with all features
+// FIXED: Enhanced Product Card Component with Android-compatible quantity controls
 const ProductCard = React.memo(({ 
   item, 
   isCustomerExists,
@@ -326,66 +326,130 @@ const ProductCard = React.memo(({
         <Text className="font-bold text-sm text-gray-900">₹{item.price}.00</Text>
       </View>
       
-      {/* Add to Cart Button OR Quantity Controls */}
+      {/* FIXED: Add to Cart Button OR Quantity Controls - Android Compatible */}
       {isCustomerExists ? (
         showControls ? (
-          <View className="flex-row items-center justify-center rounded-full bg-green-700 px-1 py-1">
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#15803d', // green-700
+            borderRadius: 20,
+            paddingHorizontal: 4,
+            paddingVertical: 4,
+            height: 32, // Fixed height for consistency
+          }}>
             <TouchableOpacity
               onPress={handleDecrease}
-              className="w-7 h-7 rounded-full items-center justify-center"
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             >
-              <Ionicons name="remove" size={18} color="#fff" />
+              <Ionicons name="remove" size={16} color="#fff" />
             </TouchableOpacity>
-            <View className="flex-1 mx-1 items-center justify-center">
+            
+            {/* FIXED: Text Input Container - Better Android support */}
+            <View style={{
+              flex: 1,
+              marginHorizontal: 4,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 32, // Ensure minimum width for 2-digit numbers
+              height: 24, // Fixed height
+            }}>
               <TextInput
-                className="w-full h-7 text-center text-white font-bold"
                 value={qtyInput}
                 onChangeText={handleInputChange}
                 keyboardType="number-pad"
                 maxLength={3}
                 style={{
+                  width: '100%',
+                  height: 24, // Explicit height matching container
+                  textAlign: 'center',
+                  fontSize: 14, // Slightly smaller font for compact card
+                  fontWeight: 'bold',
+                  color: 'white',
+                  backgroundColor: 'transparent',
                   borderWidth: 0,
-                  backgroundColor: "transparent",
-                  fontSize: 14,
-                  color: "white",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                  minWidth: 30,
+                  padding: 0, // Remove padding to prevent text cutoff
+                  margin: 0,
+                  includeFontPadding: false, // Android specific - prevents text cutoff
+                  textAlignVertical: 'center', // Android specific - centers text vertically
                 }}
                 selectionColor="#fff"
                 placeholder={String(minOrder)}
                 placeholderTextColor="rgba(255,255,255,0.5)"
-                textAlign="center"
+                multiline={false}
+                numberOfLines={1}
               />
             </View>
+            
             <TouchableOpacity
               onPress={handleIncrease}
-              className="w-7 h-7 rounded-full items-center justify-center"
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             >
-              <Ionicons name="add" size={18} color="#fff" />
+              <Ionicons name="add" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
-            className="w-full bg-green-700 rounded-full py-1.5 px-2 items-center justify-center"
+            style={{
+              width: '100%',
+              backgroundColor: '#15803d', // green-700
+              borderRadius: 20,
+              paddingVertical: 6,
+              paddingHorizontal: 8,
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 32, // Same height as controls
+            }}
             onPress={handleAddToCartPress}
             activeOpacity={0.8}
           >
-            <Text className="text-white font-semibold text-xs">
+            <Text style={{
+              color: 'white',
+              fontWeight: '600',
+              fontSize: 12
+            }}>
               Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
             </Text>
           </TouchableOpacity>
         )
       ) : (
-        <View className="w-full bg-gray-300 rounded-full py-1.5 px-2 items-center justify-center">
-          <Text className="text-gray-600 font-semibold text-xs">Verification Required</Text>
+        <View style={{
+          width: '100%',
+          backgroundColor: '#d1d5db',
+          borderRadius: 20,
+          paddingVertical: 6,
+          paddingHorizontal: 8,
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: 32,
+        }}>
+          <Text style={{
+            color: '#6b7280',
+            fontWeight: '600',
+            fontSize: 12
+          }}>
+            Verification Required
+          </Text>
         </View>
       )}
     </View>
   );
 });
 
-// Updated Subcategory Item Component - Compact image-only design
+// FIXED: Updated Subcategory Item Component with proper circular image display
 const SubcategoryItem = ({ 
   item, 
   isSelected, 
@@ -397,21 +461,52 @@ const SubcategoryItem = ({
 }) => (
   <TouchableOpacity
     onPress={onPress}
-    className={`items-center py-4 px-2 border-b border-gray-100 ${isSelected ? 'bg-green-50 border-r-2 border-r-green-600' : 'bg-white'}`}
+    style={{
+      alignItems: 'center',
+      paddingVertical: 16,
+      paddingHorizontal: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: '#f3f4f6',
+      backgroundColor: isSelected ? '#f0fdf4' : 'white',
+      borderRightWidth: isSelected ? 3 : 0,
+      borderRightColor: isSelected ? '#16a34a' : 'transparent',
+    }}
     activeOpacity={0.7}
   >
-    {/* Circular Image */}
-    <View className={`w-20 h-20 rounded-full p-3 overflow-hidden mb-2 ${isSelected ? 'border-2 border-green-500' : 'border border-gray-200'}`}>
+    {/* FIXED: Properly Circular Image Container */}
+    <View style={{
+      width: 64,
+      height: 64,
+      borderRadius: 32, // Half of width/height for perfect circle
+      backgroundColor: '#f9fafb', // Light background in case image doesn't load
+      borderWidth: isSelected ? 3 : 2,
+      borderColor: isSelected ? '#16a34a' : '#e5e7eb',
+      marginBottom: 8,
+      overflow: 'hidden', // CRITICAL: This ensures image is clipped to circle
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
       <Image 
-        source={ typeof item.subcategoryImage === 'string' ? { uri: item.subcategoryImage } : (item.subcategoryImage || defaultImage) }
-        className="w-full h-full" 
-        resizeMode="cover" 
+        source={typeof item.subcategoryImage === 'string' ? { uri: item.subcategoryImage } : (item.subcategoryImage || defaultImage)}
+        style={{
+          width: '100%',
+          height: '100%',
+          borderRadius: 32, // Match container border radius
+        }}
+        resizeMode="cover" // CHANGED: cover ensures image fills the circle properly
       />
     </View>
     
-    {/* Compact Text */}
+    {/* FIXED: Better text styling */}
     <Text 
-      className={`text-xs font-medium text-center leading-tight ${isSelected ? 'text-green-700' : 'text-gray-700'}`}
+      style={{
+        fontSize: 11,
+        fontWeight: '500',
+        color: isSelected ? '#15803d' : '#374151',
+        textAlign: 'center',
+        lineHeight: 14,
+        maxWidth: 80, // Prevent text from being too wide
+      }}
       numberOfLines={2}
       ellipsizeMode="tail"
     >
@@ -654,8 +749,13 @@ const CategoryProductsScreen = () => {
       </View>
 
       <View className="flex-1 flex-row">
-        {/* Left Side - Subcategories */}
-        <View className="w-34 bg-gray-50 border-r border-gray-200">
+        {/* FIXED: Left Side - Subcategories with better styling */}
+        <View style={{
+          width: 100, // Slightly wider to accommodate circular images better
+          backgroundColor: '#f9fafb',
+          borderRightWidth: 1,
+          borderRightColor: '#e5e7eb'
+        }}>
           <FlatList
             data={subcategories}
             renderItem={renderSubcategory}
@@ -736,22 +836,60 @@ const CategoryProductsScreen = () => {
         </View>
       )}
 
-      {/* Floating "Go to Cart" bar */}
+      {/* FIXED: Floating "Go to Cart" bar - Positioned lower */}
       {cartCount > 0 && (
-        <View className="absolute left-0 right-0 bottom-36 px-8 z-50">
+        <View 
+          style={{
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 24, // CHANGED: From bottom-36 to bottom: 24 - Much lower position
+            zIndex: 50,
+          }}
+        >
           <TouchableOpacity
-            className="bg-green-700 rounded-full flex-row items-center justify-between px-4 py-4 shadow-lg mx-6"
+            style={{
+              backgroundColor: '#15803d', // green-700
+              borderRadius: 25, // More rounded
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 20,
+              paddingVertical: 16, // Good padding
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              marginHorizontal: 16, // Additional margin from screen edges
+            }}
             activeOpacity={0.95}
             onPress={() => router.push("/cart")}
           >
-            <View className="flex-row items-center space-x-1">
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="cart-outline" size={20} color="#fff" />
-              <Text className="text-white font-semibold text-sm">
+              <Text style={{
+                color: 'white',
+                fontWeight: '600',
+                fontSize: 16,
+                marginLeft: 8
+              }}>
                 Go to Cart
               </Text>
             </View>
-            <View className="px-2 py-1 rounded-full bg-white/10 items-center flex-row" style={{ minWidth: 36 }}>
-              <Text className="text-white font-bold text-sm">
+            <View style={{
+              paddingHorizontal: 12,
+              paddingVertical: 4,
+              borderRadius: 20,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              alignItems: 'center',
+              minWidth: 40,
+            }}>
+              <Text style={{
+                color: 'white',
+                fontWeight: '700',
+                fontSize: 16
+              }}>
                 {cartCount}
               </Text>
             </View>

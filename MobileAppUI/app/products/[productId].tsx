@@ -146,7 +146,6 @@ const ProductCard = React.memo(({
     setShowControls(true);
   }, [item, addToCart, qtyInput, minOrder]);
 
-  // FIXED: Proper MOQ validation in input change
   const handleInputChange = useCallback((val: string) => {
     const onlyDigits = val.replace(/[^0-9]/g, "");
     setQtyInput(onlyDigits);
@@ -179,7 +178,6 @@ const ProductCard = React.memo(({
     }
   }, [item, cartItem, addToCart, increase, decrease, removeFromCart, minOrder]);
 
-  // FIXED: Proper MOQ validation in decrease
   const handleDecrease = useCallback(() => {
     if (cartItem && cartItem.quantity > minOrder) {
       decrease(item.productId);
@@ -232,7 +230,6 @@ const ProductCard = React.memo(({
         {item.productUnits} {item.unitsOfMeasurement}
       </Text>
       
-      {/* Show MOQ info if > 1 */}
       {minOrder > 1 && (
         <Text className="text-red-500 text-xs mb-1 font-medium">
           Min: {minOrder}
@@ -245,49 +242,98 @@ const ProductCard = React.memo(({
       
       {isCustomerExists ? (
         showControls ? (
-          <View className="flex-row items-center justify-center rounded-full bg-green-700 px-1 py-1">
+          // FIXED: Better Android compatibility for quantity controls
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#15803d',
+            borderRadius: 25,
+            paddingHorizontal: 4,
+            paddingVertical: 6,
+            height: 40,
+          }}>
             <TouchableOpacity
               onPress={handleDecrease}
-              className="w-8 h-8 rounded-full items-center justify-center"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             >
               <Ionicons name="remove" size={20} color="#fff" />
             </TouchableOpacity>
-            <View className="flex-1 mx-1 items-center justify-center">
+            
+            <View style={{
+              flex: 1,
+              marginHorizontal: 4,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 48,
+              height: 32,
+            }}>
               <TextInput
-                className="w-full h-8 text-center text-white font-bold"
                 value={qtyInput}
                 onChangeText={handleInputChange}
                 keyboardType="number-pad"
                 maxLength={3}
                 style={{
-                  borderWidth: 0,
-                  backgroundColor: "transparent",
+                  width: '100%',
+                  height: 32,
+                  textAlign: 'center',
                   fontSize: 16,
-                  color: "white",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                  minWidth: 40,
+                  fontWeight: 'bold',
+                  color: 'white',
+                  backgroundColor: 'transparent',
+                  borderWidth: 0,
+                  padding: 0,
+                  margin: 0,
+                  includeFontPadding: false,
+                  textAlignVertical: 'center',
                 }}
                 selectionColor="#fff"
                 placeholder={String(minOrder)}
                 placeholderTextColor="rgba(255,255,255,0.5)"
-                textAlign="center"
+                multiline={false}
+                numberOfLines={1}
               />
             </View>
+            
             <TouchableOpacity
               onPress={handleIncrease}
-              className="w-8 h-8 rounded-full items-center justify-center"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             >
               <Ionicons name="add" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
-            className="w-full bg-green-700 rounded-full py-2 px-3 items-center justify-center"
+            style={{
+              width: '100%',
+              backgroundColor: '#15803d',
+              borderRadius: 25,
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 40,
+            }}
             onPress={handleAddToCartPress}
             activeOpacity={0.8}
           >
-            <Text className="text-white font-semibold text-sm">
+            <Text style={{
+              color: 'white',
+              fontWeight: '600',
+              fontSize: 14
+            }}>
               Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
             </Text>
           </TouchableOpacity>
@@ -607,51 +653,105 @@ export default function ProductDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Product Info */}
-        <View className="px-4 py-4">
-          <Text className="text-2xl font-bold text-gray-900 mb-2">
-            {currentProduct.productName}
-          </Text>
-          <Text className="text-gray-600 text-base mb-4">
-            {currentProduct.productUnits}{currentProduct.unitsOfMeasurement}, Price
-          </Text>
+        {/* FIXED: Product Info Section with proper spacing */}
+        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+          {/* Product Title and Price - Fixed spacing */}
+          <View style={{ marginBottom: 24, zIndex: 1 }}>
+            <Text style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              color: '#111827',
+              marginBottom: 8,
+              lineHeight: 32
+            }}>
+              {currentProduct.productName}
+            </Text>
+            <Text style={{
+              fontSize: 16,
+              color: '#6B7280',
+              marginBottom: 16
+            }}>
+              {currentProduct.productUnits}{currentProduct.unitsOfMeasurement}, Price
+            </Text>
+          </View>
 
-          {/* Select Unit Section */}
-          <View className="mb-6">
-            <Text className="text-lg font-bold text-gray-900 mb-3">Select Unit</Text>
-            <View className="flex-row justify-between">
+          {/* Select Unit Section - Fixed positioning */}
+          <View style={{ 
+            marginBottom: 32,
+            backgroundColor: 'white',
+            zIndex: 2,
+            position: 'relative'
+          }}>
+            <Text style={{
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: '#111827',
+              marginBottom: 16
+            }}>
+              Select Unit
+            </Text>
+            <View style={{ 
+              flexDirection: 'row', 
+              justifyContent: 'space-between',
+              gap: 8
+            }}>
               {productVariants.map((variant) => {
                 const isSelected = selectedVariant.variantId === variant.variantId;
                 return (
                   <TouchableOpacity
                     key={variant.variantId}
                     onPress={() => handleVariantSelect(variant)}
-                    className={`flex-1 mx-1 rounded-2xl p-3 border-2 ${
-                      isSelected 
-                        ? 'bg-green-200 border-green-600' 
-                        : 'bg-green-50 border-green-300'
-                    } ${!variant.isAvailable ? 'opacity-50' : ''}`}
+                    style={{
+                      flex: 1,
+                      borderRadius: 16,
+                      padding: 16,
+                      borderWidth: 2,
+                      borderColor: isSelected ? '#16a34a' : '#bbf7d0',
+                      backgroundColor: isSelected ? '#dcfce7' : '#f0fdf4',
+                      opacity: variant.isAvailable ? 1 : 0.5,
+                      minHeight: 100, // Fixed minimum height
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
                     disabled={!variant.isAvailable}
                     activeOpacity={0.7}
                   >
-                    <Text className={`text-center font-bold text-lg ${
-                      isSelected ? 'text-green-900' : 'text-green-700'
-                    }`}>
+                    <Text style={{
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      fontSize: 18,
+                      color: isSelected ? '#14532d' : '#15803d',
+                      marginBottom: 4
+                    }}>
                       {variant.units} {variant.unitsOfMeasurement}
                     </Text>
-                    <Text className={`text-center font-bold text-base mt-1 ${
-                      isSelected ? 'text-green-800' : 'text-green-600'
-                    }`}>
+                    <Text style={{
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      fontSize: 16,
+                      color: isSelected ? '#166534' : '#16a34a',
+                      marginBottom: 4
+                    }}>
                       ₹{variant.price}
                     </Text>
                     {variant.originalPrice && (
-                      <Text className="text-center text-green-500 line-through text-sm mt-0.5">
+                      <Text style={{
+                        textAlign: 'center',
+                        color: '#16a34a',
+                        textDecorationLine: 'line-through',
+                        fontSize: 14,
+                        marginBottom: 4
+                      }}>
                         ₹{variant.originalPrice}
                       </Text>
                     )}
-                    {/* Show MOQ for each variant */}
                     {variant.minOrderQuantity > 1 && (
-                      <Text className="text-center text-red-500 text-xs mt-1">
+                      <Text style={{
+                        textAlign: 'center',
+                        color: '#dc2626',
+                        fontSize: 12,
+                        fontWeight: '500'
+                      }}>
                         Min: {variant.minOrderQuantity}
                       </Text>
                     )}
@@ -661,16 +761,28 @@ export default function ProductDetailsScreen() {
             </View>
           </View>
 
-          {/* Quantity and Price */}
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center">
+          {/* Quantity and Price Section - Fixed positioning */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 24,
+            backgroundColor: 'white',
+            zIndex: 3
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity
                 onPress={handleDecrease}
-                className={`w-12 h-12 rounded-full border-2 items-center justify-center ${
-                  isDecreaseDisabled
-                    ? 'border-gray-200 bg-gray-100' 
-                    : 'border-gray-300 bg-white'
-                }`}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  borderWidth: 2,
+                  borderColor: isDecreaseDisabled ? '#e5e7eb' : '#d1d5db',
+                  backgroundColor: isDecreaseDisabled ? '#f3f4f6' : 'white',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
                 disabled={isDecreaseDisabled}
               >
                 <Ionicons 
@@ -684,7 +796,18 @@ export default function ProductDetailsScreen() {
                 value={String(quantity)}
                 onChangeText={handleTextInputChange}
                 onBlur={handleTextInputBlur}
-                className="mx-4 w-16 h-12 text-center text-xl font-bold border-2 border-gray-300 rounded-lg"
+                style={{
+                  marginHorizontal: 16,
+                  width: 64,
+                  height: 48,
+                  textAlign: 'center',
+                  fontSize: 20,
+                  fontWeight: 'bold',
+                  borderWidth: 2,
+                  borderColor: '#d1d5db',
+                  borderRadius: 8,
+                  backgroundColor: 'white'
+                }}
                 keyboardType="numeric"
                 maxLength={3}
                 selectTextOnFocus={true}
@@ -692,7 +815,16 @@ export default function ProductDetailsScreen() {
               
               <TouchableOpacity
                 onPress={handleIncrease}
-                className="w-12 h-12 rounded-full border-2 border-green-600 bg-white items-center justify-center"
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  borderWidth: 2,
+                  borderColor: '#16a34a',
+                  backgroundColor: 'white',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
                 <Ionicons 
                   name="add" 
@@ -702,27 +834,55 @@ export default function ProductDetailsScreen() {
               </TouchableOpacity>
             </View>
             
-            <Text className="text-2xl font-bold text-gray-900">
+            <Text style={{
+              fontSize: 24,
+              fontWeight: 'bold',
+              color: '#111827'
+            }}>
               ₹{(currentProduct.price * quantity).toFixed(2)}
             </Text>
           </View>
 
           {/* Order Quantity Info */}
           {currentProduct.minOrderQuantity > 1 && (
-            <View className="mb-4 bg-gray-50 rounded-lg p-3">
-              <Text className="text-red-500 text-sm font-medium">
+            <View style={{
+              marginBottom: 24,
+              backgroundColor: '#f9fafb',
+              borderRadius: 8,
+              padding: 12,
+              borderLeftWidth: 4,
+              borderLeftColor: '#f59e0b'
+            }}>
+              <Text style={{
+                color: '#dc2626',
+                fontSize: 14,
+                fontWeight: '500'
+              }}>
                 ⚠️ Minimum Order Quantity: {currentProduct.minOrderQuantity}
               </Text>
             </View>
           )}
 
           {/* Expandable Sections */}
-          <View className="space-y-4">
+          <View style={{ marginTop: 16 }}>
             <TouchableOpacity
               onPress={() => toggleSection('details')}
-              className="flex-row items-center justify-between py-4 border-b border-gray-200"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#e5e7eb'
+              }}
             >
-              <Text className="text-lg font-semibold text-gray-900">Product Detail</Text>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#111827'
+              }}>
+                Product Detail
+              </Text>
               <Ionicons
                 name={expandedSection === 'details' ? "chevron-up" : "chevron-forward"}
                 size={20}
@@ -730,19 +890,48 @@ export default function ProductDetailsScreen() {
               />
             </TouchableOpacity>
             {expandedSection === 'details' && (
-              <View className="pb-4">
-                <Text className="text-gray-700 leading-6">{currentProduct.description}</Text>
+              <View style={{ paddingBottom: 16 }}>
+                <Text style={{
+                  color: '#374151',
+                  lineHeight: 24
+                }}>
+                  {currentProduct.description}
+                </Text>
               </View>
             )}
 
             <TouchableOpacity
               onPress={() => toggleSection('nutrition')}
-              className="flex-row items-center justify-between py-4 border-b border-gray-200"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#e5e7eb'
+              }}
             >
-              <Text className="text-lg font-semibold text-gray-900">Nutritions</Text>
-              <View className="flex-row items-center">
-                <View className="bg-gray-200 px-3 py-1 rounded-full mr-2">
-                  <Text className="text-sm text-gray-700">{currentProduct.nutritionInfo}</Text>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#111827'
+              }}>
+                Nutritions
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{
+                  backgroundColor: '#e5e7eb',
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  borderRadius: 20,
+                  marginRight: 8
+                }}>
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#374151'
+                  }}>
+                    {currentProduct.nutritionInfo}
+                  </Text>
                 </View>
                 <Ionicons
                   name={expandedSection === 'nutrition' ? "chevron-up" : "chevron-forward"}
@@ -752,8 +941,11 @@ export default function ProductDetailsScreen() {
               </View>
             </TouchableOpacity>
             {expandedSection === 'nutrition' && (
-              <View className="pb-4">
-                <Text className="text-gray-700 leading-6">
+              <View style={{ paddingBottom: 16 }}>
+                <Text style={{
+                  color: '#374151',
+                  lineHeight: 24
+                }}>
                   Rich in vitamins, minerals, and antioxidants. Contains natural sugars and dietary fiber.
                   Perfect for a healthy diet and natural energy boost.
                 </Text>
@@ -762,11 +954,24 @@ export default function ProductDetailsScreen() {
 
             <TouchableOpacity
               onPress={() => toggleSection('review')}
-              className="flex-row items-center justify-between py-4 border-b border-gray-200"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#e5e7eb'
+              }}
             >
-              <Text className="text-lg font-semibold text-gray-900">Review</Text>
-              <View className="flex-row items-center">
-                <View className="flex-row mr-2">
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#111827'
+              }}>
+                Review
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', marginRight: 8 }}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Ionicons key={star} name="star" size={16} color="#F59E0B" />
                   ))}
@@ -779,8 +984,11 @@ export default function ProductDetailsScreen() {
               </View>
             </TouchableOpacity>
             {expandedSection === 'review' && (
-              <View className="pb-4">
-                <Text className="text-gray-700 leading-6">
+              <View style={{ paddingBottom: 16 }}>
+                <Text style={{
+                  color: '#374151',
+                  lineHeight: 24
+                }}>
                   Excellent quality product! Fresh and tasty. Highly recommended for daily use.
                   Great value for money. Will definitely order again.
                 </Text>
@@ -789,9 +997,22 @@ export default function ProductDetailsScreen() {
 
             <TouchableOpacity
               onPress={() => toggleSection('other')}
-              className="flex-row items-center justify-between py-4 border-b border-gray-200"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: '#e5e7eb'
+              }}
             >
-              <Text className="text-lg font-semibold text-gray-900">Other Details</Text>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#111827'
+              }}>
+                Other Details
+              </Text>
               <Ionicons
                 name={expandedSection === 'other' ? "chevron-up" : "chevron-forward"}
                 size={20}
@@ -799,19 +1020,40 @@ export default function ProductDetailsScreen() {
               />
             </TouchableOpacity>
             {expandedSection === 'other' && (
-              <View className="pb-4">
-                <Text className="text-gray-700 leading-6">{currentProduct.otherDetails}</Text>
+              <View style={{ paddingBottom: 16 }}>
+                <Text style={{
+                  color: '#374151',
+                  lineHeight: 24
+                }}>
+                  {currentProduct.otherDetails}
+                </Text>
               </View>
             )}
           </View>
         </View>
 
         {/* Similar Products Section */}
-        <View className="px-4 pb-4">
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-xl font-bold text-gray-900">Similar Products</Text>
+        <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 16
+          }}>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: 'bold',
+              color: '#111827'
+            }}>
+              Similar Products
+            </Text>
             <TouchableOpacity>
-              <Text className="text-green-600 font-medium">See All</Text>
+              <Text style={{
+                color: '#16a34a',
+                fontWeight: '500'
+              }}>
+                See All
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -829,13 +1071,36 @@ export default function ProductDetailsScreen() {
       </ScrollView>
 
       {/* Add To Basket Button */}
-      <View className="px-4 py-4 border-t border-gray-200">
+      <View style={{
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+        backgroundColor: 'white'
+      }}>
         <TouchableOpacity
           onPress={handleAddToBasket}
-          className="bg-green-500 rounded-2xl py-4 items-center justify-center shadow-lg"
+          style={{
+            backgroundColor: '#22c55e',
+            borderRadius: 16,
+            paddingVertical: 16,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3
+          }}
           activeOpacity={0.9}
         >
-          <Text className="text-white text-lg font-bold">Add To Basket</Text>
+          <Text style={{
+            color: 'white',
+            fontSize: 18,
+            fontWeight: 'bold'
+          }}>
+            Add To Basket
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
