@@ -877,7 +877,7 @@ export default function AccountScreen() {
       id: 'accounts',
       title: 'Accounts',
       icon: 'wallet-outline',
-      onPress: () => Alert.alert("Coming Soon", "Accounts feature is under development.")
+      onPress: () =>  router.push('/invoices')
     },
     {
       id: 'promo',
