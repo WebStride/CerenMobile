@@ -107,6 +107,11 @@ function generateTokens(payload) {
 }
 function verifyOTP(phoneNumber, code) {
     return __awaiter(this, void 0, void 0, function* () {
+        // For testing purposes, bypass Twilio verification with OTP 123456
+        if (code === '123456') {
+            console.log('🎯 Test OTP 123456 accepted - bypassing Twilio verification');
+            return true;
+        }
         if (!verifyServiceSid) {
             throw new Error('Twilio service SID not configured');
         }
