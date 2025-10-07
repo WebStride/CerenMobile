@@ -63,6 +63,7 @@ function formatPhoneNumber(phoneNumber) {
 function sendOTP(phoneNumber) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!verifyServiceSid) {
+            console.log("verifyServiceSID", verifyServiceSid);
             throw new Error('TWILIO_VERIFY_SERVICE_SID is not defined in environment variables');
         }
         console.log('=== SEND OTP DEBUG ===');

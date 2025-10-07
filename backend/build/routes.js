@@ -17,6 +17,7 @@ const favourites_1 = require("./controllers/favourites");
 const cart_1 = require("./controllers/cart");
 const auth_2 = require("./middleware/auth");
 const auth_3 = require("./controllers/auth");
+const orders_1 = require("./controllers/orders");
 const prisma = new client_1.PrismaClient();
 function routes(app) {
     app.get('/healthcheck', (req, res) => res.sendStatus(200));
@@ -77,5 +78,11 @@ function routes(app) {
     app.get('/products/catalog/:productId', auth_2.authenticateToken, product_1.productsByCatalog);
     // Customer routes
     app.get('/customer/check', auth_2.authenticateToken, auth_3.checkCustomer);
+    // Orders routes
+    app.get('/orders', auth_2.authenticateToken, orders_1.getOrdersByCustomer);
+    app.get('/orders/:orderId/items', auth_2.authenticateToken, orders_1.getOrderItemsByOrder);
+    // Invoices routes
+    app.get('/invoices', auth_2.authenticateToken, orders_1.getInvoicesByCustomer);
+    app.get('/invoices/:invoiceId/items', auth_2.authenticateToken, orders_1.getInvoiceItemsByInvoice);
 }
 exports.default = routes;
