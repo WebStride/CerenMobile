@@ -9,6 +9,7 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
 
+
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'your-access-token-secret';
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -58,6 +59,7 @@ function formatPhoneNumber(phoneNumber: string): string {
 
 export async function sendOTP(phoneNumber: string) {
   if (!verifyServiceSid) {
+    console.log("verifyServiceSID", verifyServiceSid)
     throw new Error('TWILIO_VERIFY_SERVICE_SID is not defined in environment variables');
   }
 
