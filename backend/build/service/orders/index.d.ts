@@ -21,6 +21,8 @@ export declare function getOrdersByCustomerId(customerId: number): Promise<{
 export declare function getOrderItemsByOrderId(orderId: number): Promise<{
     success: boolean;
     orderItems: {
+        ProductName: string | null;
+        ProductImage: string | null;
         ProductID: number;
         OrderID: number;
         DeliveryLineID: number | null;

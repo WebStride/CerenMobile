@@ -861,6 +861,7 @@ export default function AccountScreen() {
       icon: 'heart-outline',
       onPress: () => router.push("/favourites/Favourites")
     },
+   
     {
       id: 'details',
       title: 'My Details',
@@ -878,6 +879,12 @@ export default function AccountScreen() {
       title: 'Accounts',
       icon: 'wallet-outline',
       onPress: () =>  router.push('/invoices')
+    },
+     {
+      id: 'invoices',
+      title: 'Invoices',
+      icon: 'document-text-outline',
+      onPress: () => router.push('/invoices')
     },
     {
       id: 'promo',
