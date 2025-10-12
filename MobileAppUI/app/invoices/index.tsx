@@ -13,8 +13,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 // @ts-ignore
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { getInvoices, getInvoiceItems } from '../../services/api';
 
 const { height } = Dimensions.get('window');
+
+// Transaction interface
+interface Transaction {
+  id: string;
+  amount: number;
+  date: string | null;
+  type: string;
+  description: string;
+  details: any;
+}
 
 // Mock ledger data with detailed information
 const mockTransactions = [
@@ -128,7 +139,38 @@ const InvoiceDetailModal = ({
   onClose: () => void;
   transaction: any;
 }) => {
+  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
   console.log("Invoice Modal - visible:", visible, "transaction:", transaction?.id);
+
+  useEffect(() => {
+    if (visible && transaction && transaction.type === 'invoice') {
+      fetchInvoiceItems();
+    }
+  }, [visible, transaction]);
+
+  const fetchInvoiceItems = async () => {
+    if (!transaction || !transaction.id) return;
+    setLoadingItems(true);
+    try {
+      // Prefer numeric invoice id stored in details.invoiceId (set when mapping invoices)
+      const invoiceId = Number(transaction.details?.invoiceId ?? transaction.id);
+      const res = await getInvoiceItems(invoiceId);
+      if (res && Array.isArray(res.invoiceItems)) {
+        // optionally filter by InvoiceID field in case API returns items for multiple invoices
+        const filtered = res.invoiceItems.filter((it: any) => Number(it.InvoiceID) === invoiceId);
+        setInvoiceItems(filtered);
+      } else {
+        setInvoiceItems([]);
+      }
+    } catch (error) {
+      console.error('Error fetching invoice items:', error);
+      setInvoiceItems([]);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
 
   if (!transaction || !visible) return null;
 
@@ -241,55 +283,9 @@ const InvoiceDetailModal = ({
                   </View>
                 </View>
               </View>
-              <Text style={{
-                fontSize: 14,
-                color: '#059669'
-              }}>
-                Due Date: {formatDate(transaction.details.dueDate)}
-              </Text>
             </View>
 
-            {/* Customer Information */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: 'bold',
-                color: '#111827',
-                marginBottom: 12
-              }}>
-                Customer Information
-              </Text>
-              <View style={{
-                backgroundColor: '#F9FAFB',
-                borderRadius: 16,
-                padding: 16
-              }}>
-                <Text style={{
-                  fontWeight: '600',
-                  color: '#111827',
-                  fontSize: 16,
-                  marginBottom: 8
-                }}>
-                  {transaction.details.customerInfo.name}
-                </Text>
-                <Text style={{
-                  color: '#6B7280',
-                  fontSize: 14,
-                  marginBottom: 8,
-                  lineHeight: 20
-                }}>
-                  {transaction.details.customerInfo.address}
-                </Text>
-                <Text style={{
-                  color: '#6B7280',
-                  fontSize: 14
-                }}>
-                  Mobile: {transaction.details.customerInfo.mobile}
-                </Text>
-              </View>
-            </View>
-
-            {/* Items List */}
+            {/* Items List (fetched from API) */}
             <View style={{ marginBottom: 24 }}>
               <Text style={{
                 fontSize: 18,
@@ -299,43 +295,145 @@ const InvoiceDetailModal = ({
               }}>
                 Items
               </Text>
-              {transaction.details.items.map((item: any, index: number) => (
-                <View 
-                  key={index} 
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingVertical: 12,
-                    borderBottomWidth: index < transaction.details.items.length - 1 ? 1 : 0,
-                    borderBottomColor: '#F3F4F6'
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{
-                      fontWeight: '600',
-                      color: '#111827',
-                      fontSize: 16,
-                      marginBottom: 4
+              {loadingItems ? (
+                <Text style={{ textAlign: 'center', color: '#6B7280', padding: 20 }}>
+                  Loading items...
+                </Text>
+              ) : invoiceItems.length > 0 ? (
+                invoiceItems.map((item: any, index: number) => (
+                  <View 
+                    key={index} 
+                    style={{
+                      backgroundColor: '#F9FAFB',
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 12
+                    }}
+                  >
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
                     }}>
-                      {item.name}
-                    </Text>
-                    <Text style={{
-                      fontSize: 14,
-                      color: '#6B7280'
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Invoice ID:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        {item.InvoiceID}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
                     }}>
-                      Qty: {item.quantity}
-                    </Text>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Product ID:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        {item.ProductID}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Quantity:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        {item.OrderQty}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Price:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        ₹{item.Price}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Taxable Value:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        ₹{item.TaxableValue}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      borderTopWidth: 1,
+                      borderTopColor: '#E5E7EB',
+                      paddingTop: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: 'bold',
+                        color: '#111827',
+                        fontSize: 16
+                      }}>
+                        Net Total:
+                      </Text>
+                      <Text style={{
+                        fontWeight: 'bold',
+                        color: '#059669',
+                        fontSize: 16
+                      }}>
+                        ₹{item.NetTotal}
+                      </Text>
+                    </View>
                   </View>
-                  <Text style={{
-                    fontWeight: 'bold',
-                    color: '#111827',
-                    fontSize: 16
-                  }}>
-                    ₹{item.total.toFixed(2)}
-                  </Text>
-                </View>
-              ))}
+                ))
+              ) : (
+                <Text style={{ textAlign: 'center', color: '#6B7280', padding: 20 }}>
+                  No items found
+                </Text>
+              )}
             </View>
 
             {/* Total Summary */}
@@ -805,12 +903,65 @@ export default function InvoicesScreen() {
   const [datePickerMode, setDatePickerMode] = useState<"start" | "end">("start");
   const [startDate, setStartDate] = useState(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   const [endDate, setEndDate] = useState(new Date());
-  const [filteredTransactions, setFilteredTransactions] = useState(mockTransactions);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   
   // Modal states
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+
+  useEffect(() => {
+    const loadInvoices = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getInvoices();
+        if (res && Array.isArray(res.invoices)) {
+          // Map API invoices to Transaction format
+          const mapped: Transaction[] = res.invoices.map((inv: any) => ({
+            // `id` is kept as the display identifier (InvoiceNumber or id)
+            id: String(inv.InvoiceNumber || inv.id),
+            // store the numeric invoice id separately so we can call /invoices/{numericId}/items
+            amount: Number(inv.NetInvoiceAmount || inv.amount || 0),
+            date: inv.InvoiceDate || inv.date || null,
+            type: "invoice",
+            description: `Invoice ${inv.InvoiceNumber || inv.id}`,
+            // details.invoiceId will be used when fetching items
+            details: {
+              invoiceId: Number(inv.id ?? inv.InvoiceID ?? null),
+              items: [], // populated from invoice items API
+              subtotal: Number(inv.NetInvoiceAmount || 0),
+              tax: 0,
+              total: Number(inv.NetInvoiceAmount || 0),
+              dueDate: inv.DueDate || null,
+              orderId: inv.OrderID,
+              customerInfo: {
+                name: "Customer",
+                address: "",
+                mobile: ""
+              }
+            }
+          }));
+          setTransactions(mapped);
+          setFilteredTransactions(mapped);
+        } else {
+          setTransactions([]);
+          setFilteredTransactions([]);
+        }
+      } catch (err: any) {
+        setError(err?.message || 'Failed to load invoices');
+        setTransactions([]);
+        setFilteredTransactions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInvoices();
+  }, []);
 
   const filterOptions = [
     { key: "7days", label: "Last 7 Days" },
@@ -824,30 +975,30 @@ export default function InvoicesScreen() {
   }, [selectedFilter, startDate, endDate]);
 
   const filterTransactions = () => {
-    let filtered = [...mockTransactions];
+    let filtered = [...transactions];
     const now = new Date();
     
     switch (selectedFilter) {
       case "7days":
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        filtered = mockTransactions.filter(transaction => 
+        filtered = transactions.filter(transaction => 
           transaction.type === "balance" || new Date(transaction.date!) >= sevenDaysAgo
         );
         break;
       case "30days":
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        filtered = mockTransactions.filter(transaction => 
+        filtered = transactions.filter(transaction => 
           transaction.type === "balance" || new Date(transaction.date!) >= thirtyDaysAgo
         );
         break;
       case "3months":
         const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        filtered = mockTransactions.filter(transaction => 
+        filtered = transactions.filter(transaction => 
           transaction.type === "balance" || new Date(transaction.date!) >= threeMonthsAgo
         );
         break;
       case "custom":
-        filtered = mockTransactions.filter(transaction => {
+        filtered = transactions.filter(transaction => {
           if (transaction.type === "balance") return true;
           const transactionDate = new Date(transaction.date!);
           return transactionDate >= startDate && transactionDate <= endDate;
@@ -1020,32 +1171,44 @@ export default function InvoicesScreen() {
       </View>
 
       {/* Transactions List */}
-      <ScrollView 
-        className="flex-1" 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 16 }}
-      >
-        {transactionsWithBalance.length > 0 ? (
-          transactionsWithBalance.map((transaction, index) => (
-            <TransactionRow 
-              key={`${transaction.id}-${index}`}
-              transaction={transaction}
-              runningBalance={transaction.runningBalance}
-              onPress={() => handleTransactionPress(transaction)}
-            />
-          ))
-        ) : (
-          <View className="flex-1 items-center justify-center py-20">
-            <Ionicons name="receipt-outline" size={64} color="#D1D5DB" />
-            <Text className="text-xl font-medium text-gray-500 mt-4 mb-2">
-              No transactions found
-            </Text>
-            <Text className="text-gray-400 text-center px-8">
-              No transactions match your selected filter criteria
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+      {loading ? (
+        <View className="flex-1 justify-center items-center">
+          <Ionicons name="hourglass-outline" size={48} color="#9CA3AF" />
+          <Text className="text-lg text-gray-500 mt-3">Loading invoices...</Text>
+        </View>
+      ) : error ? (
+        <View className="flex-1 justify-center items-center p-6">
+          <Ionicons name="alert-circle" size={48} color="#F87171" />
+          <Text className="text-lg text-gray-600 mt-3">{error}</Text>
+        </View>
+      ) : (
+        <ScrollView 
+          className="flex-1" 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 16 }}
+        >
+          {transactionsWithBalance.length > 0 ? (
+            transactionsWithBalance.map((transaction, index) => (
+              <TransactionRow 
+                key={`${transaction.id}-${index}`}
+                transaction={transaction}
+                runningBalance={transaction.runningBalance}
+                onPress={() => handleTransactionPress(transaction)}
+              />
+            ))
+          ) : (
+            <View className="flex-1 items-center justify-center py-20">
+              <Ionicons name="receipt-outline" size={64} color="#D1D5DB" />
+              <Text className="text-xl font-medium text-gray-500 mt-4 mb-2">
+                No invoices found
+              </Text>
+              <Text className="text-gray-400 text-center px-8">
+                No invoices match your selected filter criteria
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
 
       {/* Date Picker Modal */}
       <DateTimePickerModal

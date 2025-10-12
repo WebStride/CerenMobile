@@ -1,130 +1,75 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
-  FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router"; // Import useRouter
+import { getOrders } from "../../services/api";
 
-// Mock data for different order types
-const mockOrders = [
-  {
-    id: "67237",
-    productName: "Banana",
-    productImage: require("../../assets/images/Banana.png"),
-    status: "delivered",
-    amount: 30.00,
-    placedDate: "24th June 2025",
-    deliveryDate: "25th June 2025",
-    location: "Greenville, Karnataka",
-    items: [
-      { name: "Fresh Bananas", quantity: 1, price: 30.00 }
-    ]
-  },
-  {
-    id: "67243",
-    productName: "Pepsi",
-    productImage: require("../../assets/images/Banana.png"), // Replace with actual Pepsi image
-    status: "delivered",
-    amount: 40.00,
-    placedDate: "14th June 2025",
-    deliveryDate: "15th June 2025",
-    location: "Greenville, Karnataka",
-    items: [
-      { name: "Pepsi Can 330ml", quantity: 2, price: 40.00 }
-    ]
-  },
-  {
-    id: "67227",
-    productName: "Real Juice",
-    productImage: require("../../assets/images/Banana.png"), // Replace with actual juice image
-    status: "failed",
-    amount: 30.00,
-    placedDate: "24th June 2025",
-    deliveryDate: null,
-    location: "Greenville, Karnataka",
-    failureReason: "Payment failed",
-    items: [
-      { name: "Real Mixed Fruit Juice", quantity: 1, price: 30.00 }
-    ]
-  },
-  {
-    id: "67225",
-    productName: "Milk",
-    productImage: require("../../assets/images/Banana.png"), // Replace with actual milk image
-    status: "confirmed",
-    amount: 25.00,
-    placedDate: "10th September 2025",
-    estimatedDelivery: "11th September 2025",
-    location: "Greenville, Karnataka",
-    items: [
-      { name: "Fresh Milk 1L", quantity: 1, price: 25.00 }
-    ]
-  },
-  {
-    id: "67220",
-    productName: "Bread",
-    productImage: require("../../assets/images/Banana.png"), // Replace with actual bread image
-    status: "cancelled",
-    amount: 35.00,
-    placedDate: "8th September 2025",
-    cancellationDate: "9th September 2025",
-    location: "Greenville, Karnataka",
-    cancellationReason: "Cancelled by customer",
-    items: [
-      { name: "White Bread", quantity: 2, price: 35.00 }
-    ]
-  }
-];
+// Local UI order shape
+type UiOrder = {
+  id: string;
+  orderNumber?: string;
+  itemCount?: number;
+  status: string;
+  amount: number;
+  orderDate?: string;
+  deliveryDate?: string | null;
+  rawOrderDate?: string;
+  rawDeliveryDate?: string | null;
+};
 
+// We'll fetch orders from API and map them to UiOrder
 const OrderCard = ({ order, onOrderAgain, onViewDetails }: {
-  order: any;
+  order: UiOrder;
   onOrderAgain: (orderId: string) => void;
-  onViewDetails: (orderId: string) => void;
+  onViewDetails: (order: UiOrder) => void;
 }) => {
   const getStatusConfig = () => {
-    switch (order.status) {
-      case "delivered":
-        return {
-          text: "Order Delivered",
-          icon: "checkmark-circle",
-          iconColor: "#22C55E",
-          bgColor: "#F0FDF4"
-        };
-      case "failed":
-        return {
-          text: "Order Failed",
-          icon: "close-circle",
-          iconColor: "#EF4444",
-          bgColor: "#FEF2F2"
-        };
-      case "confirmed":
-        return {
-          text: "Order Confirmed",
-          icon: "time",
-          iconColor: "#F59E0B",
-          bgColor: "#FFFBEB"
-        };
-      case "cancelled":
-        return {
-          text: "Order Cancelled",
-          icon: "close-circle",
-          iconColor: "#6B7280",
-          bgColor: "#F9FAFB"
-        };
-      default:
-        return {
-          text: "Unknown Status",
-          icon: "help-circle",
-          iconColor: "#6B7280",
-          bgColor: "#F9FAFB"
-        };
+    // order.status might be a canonical key (delivered/cancelled/confirmed/failed)
+    // or an arbitrary string coming from the API. We'll map common variants
+    // to canonical keys but if it's an unknown label, show the raw status text.
+    const raw = (order.status ?? '').toString();
+    const key = raw.trim().toLowerCase();
+
+    // Map known variants to canonical keys
+    const canonicalMap: Record<string, string> = {
+      'delivered': 'delivered',
+      'del': 'delivered',
+      'completed': 'delivered',
+      'confirmed': 'confirmed',
+      'confirmed_by_pos': 'confirmed',
+      'failed': 'failed',
+      'payment_failed': 'failed',
+      'cancelled': 'cancelled',
+      'canceled': 'cancelled',
+      'cancelled_by_customer': 'cancelled',
+      'refunded': 'cancelled',
+      'returned': 'cancelled'
+    };
+
+    const canonical = canonicalMap[key] ?? null;
+
+    if (canonical === 'delivered') {
+      return { text: `Order Delivered`, icon: 'checkmark-circle', iconColor: '#22C55E', bgColor: '#F0FDF4' };
     }
+    if (canonical === 'failed') {
+      return { text: `Order Failed`, icon: 'close-circle', iconColor: '#EF4444', bgColor: '#FEF2F2' };
+    }
+    if (canonical === 'confirmed') {
+      return { text: `Order Confirmed`, icon: 'time', iconColor: '#F59E0B', bgColor: '#FFFBEB' };
+    }
+    if (canonical === 'cancelled') {
+      return { text: `Order Cancelled`, icon: 'close-circle', iconColor: '#6B7280', bgColor: '#F9FAFB' };
+    }
+
+    // Unknown canonical mapping - show the raw status nicely capitalized
+    const label = raw ? raw.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Unknown Status';
+    return { text: label, icon: 'help-circle', iconColor: '#6B7280', bgColor: '#F9FAFB' };
   };
 
   const statusConfig = getStatusConfig();
@@ -132,7 +77,7 @@ const OrderCard = ({ order, onOrderAgain, onViewDetails }: {
   return (
     <View className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-lg font-semibold text-gray-900">Order #{order.id}</Text>
+        <Text className="text-lg font-semibold text-gray-900">{order.orderNumber ? `Order ${order.orderNumber}` : `Order #${order.id}`}</Text>
         <View className={`flex-row items-center px-3 py-1 rounded-full ${statusConfig.bgColor}`}>
           <Ionicons name={statusConfig.icon as any} size={16} color={statusConfig.iconColor} />
           <Text className={`ml-1 text-sm font-medium ${statusConfig.iconColor === '#22C55E' ? 'text-green-700' : statusConfig.iconColor === '#EF4444' ? 'text-red-700' : statusConfig.iconColor === '#F59E0B' ? 'text-yellow-700' : 'text-gray-700'}`}>
@@ -142,20 +87,21 @@ const OrderCard = ({ order, onOrderAgain, onViewDetails }: {
       </View>
 
       <View className="flex-row items-center mb-3">
-        <Image source={order.productImage} className="w-16 h-16 rounded-lg mr-3" />
         <View className="flex-1">
-          <Text className="text-base font-medium text-gray-900">{order.productName}</Text>
-          <Text className="text-sm text-gray-500">₹{order.amount.toFixed(2)}</Text>
+          <Text className="text-base font-medium text-gray-900">{order.orderNumber}</Text>
+          <Text className="text-sm text-gray-500">{order.itemCount ?? 0} items • {order.orderDate}</Text>
+        </View>
+        <View className="items-end ml-4">
+          <Text className="text-sm text-gray-600">Total</Text>
+          <Text className="text-lg font-bold text-gray-900">₹{Number(order.amount ?? 0).toFixed(2)}</Text>
         </View>
       </View>
 
       <View className="border-t border-gray-200 pt-3">
         <Text className="text-sm text-gray-600 mb-2">
-          Placed: {order.placedDate}
+          Placed: {order.orderDate}
           {order.deliveryDate && ` • Delivered: ${order.deliveryDate}`}
-          {order.estimatedDelivery && ` • Est. Delivery: ${order.estimatedDelivery}`}
         </Text>
-        <Text className="text-sm text-gray-600 mb-3">{order.location}</Text>
 
         <View className="flex-row space-x-2">
           <TouchableOpacity
@@ -169,7 +115,7 @@ const OrderCard = ({ order, onOrderAgain, onViewDetails }: {
               height: 40,
               marginRight: 8,
             }}
-            onPress={() => onViewDetails(order.id)}
+            onPress={() => onViewDetails(order)}
             activeOpacity={0.8}
           >
             <Text style={{
@@ -233,31 +179,93 @@ export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [orders, setOrders] = useState<UiOrder[]>([]);
 
   const filterOptions = [
     { key: 'all', label: 'All' },
-    { key: 'delivered', label: 'Delivered' },
-    { key: 'confirmed', label: 'Confirmed' },
-    { key: 'failed', label: 'Failed' },
     { key: 'cancelled', label: 'Cancelled' },
+    { key: 'delivered', label: 'Delivered' },
   ];
 
-  const counts = mockOrders.reduce((acc, order) => {
-    acc[order.status as keyof typeof acc] = (acc[order.status as keyof typeof acc] || 0) + 1;
-    acc.all = (acc.all || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+    // Helper to normalize incoming API status strings to canonical keys
+    const normalizeStatus = (raw?: string) => {
+      const key = (raw ?? '').toString().trim().toLowerCase();
+      const canonicalMap: Record<string, string> = {
+        'delivered': 'delivered', 'del': 'delivered', 'completed': 'delivered', 'complete': 'delivered',
+        'confirmed': 'confirmed', 'confirmed_by_pos': 'confirmed',
+        'failed': 'failed', 'payment_failed': 'failed',
+        'cancelled': 'cancelled', 'canceled': 'cancelled', 'cancelled_by_customer': 'cancelled', 'refunded': 'cancelled', 'returned': 'cancelled'
+      };
+      return (canonicalMap[key] ?? key) || 'unknown';
+    };
 
-  const filteredOrders = selectedFilter === 'all' ? mockOrders : mockOrders.filter(order => order.status === selectedFilter);
+    // Build counts from fetched orders using normalized status keys
+    const counts = orders.reduce((acc, order) => {
+      const s = normalizeStatus(order.status);
+      acc[s as keyof typeof acc] = (acc[s as keyof typeof acc] || 0) + 1;
+      acc.all = (acc.all || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const filteredOrders = selectedFilter === 'all' ? orders : orders.filter(order => order.status === selectedFilter);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // use the customerid provided by you for testing
+        const res = await getOrders(2005);
+        if (!mounted) return;
+        if (res && Array.isArray(res.orders)) {
+          const mapped = res.orders.map((o: any) => {
+            // try common fields for status and normalize
+            const rawStatus = (o.OrderStatus ?? o.orderStatus ?? o.Status ?? o.status ?? o.OrderStatusText ?? '').toString();
+            const normalized = normalizeStatus(rawStatus);
+
+            return {
+              id: String(o.OrderID),
+              orderNumber: o.OrderNumber ?? `Order ${o.OrderID}`,
+              itemCount: Number(o.OrderItemCount ?? 0),
+              status: normalized,
+              amount: Number(o.EstimateOrderAmount ?? 0),
+              orderDate: o.OrderDate ? new Date(o.OrderDate).toLocaleDateString() : undefined,
+              deliveryDate: o.DateDelivered ?? null,
+              rawOrderDate: o.OrderDate,
+              rawDeliveryDate: o.DateDelivered,
+            } as UiOrder;
+          });
+          setOrders(mapped);
+        } else {
+          setOrders([]);
+        }
+      } catch (err:any) {
+        setError(err?.message || 'Failed to load orders');
+        setOrders([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+    return () => { mounted = false };
+  }, []);
 
   const handleOrderAgain = (orderId: string) => {
     console.log("Order again for:", orderId);
   };
 
-  const handleViewDetails = (orderId: string) => {
+  const handleViewDetails = (order: UiOrder) => {
     router.push({
       pathname: '/orders/[orderId]',
-      params: { orderId }
+      params: { 
+        orderId: order.id,
+        orderDate: order.rawOrderDate ?? '',
+        deliveryDate: order.rawDeliveryDate ?? ''
+      }
     });
   };
 
@@ -300,7 +308,11 @@ export default function OrdersScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 16 }}
       >
-        {filteredOrders.length > 0 ? (
+        {loading ? (
+          <View className="py-20 items-center">
+            <Text className="text-gray-500">Loading orders...</Text>
+          </View>
+        ) : filteredOrders.length > 0 ? (
           filteredOrders.map((order) => (
             <OrderCard
               key={order.id}
@@ -316,9 +328,9 @@ export default function OrdersScreen() {
               No orders found
             </Text>
             <Text className="text-gray-400 text-center px-8">
-              {selectedFilter === "all" 
+              {error ? error : (selectedFilter === "all" 
                 ? "You haven't placed any orders yet" 
-                : `No ${selectedFilter} orders found`}
+                : `No ${selectedFilter} orders found`)}
             </Text>
           </View>
         )}

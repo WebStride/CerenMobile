@@ -62,6 +62,11 @@ const getRefreshToken = async () => {
   return await AsyncStorage.getItem('refreshToken') || '';
 };
 
+const getCustomerId = async (): Promise<number | null> => {
+  const customerId = await AsyncStorage.getItem('customerId');
+  return customerId ? Number(customerId) : null;
+};
+
 export const validateTokens = async (accessToken: string, refreshToken: string | null): Promise<ValidateTokenResponse> => {
   const endpoint = `${apiUrl}/api/validate-token`;
   console.log('🔐 Validate Token API call:', endpoint);
@@ -519,6 +524,131 @@ export const addToCartApi = async (product: any) => {
   } catch (error) {
     console.error('Error adding to cart:', error);
     return { success: false };
+  }
+};
+
+// Fetch orders for a customer (optional customerId for testing)
+export const getOrders = async (customerId?: number) => {
+  try {
+    const url = `${apiUrl}/orders${typeof customerId === 'number' ? `?customerid=${customerId}` : ''}`;
+    console.log('📡 Get Orders API call:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('Get Orders response status:', response.status);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.error('Error fetching orders:', err);
+      return { success: false, orders: [], message: err.message || 'Failed to fetch orders' };
+    }
+
+    const data = await response.json();
+    console.log('Orders fetched:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getOrders:', error);
+    return { success: false, orders: [] };
+  }
+};
+
+// Fetch invoices for a customer
+export const getInvoices = async (customerId?: number) => {
+  try {
+    const id = customerId || await getCustomerId();
+    const url = `${apiUrl}/invoices${id ? `?customerid=${id}` : ''}`;
+    console.log('📡 Get Invoices API call:', url);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('Get Invoices response status:', response.status);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.error('Error fetching invoices:', err);
+      return { success: false, invoices: [], message: err.message || 'Failed to fetch invoices' };
+    }
+
+    const data = await response.json();
+    console.log('Invoices fetched:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getInvoices:', error);
+    return { success: false, invoices: [] };
+  }
+};
+
+// Fetch invoice items for a specific invoice
+export const getInvoiceItems = async (invoiceId: number) => {
+  try {
+    const endpoint = `${apiUrl}/invoices/${invoiceId}/items`;
+    console.log('📡 Get Invoice Items API call:', endpoint);
+
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('Get Invoice Items response status:', response.status);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.error('Error fetching invoice items:', err);
+      return { success: false, invoiceItems: [], message: err.message || 'Failed to fetch invoice items' };
+    }
+
+    const data = await response.json();
+    console.log('Invoice items fetched:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getInvoiceItems:', error);
+    return { success: false, invoiceItems: [] };
+  }
+};
+
+// Fetch order items for a specific order
+export const getOrderItems = async (orderId: number) => {
+  try {
+    const endpoint = `${apiUrl}/orders/${orderId}/items`;
+    console.log('📡 Get Order Items API call:', endpoint);
+
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('Get Order Items response status:', response.status);
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.error('Error fetching order items:', err);
+      return { success: false, orderItems: [], message: err.message || 'Failed to fetch order items' };
+    }
+
+    const data = await response.json();
+    console.log('Order items fetched:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getOrderItems:', error);
+    return { success: false, orderItems: [] };
   }
 };
 

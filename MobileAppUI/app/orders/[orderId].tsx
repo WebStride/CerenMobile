@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,103 +12,118 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getOrderItems } from '../../services/api';
 
 // Types
+// Types from API
+interface ApiOrderItem {
+  OrderItemID: number;
+  OrderID: number;
+  ProductID: number;
+  OrderQty?: number;
+  SaleQty?: number;
+  Price: number;
+  DeliveryLineID?: number;
+  OrderItemStatus?: string | null;
+  Comments?: string | null;
+  ProductName?: string | null;
+  ProductImage?: string | null;
+}
+
+interface ApiOrderItemsResponse {
+  success?: boolean;
+  orderItems: ApiOrderItem[];
+}
+
 interface OrderItem {
   id: string;
-  name: string;
-  quantity: string;
+  productId: number;
+  quantity: number;
   price: number;
-  image: any;
+  status?: string | null;
+  comments?: string | null;
+  productName?: string | null;
+  productImage?: string | null;
 }
-
-interface OrderDetails {
-  id: string;
-  status: string;
-  statusIcon: string;
-  statusColor: string;
-  deliveryDate: string;
-  orderDate: string;
-  items: OrderItem[];
-  orderDetails: {
-    orderId: string;
-    paymentAmount: number;
-    paymentMethod: string;
-    orderStatus: string;
-    orderDate: string;
-    deliveryDate: string;
-    deliveryAddress: string;
-  };
-  billDetails: {
-    totalMRP: number;
-    discount: number;
-    deliveryCharge: number;
-    handlingCharges: number;
-    tax: number;
-    grandTotal: number;
-  };
-}
-
-// Mock order data based on your Figma design
-const mockOrderDetails: Record<string, OrderDetails> = {
-  "67237": {
-    id: "67237",
-    status: "Delivered",
-    statusIcon: "checkmark-circle",
-    statusColor: "#22C55E",
-    deliveryDate: "24th June 2025 at 19:34",
-    orderDate: "20th June 2025",
-    items: [
-      {
-        id: "1",
-        name: "Banana Indonesia Organic",
-        quantity: "45 Kgs",
-        price: 20.00,
-        image: require("../../assets/images/Banana.png"),
-      },
-      {
-        id: "2", 
-        name: "Pepsi Can 10ml",
-        quantity: "2 Pcs",
-        price: 10.00,
-        image: require("../../assets/images/Banana.png"), // Replace with actual Pepsi image
-      }
-    ],
-    orderDetails: {
-      orderId: "#67237",
-      paymentAmount: 30.00,
-      paymentMethod: "Cash on delivery",
-      orderStatus: "Delivered",
-      orderDate: "20th June 2025",
-      deliveryDate: "24th June 2025",
-      deliveryAddress: "Shop No. 8, 10th Main Rd. Benson Town 560046"
-    },
-    billDetails: {
-      totalMRP: 400.39,
-      discount: 27.6,
-      deliveryCharge: 30.00,
-      handlingCharges: 10.00,
-      tax: 20.00,
-      grandTotal: 40.00
-    }
-  }
-};
 
 const OrderDetailScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { orderId } = useLocalSearchParams();
-  
-  // Get order details from mock data (replace with actual API call)
-  const orderDetails = mockOrderDetails[orderId as string];
+  const { orderId, orderDate: routeOrderDate, deliveryDate: routeDeliveryDate } = useLocalSearchParams();
 
-  if (!orderDetails) {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+
+    let mounted = true;
+    const id = Number(orderId);
+    if (!id) {
+      setError('Invalid order id');
+      setLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const res: ApiOrderItemsResponse = await getOrderItems(id) as ApiOrderItemsResponse;
+        console.log("coming as params",routeOrderDate, routeDeliveryDate);
+        if (!mounted) return;
+        console.log('API response for order items:', res);
+        if (res && Array.isArray((res as any).orderItems) && (res as any).orderItems.length > 0) {
+          try {
+            console.log('Raw first orderItem JSON:', JSON.stringify((res as any).orderItems[0]));
+            console.log('Raw orderItem keys:', Object.keys((res as any).orderItems[0]));
+          } catch (e) {
+            console.warn('Could not stringify orderItems[0]', e);
+          }
+        }
+        if (!res || !res.orderItems) {
+          setOrderItems([]);
+          setError('No items found for this order');
+        } else {
+          const mapped: OrderItem[] = res.orderItems.map((ai) => ({
+            id: String(ai.OrderItemID),
+            productId: ai.ProductID,
+            quantity: Number(ai.OrderQty ?? ai.SaleQty ?? 0),
+            price: Number(ai.Price ?? 0),
+            status: ai.OrderItemStatus ?? null,
+            comments: ai.Comments ?? null,
+            productName: ai.ProductName ?? null,
+            productImage: ai.ProductImage ?? null,
+          }));
+          setOrderItems(mapped);
+          console.log('Mapped order items (UI):', mapped);
+          mapped.forEach(mi => {
+            console.log(`OrderItem ${mi.id} -> productName: ${mi.productName}, productImage: ${mi.productImage}`);
+          });
+        }
+      } catch (err) {
+        console.error('Error loading order items:', err);
+        setError('Failed to load order items');
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [orderId]);
+
+  if (loading) {
     return (
       <View className="flex-1 justify-center items-center bg-white">
-        <Ionicons name="receipt-outline" size={64} color="#D1D5DB" />
-        <Text className="text-xl font-semibold text-gray-500 mt-4">
-          Order not found
-        </Text>
+        <Ionicons name="hourglass-outline" size={48} color="#9CA3AF" />
+        <Text className="text-lg text-gray-500 mt-3">Loading order items...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 justify-center items-center bg-white p-6">
+        <Ionicons name="alert-circle" size={48} color="#F87171" />
+        <Text className="text-lg text-gray-600 mt-3">{error}</Text>
         <TouchableOpacity 
           onPress={() => router.back()}
           className="mt-4 bg-green-600 px-6 py-3 rounded-lg"
@@ -136,23 +151,29 @@ const OrderDetailScreen = () => {
   };
 
   const ItemRow = ({ item }: { item: OrderItem }) => (
-    <View className="flex-row items-center py-3 border-b border-gray-100">
-      <Image 
-        source={item.image} 
-        className="w-14 h-14 rounded-lg mr-4"
-        resizeMode="contain"
-      />
-      <View className="flex-1">
-        <Text className="text-base font-semibold text-gray-900 mb-1">
-          {item.name}
-        </Text>
-        <Text className="text-sm text-gray-500">
-          {item.quantity}
-        </Text>
+    <View className="py-3 border-b border-gray-100">
+      <View className="flex-row justify-between items-center">
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {item.productImage ? (
+            <Image source={{ uri: item.productImage }} style={{ width: 64, height: 64, borderRadius: 8, marginRight: 12 }} />
+          ) : (
+            <View style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#F3F4F6', marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="image-outline" size={28} color="#9CA3AF" />
+            </View>
+          )}
+          <View>
+            <Text className="text-base font-semibold text-gray-900">{item.productName ?? 'Unknown Product'}</Text>
+            <Text className="text-sm text-gray-500">Qty: {item.quantity}</Text>
+            {item.status ? (
+              <Text className="text-sm text-gray-500">Status: {item.status}</Text>
+            ) : null}
+            {item.comments ? (
+              <Text className="text-sm text-gray-400 italic">{item.comments}</Text>
+            ) : null}
+          </View>
+        </View>
+        <Text className="text-lg font-bold text-gray-900">₹{item.price.toFixed(2)}</Text>
       </View>
-      <Text className="text-lg font-bold text-gray-900">
-        ₹{item.price.toFixed(2)}
-      </Text>
     </View>
   );
 
@@ -186,7 +207,7 @@ const OrderDetailScreen = () => {
           </TouchableOpacity>
           
           <Text className="text-xl font-bold text-gray-900">
-            Orders #{orderDetails.id}
+            Orders #{orderId}
           </Text>
           
           {/* Placeholder for balance */}
@@ -206,7 +227,7 @@ const OrderDetailScreen = () => {
           </Text>
           
           <Text className="text-gray-600 text-sm mb-1">
-            Arrived on {orderDetails.deliveryDate}
+            Arrived on —
           </Text>
           
           <TouchableOpacity 
@@ -221,13 +242,13 @@ const OrderDetailScreen = () => {
           </TouchableOpacity>
 
           <Text className="text-base font-semibold text-gray-900 mb-3">
-            {orderDetails.items.length} items in this order
+            {orderItems.length} items in this order
           </Text>
 
           {/* Items List */}
-          {orderDetails.items.map((item, index) => (
+          {orderItems.map((item) => (
             <ItemRow 
-              key={item.id} 
+              key={item.id}
               item={item}
             />
           ))}
@@ -239,15 +260,14 @@ const OrderDetailScreen = () => {
             Order Details
           </Text>
           
-          <DetailRow label="Order ID" value={orderDetails.orderDetails.orderId} />
-          <DetailRow label="Payment Amount" value={orderDetails.orderDetails.paymentAmount} />
-          <DetailRow label="Payment Method" value={orderDetails.orderDetails.paymentMethod} />
-          <DetailRow label="Order Status" value={orderDetails.orderDetails.orderStatus} />
-          <DetailRow label="Order Date" value={orderDetails.orderDetails.orderDate} />
-          <DetailRow label="Delivery Date" value={orderDetails.orderDetails.deliveryDate} />
+          <DetailRow label="Order ID" value={`#${orderId}`} />
+          <DetailRow label="Payment Amount" value={orderItems.reduce((s, it) => s + (it.price * it.quantity), 0)} />
+          <DetailRow label="Order Status" value={orderItems.length ? (orderItems.every(i => i.status === 'Cancelled') ? 'Cancelled' : 'Processed') : 'Unknown'} />
+          <DetailRow label="Order Date" value={routeOrderDate ? new Date(routeOrderDate as string).toLocaleDateString() : '--'} />
+          <DetailRow label="Delivery Date" value={routeDeliveryDate ? new Date(routeDeliveryDate as string).toLocaleDateString() : '--'} />
           <DetailRow 
             label="Delivery Address" 
-            value={orderDetails.orderDetails.deliveryAddress}
+            value={'--'}
             isLast={true}
           />
         </View>
@@ -258,18 +278,14 @@ const OrderDetailScreen = () => {
             Bill Details
           </Text>
           
-          <DetailRow label="Total MRP" value={`$${orderDetails.billDetails.totalMRP.toFixed(2)}`} />
-          <DetailRow label="Discount" value={`${orderDetails.billDetails.discount}%`} />
-          <DetailRow label="Delivery Charge" value={orderDetails.billDetails.deliveryCharge} />
-          <DetailRow label="Handling Charges" value={orderDetails.billDetails.handlingCharges} />
-          <DetailRow label="Tax" value={orderDetails.billDetails.tax} />
+          {/* compute totals from orderItems */}
           
           {/* Grand Total with emphasis */}
           <View className="pt-3 mt-3 border-t border-gray-200">
             <View className="flex-row justify-between items-center">
               <Text className="text-base font-bold text-gray-900">Grand Total</Text>
               <Text className="text-lg font-bold text-green-600">
-                ₹{orderDetails.billDetails.grandTotal.toFixed(2)}
+                ₹{(orderItems.reduce((s, it) => s + (it.price * it.quantity), 0)).toFixed(2)}
               </Text>
             </View>
           </View>
