@@ -1087,7 +1087,7 @@ export default function InvoicesScreen() {
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-gray-900 flex-1 text-center">
-            Account Statement
+            Invoice Statement
           </Text>
           <TouchableOpacity className="p-2">
             <Ionicons name="download-outline" size={24} color="#6B7280" />
@@ -1143,31 +1143,6 @@ export default function InvoicesScreen() {
           </View>
         )}
 
-        {/* Current Balance Summary */}
-        <View className={`rounded-lg p-4 ${
-          currentBalance > 0 ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'
-        }`}>
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <Ionicons 
-                name={currentBalance > 0 ? "trending-up" : "trending-down"} 
-                size={20} 
-                color={currentBalance > 0 ? "#DC2626" : "#059669"} 
-              />
-              <Text className={`ml-2 font-semibold ${
-                currentBalance > 0 ? 'text-red-800' : 'text-green-800'
-              }`}>
-                Current Balance
-              </Text>
-            </View>
-            <Text className={`text-xl font-bold ${
-              currentBalance > 0 ? 'text-red-800' : 'text-green-800'
-            }`}>
-              ₹{Math.abs(currentBalance).toFixed(2)}
-              {currentBalance > 0 ? " (Due)" : " (Credit)"}
-            </Text>
-          </View>
-        </View>
       </View>
 
       {/* Transactions List */}
