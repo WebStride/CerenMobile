@@ -7,6 +7,7 @@ import {
   Modal,
   Pressable,
   Dimensions,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -347,6 +348,49 @@ const InvoiceDetailModal = ({
                       }}>
                         {item.ProductID}
                       </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Product Name:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14,
+                        flex: 1,
+                        textAlign: 'right'
+                      }}>
+                        {item.ProductName || 'Unknown Product'}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Product Image:
+                      </Text>
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        {item.ProductImage ? (
+                          <Image source={{ uri: item.ProductImage }} style={{ width: 40, height: 40, borderRadius: 8 }} />
+                        ) : (
+                          <Image source={require('../../assets/images/Banana.png')} style={{ width: 40, height: 40, borderRadius: 8 }} />
+                        )}
+                      </View>
                     </View>
                     <View style={{
                       flexDirection: 'row',
