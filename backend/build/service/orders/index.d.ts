@@ -65,6 +65,8 @@ export declare function getInvoicesByCustomerId(customerId: number): Promise<{
 export declare function getInvoiceItemsByInvoiceId(invoiceId: number): Promise<{
     success: boolean;
     invoiceItems: {
+        ProductName: string | null;
+        ProductImage: string | null;
         Discount: number | null;
         ProductID: number;
         OrderQty: string | null;

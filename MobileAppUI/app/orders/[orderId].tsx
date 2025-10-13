@@ -157,9 +157,7 @@ const OrderDetailScreen = () => {
           {item.productImage ? (
             <Image source={{ uri: item.productImage }} style={{ width: 64, height: 64, borderRadius: 8, marginRight: 12 }} />
           ) : (
-            <View style={{ width: 64, height: 64, borderRadius: 8, backgroundColor: '#F3F4F6', marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="image-outline" size={28} color="#9CA3AF" />
-            </View>
+            <Image source={require('../../assets/images/Banana.png')} style={{ width: 64, height: 64, borderRadius: 8, marginRight: 12 }} />
           )}
           <View>
             <Text className="text-base font-semibold text-gray-900">{item.productName ?? 'Unknown Product'}</Text>

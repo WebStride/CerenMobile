@@ -154,9 +154,53 @@ function getInvoiceItemsByInvoiceId(invoiceId) {
                 where: { InvoiceID: invoiceId }
             });
             console.log('📊 Found invoice items count:', invoiceItems.length);
+            // Enrich items with product name and image (from ProductMaster and productImages->imageMaster)
+            const productIds = Array.from(new Set(invoiceItems.map(ii => ii.ProductID).filter(Boolean)));
+            let productNameMap = {};
+            let productImageMap = {};
+            if (productIds.length > 0) {
+                const products = yield prisma.productMaster.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ProductName: true }
+                });
+                products.forEach(p => {
+                    productNameMap[p.ProductID] = p.ProductName || null;
+                });
+                // find images associated with these products
+                const productImages = yield prisma.productImages.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ImageID: true }
+                });
+                const imageIds = Array.from(new Set(productImages.map(pi => pi.ImageID).filter(Boolean)));
+                let imageUrlMap = {};
+                if (imageIds.length > 0) {
+                    const images = yield prisma.imageMaster.findMany({
+                        where: { ImageID: { in: imageIds } },
+                        select: { ImageID: true, Url: true }
+                    });
+                    images.forEach(img => { imageUrlMap[img.ImageID] = img.Url || null; });
+                }
+                // map product -> first image url (if any)
+                productImages.forEach(pi => {
+                    if (!productImageMap[pi.ProductID]) {
+                        productImageMap[pi.ProductID] = imageUrlMap[pi.ImageID] || null;
+                    }
+                });
+            }
+            const augmented = invoiceItems.map(item => (Object.assign(Object.assign({}, item), { ProductName: productNameMap[item.ProductID] || null, ProductImage: productImageMap[item.ProductID] || null })));
+            // Debug logs: product ids and maps + sample JSON response for inspection
+            console.log('🔎 InvoiceItem ProductIDs:', productIds);
+            console.log('🔎 ProductNameMap:', productNameMap);
+            console.log('🔎 ProductImageMap:', productImageMap);
+            try {
+                console.log('🔁 Returning augmented invoice items (sample):', JSON.stringify(augmented.slice(0, 2)));
+            }
+            catch (e) {
+                console.log('🔁 Returning augmented invoice items (could not stringify, showing length):', augmented.length);
+            }
             return {
                 success: true,
-                invoiceItems
+                invoiceItems: augmented
             };
         }
         catch (error) {
