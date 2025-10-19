@@ -912,6 +912,9 @@ export default function AccountScreen() {
     }
   ];
 
+  // Insert privacy & terms items after menuItems are defined
+  // We'll add them to the rendered menu below so they appear in the Account screen
+
   const MenuItemComponent = ({ item }: { item: any }) => (
     <TouchableOpacity
       onPress={item.onPress}
@@ -981,6 +984,36 @@ export default function AccountScreen() {
           {menuItems.map((item, index) => (
             <MenuItemComponent key={item.id} item={item} />
           ))}
+
+          {/* Privacy Policy */}
+          <TouchableOpacity
+            onPress={() => router.push('/account/privacy')}
+            className="flex-row items-center justify-between py-4 px-4 bg-white border-b border-gray-100"
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center flex-1">
+              <View className="w-10 h-10 items-center justify-center mr-4">
+                <Ionicons name={'document-text-outline' as any} size={24} color="#374151" />
+              </View>
+              <Text className="text-base font-medium text-gray-900 flex-1">Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          {/* Terms & Conditions */}
+          <TouchableOpacity
+            onPress={() => router.push('/account/terms')}
+            className="flex-row items-center justify-between py-4 px-4 bg-white border-b border-gray-100"
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center flex-1">
+              <View className="w-10 h-10 items-center justify-center mr-4">
+                <Ionicons name={'document-text-outline' as any} size={24} color="#374151" />
+              </View>
+              <Text className="text-base font-medium text-gray-900 flex-1">Terms & Conditions</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
 
         {/* Logout Button - UNCHANGED */}
