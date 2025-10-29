@@ -17,7 +17,6 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendAddressDetails } from "@/services/api";
-import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 const SAVE_AS_OPTIONS = [
   {
@@ -38,6 +37,7 @@ const SAVE_AS_OPTIONS = [
 ];
 
 export default function AddAddressDetailsScreen() {
+  console.log("AddAddressDetailsScreen rendering");
   const router = useRouter();
   const [saveAs, setSaveAs] = useState("home"); // Default to "home"
   const [houseNumber, setHouseNumber] = useState("");
@@ -136,7 +136,7 @@ export default function AddAddressDetailsScreen() {
   };
 
   return (
-    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "#FFFFFF" }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="flex-1">
           {/* Top background and back arrow */}
@@ -411,6 +411,6 @@ export default function AddAddressDetailsScreen() {
           </ScrollView>
         </View>
       </TouchableWithoutFeedback>
-    </KeyboardAvoidingAnimatedView>
+    </KeyboardAvoidingView>
   );
 }

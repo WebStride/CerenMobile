@@ -1,6 +1,6 @@
 import { Express, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
-import { register, verifyPhoneNumber, refreshToken, logout, validateToken, testOTP } from "./controllers/auth";
+import { register, verifyPhoneNumber, refreshToken, logout, validateToken, testOTP, checkCustomerPublic, sendOtpController } from "./controllers/auth";
 import { submitUserAddress, getUserAddresses, setDefaultAddress, getDefaultAddress, updateUserAddress, deleteUserAddress } from "./controllers/user";
 import {
     getExclusiveProductsList,
@@ -48,8 +48,12 @@ function routes(app: Express) {
 
     // Auth routes
     app.post("/auth/register", register);
+    // Public send-otp endpoint for frontend (no auth)
+    app.post('/auth/send-otp', sendOtpController);
     app.post("/auth/verify", verifyPhoneNumber);
     app.post("/auth/test-otp", testOTP); // Debug route
+    // Public check-customer endpoint used by frontend before registration/login
+    app.get('/auth/check-customer', checkCustomerPublic);
     app.post("/auth/refresh", refreshToken);
     app.post("/auth/logout", logout);
     app.get('/auth/validate-token', validateToken);

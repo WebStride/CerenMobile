@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useRouter, } from "expo-router";
 import { images } from "@/constants/images";
-import { register } from "@/services/api";
+import { register, checkCustomer, sendOtp } from "@/services/api";
 
 import { useAuth } from "../context/AuthContext";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
@@ -28,6 +28,8 @@ export default function LoginNumberScreen() {
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
+  const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
+  const [existingCustomerId, setExistingCustomerId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   const recaptchaVerifier = useRef(null);
@@ -41,29 +43,48 @@ const { setConfirmation } = useAuth();
     try {
       setLoading(true);
       const fullPhoneNumber = `${countryData.code}${phoneNumber}`; // Add country code
-      const response = await register(fullPhoneNumber, name);
-      if (response.success) {
-        Alert.alert(
-          "Success",
-          "OTP has been sent successfully to your phone number.",
-          [
-            {
-              text: "OK",
-              onPress: () => router.push({
-                pathname: "/login/otp",
-                params: { phoneNumber: fullPhoneNumber, name },
-              }),
-            },
-          ]
-        );
+      if (isExistingUser) {
+        const resp = await sendOtp(fullPhoneNumber, existingCustomerId ?? undefined);
+        if (resp.success) {
+          Alert.alert("Success", "OTP has been sent successfully to your phone number.", [
+            { text: "OK", onPress: () => router.push({ pathname: "/login/otp", params: { phoneNumber: fullPhoneNumber } }) }
+          ]);
+        } else {
+          Alert.alert("Error", resp.message || "Failed to send OTP. Please try again.");
+        }
       } else {
-        Alert.alert("Error", response.message || "Failed to send OTP. Please try again.");
+        const response = await register(fullPhoneNumber, name);
+        if (response.success) {
+          Alert.alert("Success", "OTP has been sent successfully to your phone number.", [
+            { text: "OK", onPress: () => router.push({ pathname: "/login/otp", params: { phoneNumber: fullPhoneNumber, name } }) }
+          ]);
+        } else {
+          Alert.alert("Error", response.message || "Failed to send OTP. Please try again.");
+        }
       }
     } catch (error) {
       console.error("Error sending OTP:", error);
       Alert.alert("Error", "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePhoneBlur = async () => {
+    try {
+      if (phoneNumber.length < 10) return;
+      const fullPhoneNumber = `${countryData.code}${phoneNumber}`;
+      const resp = await checkCustomer(fullPhoneNumber);
+      if (resp.success && resp.exists) {
+        setIsExistingUser(true);
+        setExistingCustomerId(resp.customerId ?? null);
+        if (resp.name) setName(resp.name);
+      } else {
+        setIsExistingUser(false);
+        setExistingCustomerId(null);
+      }
+    } catch (err) {
+      console.warn('check customer failed', err);
     }
   };
 
@@ -141,12 +162,14 @@ const { setConfirmation } = useAuth();
                   maxLength={10}
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
+                  onBlur={handlePhoneBlur}
                   returnKeyType="done"
                 />
               </View>
             </View>
-            {/* Name Field */}
-            <View className="mb-10">
+            {/* Name Field (show only for new users) */}
+            {isExistingUser === false && (
+              <View className="mb-10">
               <Text
                 style={{
                   fontFamily: "Open Sans",
@@ -170,7 +193,8 @@ const { setConfirmation } = useAuth();
                   returnKeyType="done"
                 />
               </View>
-            </View>
+              </View>
+            )}
           </View>
           {/* Next Button (at the bottom, not inside inputs) */}
           <View className="items-end pb-10 px-6">

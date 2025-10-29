@@ -58,6 +58,10 @@ export default function VerificationScreen() {
           if (response.user) {
             console.log("💾 Storing user data in AsyncStorage:", response.user);
             await AsyncStorage.setItem("userData", JSON.stringify(response.user));
+            // Also store customerId for API calls
+            if (response.user.id) {
+              await AsyncStorage.setItem("customerId", String(response.user.id));
+            }
             console.log("✅ User data stored successfully");
 
             // Verify it was stored correctly
@@ -67,10 +71,19 @@ export default function VerificationScreen() {
             console.log("❌ No user data in response to store");
           }
 
-          router.push({
-                pathname: "/login/SelectLocation",
-                params: { phoneNumber: fullPhoneNumber, name },
-              })
+          // If name param is present it means this was a new user flow
+          // and we should continue to SelectLocation to collect address.
+          // If no name param (existing user), skip address screens and go to home.
+          const isNewUserFlow = !!params.name;
+          if (isNewUserFlow) {
+            router.push({
+              pathname: "/login/SelectLocation",
+              params: { phoneNumber: fullPhoneNumber, name },
+            });
+          } else {
+            // Existing user - navigate straight to app home (tabs -> shop)
+            router.push("/(tabs)/shop");
+          }
         } else {
           Alert.alert("Error", response.message || "Failed to verify OTP. Please try again.");
         }
