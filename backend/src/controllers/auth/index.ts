@@ -204,3 +204,35 @@ export async function checkCustomer(req: RequestWithUser, res: Response) {
         });
     }
 }
+
+// Public check by phone (no auth) - used by frontend to decide whether to show name field
+export async function checkCustomerPublic(req: Request, res: Response) {
+    try {
+        const phone = String(req.query.phone || '').trim();
+        if (!phone) return res.status(400).json({ success: false, message: 'phone query parameter required' });
+
+        const result = await checkCustomerExists(phone);
+        if (!result.success) {
+            return res.status(500).json({ success: false, message: 'Internal server error' });
+        }
+
+        return res.status(200).json({ success: true, exists: result.exists, message: result.message });
+    } catch (error) {
+        console.error('Error in checkCustomerPublic controller:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+}
+
+// Public send OTP endpoint (no auth) - accepts { phone }
+export async function sendOtpController(req: Request, res: Response) {
+    try {
+        const { phone } = req.body as { phone?: string };
+        if (!phone) return res.status(400).json({ success: false, message: 'phone is required' });
+
+        await sendOTP(phone);
+        return res.json({ success: true, message: 'OTP sent' });
+    } catch (error: any) {
+        console.error('Error in sendOtpController:', error);
+        return res.status(500).json({ success: false, message: error?.message || 'Failed to send OTP' });
+    }
+}

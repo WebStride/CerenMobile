@@ -20,7 +20,8 @@ export default function OnboardingScreen() {
 
 
       if (accessToken) {
-        console.log("Validating tokens with backend");
+        
+        console.log("Validating tokens with backend : ", accessToken);
         const isValid = await validateTokens(accessToken, refreshToken);
         console.log("Token validation result:", isValid);
         if (isValid) {

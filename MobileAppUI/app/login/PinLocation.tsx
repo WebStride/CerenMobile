@@ -7,13 +7,16 @@ import {
   Alert,
   FlatList,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { ArrowLeft, Search, MapPin, X } from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Platform } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import * as Location from "expo-location";
+import Constants from 'expo-constants';
 import {
   useFonts,
   Inter_400Regular,
@@ -65,7 +68,8 @@ export default function MapLocationScreen() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [initialLocationLoaded, setInitialLocationLoaded] = useState(true);
+  const [initialLocationLoaded, setInitialLocationLoaded] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 const params = useLocalSearchParams();
 
   // Coerce params to expected types and provide safe defaults
@@ -74,13 +78,24 @@ const params = useLocalSearchParams();
   const name = (params.name as string) ?? "";
   const phoneNumber = (params.phoneNumber as string) ?? "";
   const fromLocationModal = (params.fromLocationModal as string) ?? "";
+  // Optional address or lat/lng passed from previous screen
+  const addressParam = (params.address as string) ?? (params.location as string) ?? "";
+  const paramLatitude = params.latitude ? Number(params.latitude) : null;
+  const paramLongitude = params.longitude ? Number(params.longitude) : null;
 
   useEffect(() => {
-    console.log("📍 Received params in PinLocation:", { city, district, name, phoneNumber, fromLocationModal });
-    // Set default location immediately for instant UI
-    setToDefaultLocation();
-    // Then try to get real location in background
-    requestLocationPermission();
+    console.log("📍 Received params in PinLocation:", { city, district, name, phoneNumber, fromLocationModal, addressParam, paramLatitude, paramLongitude });
+    // If caller provided city/district, show them immediately as the current location text
+    if (city || district) {
+      const cityText = city || "Bengaluru";
+      const districtText = district || "Bangalore Urban";
+      setCurrentAddress(cityText);
+      setCurrentLocation(districtText + ", India");
+    }
+
+    // Orchestrate initial location: race device GPS vs geocoding the passed address (if any)
+    initLocationFlow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Search with debounce
@@ -97,35 +112,279 @@ const params = useLocalSearchParams();
     }
   }, [searchText]);
 
-  const requestLocationPermission = async () => {
+  const requestLocationPermission = async (): Promise<boolean> => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        getCurrentLocation();
-      }
-      // Don't show alert if permission denied - app is already usable with default location
+      console.log('[PinLocation] requestLocationPermission -> status:', status);
+      return status === 'granted';
     } catch (error) {
-      console.error("Error requesting location permission:", error);
-      // Default location already set, so no need to do anything
+      console.error('[PinLocation] Error requesting location permission:', error);
+      return false;
     }
   };
 
+  // Get device location but return it instead of mutating state.
+  const getCurrentLocationAsync = async (timeoutMs: number = 4000): Promise<Location.LocationObject | null> => {
+    try {
+      const getWithTimeout = (options: any, ms: number) => Promise.race([
+        Location.getCurrentPositionAsync(options),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+      ]);
+
+      let location: any = null;
+      // Try progressive attempts and log each attempt outcome
+      try {
+        console.log(`[PinLocation] getCurrentLocationAsync: trying Low accuracy timeout=${timeoutMs}ms`);
+        location = await getWithTimeout({ accuracy: Location.Accuracy.Low }, timeoutMs);
+        console.log('[PinLocation] getCurrentLocationAsync: Low accuracy succeeded', location?.coords);
+      } catch (e1) {
+        console.log('[PinLocation] getCurrentLocationAsync: Low accuracy failed, trying Balanced');
+        try {
+          location = await getWithTimeout({ accuracy: Location.Accuracy.Balanced }, timeoutMs + 2000);
+          console.log('[PinLocation] getCurrentLocationAsync: Balanced succeeded', location?.coords);
+        } catch (e2) {
+          console.log('[PinLocation] getCurrentLocationAsync: Balanced failed, trying High');
+          try {
+            location = await getWithTimeout({ accuracy: Location.Accuracy.High }, timeoutMs + 4000);
+            console.log('[PinLocation] getCurrentLocationAsync: High succeeded', location?.coords);
+          } catch (e3) {
+            console.log('[PinLocation] getCurrentLocationAsync: All attempts failed');
+            return null;
+          }
+        }
+      }
+
+      console.log('[PinLocation] getCurrentLocationAsync -> final location', location?.coords);
+      return location as Location.LocationObject;
+    } catch (error) {
+      console.warn('[PinLocation] getCurrentLocationAsync unexpected error', error);
+      return null;
+    }
+  };
+
+  // Geocode the provided address string. Returns either a SearchResult-like object or null.
+  const geocodeAddress = async (address: string) => {
+    try {
+      console.log('[PinLocation] geocodeAddress -> start', address ? address.slice(0, 120) : address);
+      if (!address) return null;
+      if (GOOGLE_MAPS_API_KEY) {
+        const encoded = encodeURIComponent(address);
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&key=${GOOGLE_MAPS_API_KEY}&language=en`;
+        const start = Date.now();
+        const resp = await fetch(geocodeUrl);
+        const json = await resp.json();
+        console.log('[PinLocation] geocodeAddress -> google response status', resp.status, 'took', Date.now() - start, 'ms');
+        if (json && Array.isArray(json.results) && json.results.length > 0) {
+          const r = json.results[0];
+          const loc = r.geometry.location;
+          console.log('[PinLocation] geocodeAddress -> parsed location', loc);
+          return {
+            displayName: r.formatted_address,
+            displayAddress: r.formatted_address,
+            latitude: loc.lat,
+            longitude: loc.lng,
+            geometry: r.geometry,
+            formattedAddress: r.formatted_address,
+          } as any;
+        }
+        console.log('[PinLocation] geocodeAddress -> google returned no results');
+        return null;
+      } else {
+        // Fallback to expo-location geocode
+        console.log('[PinLocation] geocodeAddress -> using expo-location geocode fallback');
+        const results = await Location.geocodeAsync(address);
+        if (results && results.length > 0) {
+          const res = results[0];
+          console.log('[PinLocation] geocodeAddress -> expo-location result', res);
+          return { displayName: address, displayAddress: address, latitude: res.latitude, longitude: res.longitude } as any;
+        }
+        return null;
+      }
+    } catch (error) {
+      console.warn('[PinLocation] geocodeAddress failed', error);
+      return null;
+    }
+  };
+
+  // Initialize location by racing device GPS and geocoding the provided address (if present).
+  const initLocationFlow = async () => {
+    console.log('[PinLocation] initLocationFlow -> starting');
+    setInitialLocationLoaded(false);
+
+    // If explicit lat/long were passed, use them immediately (fastest).
+    if (paramLatitude && paramLongitude) {
+      const newRegion = {
+        latitude: paramLatitude,
+        longitude: paramLongitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      console.log('[PinLocation] initLocationFlow -> using passed param lat/lng', paramLatitude, paramLongitude);
+      setRegion(newRegion);
+      setMarkerPosition({ latitude: paramLatitude, longitude: paramLongitude });
+      setInitialLocationLoaded(true);
+      // Also try to obtain live device location and animate to it if available
+      (async () => {
+        const granted = await requestLocationPermission();
+        if (granted) {
+          const device = await getCurrentLocationAsync(4000);
+          if (device) {
+            const dRegion = {
+              latitude: device.coords.latitude,
+              longitude: device.coords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            };
+            if (mapRef.current) mapRef.current.animateToRegion(dRegion, 800);
+            setRegion(dRegion);
+            setMarkerPosition({ latitude: device.coords.latitude, longitude: device.coords.longitude });
+            updateAddressFromCoordinate({ latitude: device.coords.latitude, longitude: device.coords.longitude });
+          }
+        }
+      })();
+
+      return;
+    }
+    // Start permission request and both location strategies in parallel
+    console.log('[PinLocation] initLocationFlow -> starting parallel strategies (device & geocode)');
+    const permissionPromise = requestLocationPermission();
+    const geocodePromise = addressParam ? geocodeAddress(addressParam) : Promise.resolve(null);
+    const devicePromise = (async () => {
+      const granted = await permissionPromise;
+      console.log('[PinLocation] initLocationFlow -> permission granted?', granted);
+      if (!granted) return null;
+      return await getCurrentLocationAsync(4000);
+    })();
+
+    try {
+      // Race device vs geocode; whichever resolves first we'll show immediately.
+      const first = await Promise.race([devicePromise, geocodePromise]);
+      console.log('[PinLocation] initLocationFlow -> race winner', !!first, first && ('coords' in first ? 'device' : 'geocode'));
+
+      if (first && 'coords' in first) {
+        // Device location won the race
+        const loc = first as Location.LocationObject;
+        console.log('[PinLocation] initLocationFlow -> device won with coords', loc.coords);
+        const newRegion = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
+        setRegion(newRegion);
+        setMarkerPosition({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        setInitialLocationLoaded(true);
+        // Update address asynchronously
+        updateAddressFromCoordinate({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+
+        // If geocode is still pending, let it finish but prefer device coordinates
+        geocodePromise.then((g) => {
+          if (g && !('coords' in g)) {
+            console.log('[PinLocation] initLocationFlow -> geocode finished later', g);
+            // set address text but do not override marker
+            setCurrentAddress(g.displayName || g.formattedAddress || currentAddress);
+            setCurrentLocation(g.displayAddress || currentLocation);
+          }
+        }).catch(() => {});
+      } else if (first) {
+        // Geocode won the race (or device was not available). Use geocode result.
+        const g = first as any;
+        console.log('[PinLocation] initLocationFlow -> geocode won', g);
+        const lat = g.latitude || (g.geometry && g.geometry.location && g.geometry.location.lat);
+        const lng = g.longitude || (g.geometry && g.geometry.location && g.geometry.location.lng);
+        if (lat && lng) {
+          const newRegion = { latitude: lat, longitude: lng, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+          setRegion(newRegion);
+          setMarkerPosition({ latitude: lat, longitude: lng });
+          setCurrentAddress(g.displayName || g.formattedAddress || currentAddress);
+          setCurrentLocation(g.displayAddress || currentLocation);
+          setInitialLocationLoaded(true);
+
+          // Meanwhile, if device becomes available later, animate to it
+          devicePromise.then((device) => {
+            if (device && device.coords) {
+              console.log('[PinLocation] initLocationFlow -> device arrived later', device.coords);
+              const dRegion = { latitude: device.coords.latitude, longitude: device.coords.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+              if (mapRef.current) mapRef.current.animateToRegion(dRegion, 800);
+              setRegion(dRegion);
+              setMarkerPosition({ latitude: device.coords.latitude, longitude: device.coords.longitude });
+              updateAddressFromCoordinate({ latitude: device.coords.latitude, longitude: device.coords.longitude });
+            }
+          }).catch(() => {});
+        } else {
+          // Nothing useful, fall back
+          console.log('[PinLocation] initLocationFlow -> geocode result had no coords, falling back');
+          setToDefaultLocation();
+        }
+      } else {
+        // Neither returned a result quickly; fall back to default and try device longer
+        console.log('[PinLocation] initLocationFlow -> neither device nor geocode returned quickly; using fallback');
+        setToDefaultLocation();
+        // Try device again with longer timeout
+        const granted = await permissionPromise;
+        if (granted) {
+          const device = await getCurrentLocationAsync(8000);
+          if (device && device.coords) {
+            console.log('[PinLocation] initLocationFlow -> late device success', device.coords);
+            const dRegion = { latitude: device.coords.latitude, longitude: device.coords.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+            if (mapRef.current) mapRef.current.animateToRegion(dRegion, 800);
+            setRegion(dRegion);
+            setMarkerPosition({ latitude: device.coords.latitude, longitude: device.coords.longitude });
+            updateAddressFromCoordinate({ latitude: device.coords.latitude, longitude: device.coords.longitude });
+            setInitialLocationLoaded(true);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[PinLocation] initLocationFlow error:', err);
+      setToDefaultLocation();
+    }
+  };
+  // Expose the Google Maps keys from app config (app.config.js injects these into expo.extra)
+  const extras = (Constants.expoConfig && (Constants.expoConfig.extra as any)) || (Constants.manifest && (Constants.manifest.extra as any)) || {};
+  const ANDROID_API_KEY = extras.GOOGLE_MAPS_API_KEY_ANDROID || extras.GOOGLE_MAPS_API_KEY || '';
+  const IOS_API_KEY = extras.GOOGLE_MAPS_API_KEY_IOS || extras.GOOGLE_MAPS_API_KEY || '';
+  const API_BASE_URL = extras.EXPO_PUBLIC_API_URL || extras.API_BASE_URL || '';
+
+  // Select platform-appropriate key at runtime. This is important for Expo Go where
+  // the same JS bundle is served to multiple platforms but you want device-specific keys.
+  const GOOGLE_MAPS_API_KEY = Platform.OS === 'ios' ? IOS_API_KEY : ANDROID_API_KEY;
+
+  // Debug: log masked runtime key info so developers can confirm which key is available
+  // Note: we intentionally do not print the full key here to avoid accidental leakage.
+  try {
+    const source = GOOGLE_MAPS_API_KEY
+      ? (Platform.OS === 'ios' ? 'expoConfig.extra.GOOGLE_MAPS_API_KEY_IOS' : 'expoConfig.extra.GOOGLE_MAPS_API_KEY_ANDROID')
+      : 'none';
+    const masked = GOOGLE_MAPS_API_KEY
+      ? (GOOGLE_MAPS_API_KEY.length > 12
+          ? `${GOOGLE_MAPS_API_KEY.slice(0, 8)}...${GOOGLE_MAPS_API_KEY.slice(-4)}`
+          : GOOGLE_MAPS_API_KEY)
+      : '<none>';
+    const both = { android: !!ANDROID_API_KEY, ios: !!IOS_API_KEY };
+    console.log('[PinLocation] Runtime GOOGLE_MAPS_API_KEY selected:', !!GOOGLE_MAPS_API_KEY, 'source=', source, 'masked=', masked, 'available=', both, 'platform=', Platform.OS);
+  } catch (e) {
+    console.log('[PinLocation] Error logging GOOGLE_MAPS_API_KEY', e);
+  }
+
   const setToDefaultLocation = () => {
+    // Use Bengaluru as the friendly default region (city center)
     const fallbackRegion = {
-      latitude: 28.6139,
-      longitude: 77.209,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
+      latitude: 12.9716,
+      longitude: 77.5946,
+      latitudeDelta: 0.02,
+      longitudeDelta: 0.02,
     };
 
     setRegion(fallbackRegion);
     setMarkerPosition({
-      latitude: 28.6139,
-      longitude: 77.209,
+      latitude: fallbackRegion.latitude,
+      longitude: fallbackRegion.longitude,
     });
 
-    setCurrentAddress("Tap on map to set location");
-    setCurrentLocation("Or search for your address above");
+    // Show Bengaluru / Bangalore Urban as default visible text so users see local context
+    setCurrentAddress("Bengaluru");
+    setCurrentLocation("Bangalore Urban, India");
     setInitialLocationLoaded(true);
 
     if (mapRef.current) {
@@ -137,7 +396,7 @@ const params = useLocalSearchParams();
     try {
       // Ultra-fast location with very short timeouts
       let location;
-
+      // Helper: try to get current position with a timeout
       const getCurrentPositionWithTimeout = (options: any, ms: number) => {
         return Promise.race([
           Location.getCurrentPositionAsync(options),
@@ -145,17 +404,23 @@ const params = useLocalSearchParams();
         ]);
       };
 
-      // Try low accuracy first with 1 second timeout (fastest)
+      // Try progressively longer timeouts to improve chance of success on slow devices
       try {
-        location = await getCurrentPositionWithTimeout({ accuracy: Location.Accuracy.Low }, 1000);
+        // Low accuracy attempt (fast)
+        location = await getCurrentPositionWithTimeout({ accuracy: Location.Accuracy.Low }, 3000);
       } catch (error) {
-        // If that fails, try balanced with 1.5 second timeout
         try {
-          location = await getCurrentPositionWithTimeout({ accuracy: Location.Accuracy.Balanced }, 1500);
+          // Balanced accuracy attempt
+          location = await getCurrentPositionWithTimeout({ accuracy: Location.Accuracy.Balanced }, 5000);
         } catch (balancedError) {
-          // Give up - app is already usable with default location
-          console.log("Location timeout - using default location");
-          return;
+          try {
+            // High accuracy attempt (last resort)
+            location = await getCurrentPositionWithTimeout({ accuracy: Location.Accuracy.High }, 8000);
+          } catch (highError) {
+            console.log("Location timeout - falling back to default location");
+            setToDefaultLocation();
+            return;
+          }
         }
       }
 
@@ -180,6 +445,9 @@ const params = useLocalSearchParams();
           longitude: loc.coords.longitude,
         });
 
+        // Mark that initial live location has been loaded
+        setInitialLocationLoaded(true);
+
         // Smoothly animate to real location
         if (mapRef.current) {
           mapRef.current.animateToRegion(newRegion, 1500);
@@ -202,14 +470,102 @@ const params = useLocalSearchParams();
 
     setIsSearching(true);
     try {
-      // Try multiple search approaches for better results
-      let results = [];
+      console.log('[PinLocation] searchLocation -> input', searchText);
+      // If we have a Google Maps API key, prefer Places Autocomplete (better UX)
+      let autoResp: Response | null = null;
+      let autoJson: any = null;
+      if (API_BASE_URL) {
+        // Use server proxy
+        const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+        autoResp = await fetch(`${proxyBase}/maps/place-autocomplete?input=${encodeURIComponent(searchText)}`);
+        autoJson = await autoResp.json();
+        console.log('[PinLocation] Places autocomplete (proxied) -> status', autoResp.status, autoJson && (autoJson.error_message || autoJson.status));
+        if (autoResp.status !== 200) console.warn('[PinLocation] Proxy autocomplete returned non-200', autoResp.status, autoJson);
+      } else if (GOOGLE_MAPS_API_KEY) {
+        const input = encodeURIComponent(searchText);
+        const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${input}&key=${GOOGLE_MAPS_API_KEY}&components=country:in&language=en`;
 
-      // First try: Direct geocoding
+        autoResp = await fetch(autocompleteUrl);
+        autoJson = await autoResp.json();
+        console.log('[PinLocation] Places autocomplete -> status', autoResp.status, 'body:', (autoJson && (autoJson.error_message || autoJson.status)) || autoJson);
+      }
+
+      if (autoJson && Array.isArray(autoJson.predictions) && autoJson.predictions.length > 0) {
+          // For each prediction, fetch place details to get coordinates. If details fail
+          // (e.g., REQUEST_DENIED due to key restrictions), try a lightweight
+          // fallback using expo-location geocode on the prediction description.
+          const predictions = autoJson.predictions.slice(0, 6);
+          const detailed = await Promise.all(predictions.map(async (p: any) => {
+            const placeId = p.place_id;
+            try {
+              let detailsResp: any;
+              let detailsJson: any;
+              if (API_BASE_URL) {
+                const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+                const resp = await fetch(`${proxyBase}/maps/place-details?place_id=${encodeURIComponent(placeId)}`);
+                detailsResp = resp;
+                detailsJson = await resp.json();
+              } else {
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry,name,formatted_address&key=${GOOGLE_MAPS_API_KEY}`;
+                detailsResp = await fetch(detailsUrl);
+                detailsJson = await detailsResp.json();
+              }
+              console.log('[PinLocation] Place details -> place_id', placeId, 'status', detailsResp.status, detailsJson && (detailsJson.error_message || detailsJson.status));
+
+              const loc = detailsJson?.result?.geometry?.location;
+              const nameText = detailsJson?.result?.name || p.description;
+              const formattedAddress = detailsJson?.result?.formatted_address || p.description;
+
+              if (loc && loc.lat && loc.lng) {
+                return {
+                  displayName: nameText,
+                  displayAddress: formattedAddress,
+                  latitude: loc.lat,
+                  longitude: loc.lng,
+                } as SearchResult;
+              }
+            } catch (err) {
+              console.warn('[PinLocation] Place details fetch failed for', p.description, err);
+            }
+
+            // Fallback: try expo-location geocoding for the textual description
+            try {
+              const geocodeResults = await Location.geocodeAsync(p.description);
+              if (geocodeResults && geocodeResults.length > 0) {
+                const r = geocodeResults[0];
+                return {
+                  displayName: p.description,
+                  displayAddress: p.description,
+                  latitude: r.latitude,
+                  longitude: r.longitude,
+                } as SearchResult;
+              }
+            } catch (geoErr) {
+              console.warn('[PinLocation] Fallback geocode failed for', p.description, geoErr);
+            }
+
+            // If everything fails, return a shallow fallback with description only
+            return {
+              displayName: p.description,
+              displayAddress: p.description,
+              latitude: NaN,
+              longitude: NaN,
+            } as any;
+          }));
+
+          const filtered = detailed.filter((x) => x && !Number.isNaN((x as any).latitude)) as SearchResult[];
+          if (filtered.length > 0) {
+            setSearchResults(filtered);
+            setShowSearchResults(true);
+            return;
+          }
+        // If autocomplete returned empty, fall through to geocode fallback
+      }
+
+      // Fallback: use expo-location geocoding
+      let results: any[] = [];
       const geocodeResults = await Location.geocodeAsync(searchText);
       results = geocodeResults;
-
-      // If no results, try with additional context
       if (results.length === 0) {
         const searchWithContext = `${searchText}, India`;
         const contextResults = await Location.geocodeAsync(searchWithContext);
@@ -228,7 +584,6 @@ const params = useLocalSearchParams();
               if (reverseGeocode.length > 0) {
                 const address = reverseGeocode[0];
                 return {
-                  ...result,
                   displayName:
                     address.name ||
                     address.street ||
@@ -243,19 +598,23 @@ const params = useLocalSearchParams();
                   ]
                     .filter(Boolean)
                     .join(", "),
-                };
+                  latitude: result.latitude,
+                  longitude: result.longitude,
+                } as SearchResult;
               }
               return {
-                ...result,
                 displayName: "Location",
                 displayAddress: `${result.latitude.toFixed(4)}, ${result.longitude.toFixed(4)}`,
-              };
+                latitude: result.latitude,
+                longitude: result.longitude,
+              } as SearchResult;
             } catch (error) {
               return {
-                ...result,
                 displayName: searchText,
                 displayAddress: `${result.latitude.toFixed(4)}, ${result.longitude.toFixed(4)}`,
-              };
+                latitude: result.latitude,
+                longitude: result.longitude,
+              } as SearchResult;
             }
           }),
         );
@@ -265,18 +624,11 @@ const params = useLocalSearchParams();
       } else {
         setSearchResults([]);
         setShowSearchResults(false);
-        // Show a message that no results were found
-        Alert.alert(
-          "No Results",
-          "No locations found for your search. Try a different search term.",
-        );
+        Alert.alert("No Results", "No locations found for your search. Try a different search term.");
       }
     } catch (error) {
       console.error("Error searching location:", error);
-      Alert.alert(
-        "Search Error",
-        "Unable to search for location. Please check your internet connection and try again.",
-      );
+      Alert.alert("Search Error", "Unable to search for location. Please check your internet connection and try again.");
       setSearchResults([]);
       setShowSearchResults(false);
     } finally {
@@ -285,16 +637,26 @@ const params = useLocalSearchParams();
   };
 
   const selectSearchResult = (result : SearchResult) => {
-    // Just update the marker position and address - no map animation
-    setMarkerPosition({
+    // Update the marker position and animate the map to the selected result
+    const newRegion = {
       latitude: result.latitude,
       longitude: result.longitude,
-    });
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    };
+
+    setMarkerPosition({ latitude: result.latitude, longitude: result.longitude });
+    setRegion(newRegion);
+    if (mapRef.current) {
+      try {
+        mapRef.current.animateToRegion(newRegion, 800);
+      } catch (err) {
+        // ignore animate errors on some platforms
+      }
+    }
 
     setCurrentAddress(result.displayName);
     setCurrentLocation(result.displayAddress);
-
-    // No automatic map animation - user can manually navigate to see the pin
 
     setSearchText("");
     setShowSearchResults(false);
@@ -342,10 +704,17 @@ const params = useLocalSearchParams();
   };
 
   const handleConfirmLocation = () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+
+    // Normalize params to plain serializable strings to avoid navigation/worklet issues
+    const latStr = String(Number(markerPosition.latitude));
+    const lngStr = String(Number(markerPosition.longitude));
+
     console.log("📍 Confirming location and navigating to AddAddressDetails");
     console.log("📋 Navigation params:", {
-      latitude: Number(markerPosition.latitude),
-      longitude: Number(markerPosition.longitude),
+      latitude: latStr,
+      longitude: lngStr,
       address: currentAddress ?? "",
       location: currentLocation ?? "",
       city,
@@ -355,12 +724,12 @@ const params = useLocalSearchParams();
       fromLocationModal
     });
 
-    // Navigate to add details page with location data
+    // Navigate to add details page with location data (params serialized as strings)
     router.push({
       pathname: "/login/AddAddressdetails",
       params: {
-        latitude: Number(markerPosition.latitude),
-        longitude: Number(markerPosition.longitude),
+        latitude: latStr,
+        longitude: lngStr,
         address: currentAddress ?? "",
         location: currentLocation ?? "",
         city,
@@ -524,7 +893,9 @@ const params = useLocalSearchParams();
       <View style={{ flex: 1 }}>
         <MapView
           ref={mapRef}
-          provider={PROVIDER_GOOGLE}
+          // Use Google provider only on Android. On iOS use Apple Maps unless
+          // the native Google Maps SDK is configured via app.config.js + prebuild/pods.
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           style={{ flex: 1 }}
           region={region}
           onPress={onMapPress}
@@ -555,6 +926,46 @@ const params = useLocalSearchParams();
             </View>
           </Marker>
         </MapView>
+
+        {/* Locating overlay shown until we resolve the initial live location or fallback */}
+        {!initialLocationLoaded && (
+          <View
+            style={{
+              position: 'absolute',
+              top: '40%',
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.95)',
+                padding: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 6,
+              }}
+            >
+              <ActivityIndicator size="large" color="#22C55E" />
+              <Text
+                style={{
+                  marginTop: 10,
+                  fontFamily: 'Inter_500Medium',
+                  fontSize: 14,
+                  color: '#222',
+                }}
+              >
+                Locating...
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* My Location Button */}
         <TouchableOpacity
@@ -620,8 +1031,9 @@ const params = useLocalSearchParams();
 
           <TouchableOpacity
             onPress={handleConfirmLocation}
+            disabled={isNavigating}
             style={{
-              backgroundColor: "#22C55E",
+              backgroundColor: isNavigating ? "#A0A0A0" : "#22C55E",
               borderRadius: 12,
               paddingVertical: 16,
               alignItems: "center",
@@ -634,7 +1046,7 @@ const params = useLocalSearchParams();
                 color: "#FFFFFF",
               }}
             >
-              Confirm Location
+              {isNavigating ? "Confirming..." : "Confirm Location"}
             </Text>
           </TouchableOpacity>
         </View>

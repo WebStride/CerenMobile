@@ -115,6 +115,49 @@ export const register = async (phoneNumber: string, name: string): Promise<{ suc
     return { success: false, message: 'An unexpected error occurred' };
   }
 };
+// Public check if a customer exists by phone
+export const checkCustomer = async (phoneNumber: string): Promise<{ success: boolean; exists?: boolean; customerId?: number; name?: string; message?: string }> => {
+  const endpoint = `${apiUrl}/auth/check-customer?phone=${encodeURIComponent(phoneNumber)}`;
+  console.log('📡 Check Customer API call:', endpoint);
+  try {
+    const response = await fetch(endpoint, { method: 'GET' });
+    const text = await response.text();
+    try {
+      const data = text ? JSON.parse(text) : null;
+      return data;
+    } catch (err) {
+      console.warn('Check customer: non-JSON response', text && text.slice(0, 500));
+      return { success: false, message: 'Invalid server response' };
+    }
+  } catch (error) {
+    console.error('Check customer API error:', error);
+    return { success: false, message: 'Network error' };
+  }
+};
+
+// Public send OTP endpoint
+export const sendOtp = async (phone: string, customerId?: number): Promise<{ success: boolean; message?: string; requestId?: string }> => {
+  const endpoint = `${apiUrl}/auth/send-otp`;
+  console.log('📡 Send OTP API call:', endpoint);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, customerId }),
+    });
+    const text = await response.text();
+    try {
+      const data = text ? JSON.parse(text) : null;
+      return data;
+    } catch (err) {
+      console.warn('Send OTP: non-JSON response', text && text.slice(0, 500));
+      return { success: false, message: 'Invalid server response' };
+    }
+  } catch (error) {
+    console.error('Send OTP API error:', error);
+    return { success: false, message: 'Network error' };
+  }
+};
 export const verify = async (phoneNumber: string, code: string, name: string): Promise<{ success: boolean; accessToken?: string; refreshToken?: string; user?: { id: number; name: string; phoneNumber: string }; message?: string }> => {
   const endpoint = `${apiUrl}/auth/verify`;
   console.log('📡 Verify OTP API call:', endpoint);

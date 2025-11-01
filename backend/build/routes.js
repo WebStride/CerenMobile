@@ -41,8 +41,12 @@ function routes(app) {
     }));
     // Auth routes
     app.post("/auth/register", auth_1.register);
+    // Public send-otp endpoint for frontend (no auth)
+    app.post('/auth/send-otp', auth_1.sendOtpController);
     app.post("/auth/verify", auth_1.verifyPhoneNumber);
     app.post("/auth/test-otp", auth_1.testOTP); // Debug route
+    // Public check-customer endpoint used by frontend before registration/login
+    app.get('/auth/check-customer', auth_1.checkCustomerPublic);
     app.post("/auth/refresh", auth_1.refreshToken);
     app.post("/auth/logout", auth_1.logout);
     app.get('/auth/validate-token', auth_1.validateToken);
@@ -84,5 +88,6 @@ function routes(app) {
     // Invoices routes
     app.get('/invoices', auth_2.authenticateToken, orders_1.getInvoicesByCustomer);
     app.get('/invoices/:invoiceId/items', auth_2.authenticateToken, orders_1.getInvoiceItemsByInvoice);
+    // Maps proxy endpoints removed — using client-side keys / native SDKs instead
 }
 exports.default = routes;

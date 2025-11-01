@@ -19,6 +19,8 @@ exports.verifyPhoneNumber = verifyPhoneNumber;
 exports.refreshToken = refreshToken;
 exports.logout = logout;
 exports.checkCustomer = checkCustomer;
+exports.checkCustomerPublic = checkCustomerPublic;
+exports.sendOtpController = sendOtpController;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const auth_1 = require("../../service/auth");
 const auth_2 = require("../../service/auth");
@@ -204,6 +206,41 @@ function checkCustomer(req, res) {
                 success: false,
                 message: 'Internal server error'
             });
+        }
+    });
+}
+// Public check by phone (no auth) - used by frontend to decide whether to show name field
+function checkCustomerPublic(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const phone = String(req.query.phone || '').trim();
+            if (!phone)
+                return res.status(400).json({ success: false, message: 'phone query parameter required' });
+            const result = yield (0, auth_2.checkCustomerExists)(phone);
+            if (!result.success) {
+                return res.status(500).json({ success: false, message: 'Internal server error' });
+            }
+            return res.status(200).json({ success: true, exists: result.exists, message: result.message });
+        }
+        catch (error) {
+            console.error('Error in checkCustomerPublic controller:', error);
+            return res.status(500).json({ success: false, message: 'Internal server error' });
+        }
+    });
+}
+// Public send OTP endpoint (no auth) - accepts { phone }
+function sendOtpController(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { phone } = req.body;
+            if (!phone)
+                return res.status(400).json({ success: false, message: 'phone is required' });
+            yield (0, auth_1.sendOTP)(phone);
+            return res.json({ success: true, message: 'OTP sent' });
+        }
+        catch (error) {
+            console.error('Error in sendOtpController:', error);
+            return res.status(500).json({ success: false, message: (error === null || error === void 0 ? void 0 : error.message) || 'Failed to send OTP' });
         }
     });
 }
