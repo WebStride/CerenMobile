@@ -111,6 +111,7 @@ function routes(app: Express) {
     app.get('/invoices', authenticateToken, getInvoicesByCustomer);
     app.get('/invoices/:invoiceId/items', authenticateToken, getInvoiceItemsByInvoice);
     
+    // Maps proxy endpoints removed — using client-side keys / native SDKs instead
     
 }
 

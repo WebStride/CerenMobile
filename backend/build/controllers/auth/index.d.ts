@@ -7,3 +7,5 @@ export declare function refreshToken(req: Request, res: Response): Promise<Respo
 export declare function logout(req: Request, res: Response): Promise<void>;
 export { validateToken } from './validateToken';
 export declare function checkCustomer(req: RequestWithUser, res: Response): Promise<Response<any, Record<string, any>>>;
+export declare function checkCustomerPublic(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+export declare function sendOtpController(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;

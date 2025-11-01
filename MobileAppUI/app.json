@@ -12,7 +12,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.amitavpanda.MobileAppUI"
+      "bundleIdentifier": "com.amitavpanda.MobileAppUI",
+      "config": {
+        "googleMapsApiKey": "process.env.GOOGLE_MAPS_API_KEY_IOS"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,14 +23,18 @@
         "backgroundColor": "#BCD042"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.amitavpanda.MobileAppUI"
+      "package": "com.amitavpanda.MobileAppUI",
+      "config": {
+        "googleMaps": {
+          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    
     "plugins": [
       "expo-router",
       [
@@ -52,4 +59,3 @@
     }
   }
 }
-

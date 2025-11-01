@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { ArrowLeft, Search, MapPin, X } from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Platform } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import Constants from 'expo-constants';
@@ -339,8 +340,32 @@ const params = useLocalSearchParams();
       setToDefaultLocation();
     }
   };
-  // Expose the Google Maps key from app config (app.config.js injects this into expo.extra)
-  const GOOGLE_MAPS_API_KEY = (Constants.expoConfig && (Constants.expoConfig.extra as any)?.GOOGLE_MAPS_API_KEY) || (Constants.manifest && (Constants.manifest.extra as any)?.GOOGLE_MAPS_API_KEY) || '';
+  // Expose the Google Maps keys from app config (app.config.js injects these into expo.extra)
+  const extras = (Constants.expoConfig && (Constants.expoConfig.extra as any)) || (Constants.manifest && (Constants.manifest.extra as any)) || {};
+  const ANDROID_API_KEY = extras.GOOGLE_MAPS_API_KEY_ANDROID || extras.GOOGLE_MAPS_API_KEY || '';
+  const IOS_API_KEY = extras.GOOGLE_MAPS_API_KEY_IOS || extras.GOOGLE_MAPS_API_KEY || '';
+  const API_BASE_URL = extras.EXPO_PUBLIC_API_URL || extras.API_BASE_URL || '';
+
+  // Select platform-appropriate key at runtime. This is important for Expo Go where
+  // the same JS bundle is served to multiple platforms but you want device-specific keys.
+  const GOOGLE_MAPS_API_KEY = Platform.OS === 'ios' ? IOS_API_KEY : ANDROID_API_KEY;
+
+  // Debug: log masked runtime key info so developers can confirm which key is available
+  // Note: we intentionally do not print the full key here to avoid accidental leakage.
+  try {
+    const source = GOOGLE_MAPS_API_KEY
+      ? (Platform.OS === 'ios' ? 'expoConfig.extra.GOOGLE_MAPS_API_KEY_IOS' : 'expoConfig.extra.GOOGLE_MAPS_API_KEY_ANDROID')
+      : 'none';
+    const masked = GOOGLE_MAPS_API_KEY
+      ? (GOOGLE_MAPS_API_KEY.length > 12
+          ? `${GOOGLE_MAPS_API_KEY.slice(0, 8)}...${GOOGLE_MAPS_API_KEY.slice(-4)}`
+          : GOOGLE_MAPS_API_KEY)
+      : '<none>';
+    const both = { android: !!ANDROID_API_KEY, ios: !!IOS_API_KEY };
+    console.log('[PinLocation] Runtime GOOGLE_MAPS_API_KEY selected:', !!GOOGLE_MAPS_API_KEY, 'source=', source, 'masked=', masked, 'available=', both, 'platform=', Platform.OS);
+  } catch (e) {
+    console.log('[PinLocation] Error logging GOOGLE_MAPS_API_KEY', e);
+  }
 
   const setToDefaultLocation = () => {
     // Use Bengaluru as the friendly default region (city center)
@@ -445,23 +470,47 @@ const params = useLocalSearchParams();
 
     setIsSearching(true);
     try {
+      console.log('[PinLocation] searchLocation -> input', searchText);
       // If we have a Google Maps API key, prefer Places Autocomplete (better UX)
-      if (GOOGLE_MAPS_API_KEY) {
+      let autoResp: Response | null = null;
+      let autoJson: any = null;
+      if (API_BASE_URL) {
+        // Use server proxy
+        const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+        autoResp = await fetch(`${proxyBase}/maps/place-autocomplete?input=${encodeURIComponent(searchText)}`);
+        autoJson = await autoResp.json();
+        console.log('[PinLocation] Places autocomplete (proxied) -> status', autoResp.status, autoJson && (autoJson.error_message || autoJson.status));
+        if (autoResp.status !== 200) console.warn('[PinLocation] Proxy autocomplete returned non-200', autoResp.status, autoJson);
+      } else if (GOOGLE_MAPS_API_KEY) {
         const input = encodeURIComponent(searchText);
         const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${input}&key=${GOOGLE_MAPS_API_KEY}&components=country:in&language=en`;
 
-        const autoResp = await fetch(autocompleteUrl);
-        const autoJson = await autoResp.json();
+        autoResp = await fetch(autocompleteUrl);
+        autoJson = await autoResp.json();
+        console.log('[PinLocation] Places autocomplete -> status', autoResp.status, 'body:', (autoJson && (autoJson.error_message || autoJson.status)) || autoJson);
+      }
 
-        if (autoJson && Array.isArray(autoJson.predictions) && autoJson.predictions.length > 0) {
-          // For each prediction, fetch place details to get coordinates
+      if (autoJson && Array.isArray(autoJson.predictions) && autoJson.predictions.length > 0) {
+          // For each prediction, fetch place details to get coordinates. If details fail
+          // (e.g., REQUEST_DENIED due to key restrictions), try a lightweight
+          // fallback using expo-location geocode on the prediction description.
           const predictions = autoJson.predictions.slice(0, 6);
           const detailed = await Promise.all(predictions.map(async (p: any) => {
+            const placeId = p.place_id;
             try {
-              const placeId = p.place_id;
-              const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry,name,formatted_address&key=${GOOGLE_MAPS_API_KEY}`;
-              const detailsResp = await fetch(detailsUrl);
-              const detailsJson = await detailsResp.json();
+              let detailsResp: any;
+              let detailsJson: any;
+              if (API_BASE_URL) {
+                const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+                const resp = await fetch(`${proxyBase}/maps/place-details?place_id=${encodeURIComponent(placeId)}`);
+                detailsResp = resp;
+                detailsJson = await resp.json();
+              } else {
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry,name,formatted_address&key=${GOOGLE_MAPS_API_KEY}`;
+                detailsResp = await fetch(detailsUrl);
+                detailsJson = await detailsResp.json();
+              }
+              console.log('[PinLocation] Place details -> place_id', placeId, 'status', detailsResp.status, detailsJson && (detailsJson.error_message || detailsJson.status));
 
               const loc = detailsJson?.result?.geometry?.location;
               const nameText = detailsJson?.result?.name || p.description;
@@ -476,20 +525,40 @@ const params = useLocalSearchParams();
                 } as SearchResult;
               }
             } catch (err) {
-              // ignore and fallback per-item
-              console.warn('Place details failed for', p.description, err);
+              console.warn('[PinLocation] Place details fetch failed for', p.description, err);
             }
-            return null;
+
+            // Fallback: try expo-location geocoding for the textual description
+            try {
+              const geocodeResults = await Location.geocodeAsync(p.description);
+              if (geocodeResults && geocodeResults.length > 0) {
+                const r = geocodeResults[0];
+                return {
+                  displayName: p.description,
+                  displayAddress: p.description,
+                  latitude: r.latitude,
+                  longitude: r.longitude,
+                } as SearchResult;
+              }
+            } catch (geoErr) {
+              console.warn('[PinLocation] Fallback geocode failed for', p.description, geoErr);
+            }
+
+            // If everything fails, return a shallow fallback with description only
+            return {
+              displayName: p.description,
+              displayAddress: p.description,
+              latitude: NaN,
+              longitude: NaN,
+            } as any;
           }));
 
-          const filtered = detailed.filter(Boolean) as SearchResult[];
+          const filtered = detailed.filter((x) => x && !Number.isNaN((x as any).latitude)) as SearchResult[];
           if (filtered.length > 0) {
             setSearchResults(filtered);
             setShowSearchResults(true);
             return;
           }
-        }
-
         // If autocomplete returned empty, fall through to geocode fallback
       }
 
@@ -824,7 +893,9 @@ const params = useLocalSearchParams();
       <View style={{ flex: 1 }}>
         <MapView
           ref={mapRef}
-          provider={PROVIDER_GOOGLE}
+          // Use Google provider only on Android. On iOS use Apple Maps unless
+          // the native Google Maps SDK is configured via app.config.js + prebuild/pods.
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           style={{ flex: 1 }}
           region={region}
           onPress={onMapPress}

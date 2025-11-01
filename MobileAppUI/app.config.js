@@ -1,45 +1,70 @@
-/* app.config.js
-   Loads environment variables (from .env*. files) and injects them into the Expo config.
-   This lets us avoid hard-coding API keys inside app.json.
-*/
-
+// app.config.js
+// Single-source Expo config generator. Loads env vars and injects platform-specific
+// Google Maps API keys into native config and expo.extra so runtime JS can access them.
 const fs = require('fs');
 const path = require('path');
-
-// load .env files
 require('dotenv').config({ path: path.resolve(__dirname, '.env.development') });
 require('dotenv').config();
 
-const base = require('./app.json');
+module.exports = ({ config }) => {
+  // Read the env vars you said you use in your .env
+  const androidKey = process.env.EXPO_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
+  const iosKey = process.env.EXPO_GOOGLE_MAPS_API_KEY_IOS || process.env.GOOGLE_MAPS_API_KEY_IOS || '';
 
-// Clone the base config so we don't mutate the original unexpectedly
-const config = JSON.parse(JSON.stringify(base));
+  // Build plugins array conditionally: only add react-native-maps plugin
+  // when the package provides an app.plugin.js (config plugin). This avoids
+  // Expo trying to import react-native-maps at dev-time when the package
+  // doesn't export a config plugin (which causes the "Unexpected token '<'"
+  // error seen in Expo Go).
+  const basePlugins = Array.isArray(config.expo?.plugins) ? [...config.expo.plugins] : [];
+  try {
+    // If react-native-maps provides an app.plugin.js, resolve it and include the plugin.
+    // This will throw if the file doesn't exist, and we silently skip the plugin.
+    require.resolve('react-native-maps/app.plugin.js');
+    basePlugins.push(['react-native-maps', { provider: 'google' }]);
+  } catch (e) {
+    // No plugin available; skip adding it (safe for managed Expo workflows).
+  }
 
-const googleMapsKey = process.env.GOOGLE_MAPS_API_KEY || process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+  const out = {
+    ...config,
+    expo: {
+      ...config.expo,
+      android: {
+        ...config.expo?.android,
+        config: {
+          ...(config.expo?.android?.config || {}),
+          googleMaps: {
+            apiKey: androidKey,
+          },
+        },
+      },
+      ios: {
+        ...config.expo?.ios,
+        config: {
+          ...(config.expo?.ios?.config || {}),
+          googleMapsApiKey: iosKey,
+        },
+        infoPlist: {
+          ...(config.expo?.ios?.infoPlist || {}),
+          NSLocationWhenInUseUsageDescription:
+            config.expo?.ios?.infoPlist?.NSLocationWhenInUseUsageDescription ||
+            'We need your location to show nearby distributors and set your address',
+        },
+      },
+      extra: {
+        ...(config.expo?.extra || {}),
+        GOOGLE_MAPS_API_KEY_ANDROID: androidKey,
+        GOOGLE_MAPS_API_KEY_IOS: iosKey,
+        // Backwards compatibility key used in some screens
+        GOOGLE_MAPS_API_KEY: iosKey || androidKey || (config.expo?.extra && config.expo.extra.GOOGLE_MAPS_API_KEY) || '',
+        // Optional API base for proxying map requests to your backend (e.g. http://192.168.1.5:3002)
+        EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || config.expo?.extra?.EXPO_PUBLIC_API_URL || '',
+      },
+      // Plugins array assembled above (may or may not contain react-native-maps)
+      plugins: basePlugins,
+    },
+  };
 
-// Ensure android config object exists
-config.expo.android = config.expo.android || {};
-config.expo.android.config = config.expo.android.config || {};
-config.expo.android.config.googleMaps = config.expo.android.config.googleMaps || {};
-
-if (googleMapsKey) {
-  config.expo.android.config.googleMaps.apiKey = googleMapsKey;
-}
-
-// Ensure ios config object exists
-config.expo.ios = config.expo.ios || {};
-config.expo.ios.config = config.expo.ios.config || {};
-
-if (googleMapsKey) {
-  config.expo.ios.config.googleMapsApiKey = googleMapsKey;
-}
-
-// Also expose the key to the JS runtime via expo.extra so client-side
-// code can call the Places web API (if needed). When you use EAS secrets
-// you can still inject the secret into process.env at build time.
-config.expo.extra = config.expo.extra || {};
-if (googleMapsKey) {
-  config.expo.extra.GOOGLE_MAPS_API_KEY = googleMapsKey;
-}
-
-module.exports = config;
+  return out;
+};
