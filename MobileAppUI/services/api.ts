@@ -68,7 +68,7 @@ const getCustomerId = async (): Promise<number | null> => {
 };
 
 export const validateTokens = async (accessToken: string, refreshToken: string | null): Promise<ValidateTokenResponse> => {
-  const endpoint = `${apiUrl}/api/validate-token`;
+  const endpoint = `${apiUrl}/auth/validate-token`;
   console.log('🔐 Validate Token API call:', endpoint);
 
   try {
@@ -116,14 +116,16 @@ export const register = async (phoneNumber: string, name: string): Promise<{ suc
   }
 };
 // Public check if a customer exists by phone
-export const checkCustomer = async (phoneNumber: string): Promise<{ success: boolean; exists?: boolean; customerId?: number; name?: string; message?: string }> => {
+export const checkCustomer = async (phoneNumber: string): Promise<{ success: boolean; exists?: boolean; userId?: number; customerId?: number; name?: string; message?: string }> => {
   const endpoint = `${apiUrl}/auth/check-customer?phone=${encodeURIComponent(phoneNumber)}`;
   console.log('📡 Check Customer API call:', endpoint);
   try {
     const response = await fetch(endpoint, { method: 'GET' });
     const text = await response.text();
+    console.log('📡 Check customer HTTP status:', response.status);
     try {
       const data = text ? JSON.parse(text) : null;
+      console.log('📡 Check customer parsed response:', data);
       return data;
     } catch (err) {
       console.warn('Check customer: non-JSON response', text && text.slice(0, 500));
@@ -186,6 +188,33 @@ export const verify = async (phoneNumber: string, code: string, name: string): P
   } catch (error) {
     console.error('Verify API error:', error);
     return { success: false, message: 'An unexpected error occurred' };
+  }
+};
+
+// Fetch stores for current authenticated user (uses access token)
+export const getStoresForUser = async (): Promise<{ success: boolean; stores?: Array<any>; message?: string }> => {
+  const endpoint = `${apiUrl}/customer/stores`;
+  console.log('📡 Get Stores API call:', endpoint);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || 'Failed to fetch stores' };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Get stores API error:', error);
+    return { success: false, message: 'Network error' };
   }
 };
 

@@ -76,13 +76,17 @@ export default function VerificationScreen() {
           // If no name param (existing user), skip address screens and go to home.
           const isNewUserFlow = !!params.name;
           if (isNewUserFlow) {
+            // New user: continue to SelectLocation (address flow -> AddAddressDetails -> SelectStore)
             router.push({
               pathname: "/login/SelectLocation",
               params: { phoneNumber: fullPhoneNumber, name },
             });
           } else {
-            // Existing user - navigate straight to app home (tabs -> shop)
-            router.push("/(tabs)/shop");
+            // Existing user - route to SelectStore so user can pick store before entering app
+            router.push({
+              pathname: "/login/SelectStore",
+              params: { phoneNumber: fullPhoneNumber, name },
+            });
           }
         } else {
           Alert.alert("Error", response.message || "Failed to verify OTP. Please try again.");

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,15 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import { getStoresForUser } from "@/services/api";
+
+type Store = {
+  CUSTOMERID: number;
+  CUSTOMERNAME: string;
+  ADDRESS?: string | null;
+  CITY?: string | null;
+  PINCODE?: number | null;
+};
 
 export default function SelectStore() {
   const router = useRouter();
@@ -24,8 +33,34 @@ export default function SelectStore() {
   const [buildingBlock, setBuildingBlock] = useState("");
   const [pinCode, setPinCode] = useState("");
   const [landmark, setLandmark] = useState("");
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const params = useLocalSearchParams(); // Retrieve route parameters
   const { phoneNumber, name } = params; // Destructure phoneNumber and name
+  const city = (params as any).city || '';
+  const district = (params as any).district || '';
+  const location = (params as any).location || '';
+  const address = (params as any).address || '';
+  const fromLocationModal = (params as any).fromLocationModal || '';
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setLoading(true);
+      const res = await getStoresForUser();
+      if (!mounted) return;
+      if (res.success && Array.isArray(res.stores)) {
+        setStores(res.stores);
+        if (res.stores.length > 0) setSelectedStoreId(res.stores[0].CUSTOMERID);
+      } else {
+        console.warn('Failed to load stores', res.message);
+      }
+      setLoading(false);
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
   const handleSelectStore = async () => {
     router.replace("/(tabs)/shop");
   };
@@ -83,6 +118,33 @@ export default function SelectStore() {
 
 
 
+            {/* Stores list */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontFamily: 'Open Sans', fontWeight: '600', fontSize: 15, color: '#7C7C7C', marginBottom: 8 }}>Select a Store</Text>
+              {loading ? (
+                <Text>Loading stores...</Text>
+              ) : stores.length === 0 ? (
+                <Text>No stores found for this user.</Text>
+              ) : (
+                stores.map((s) => (
+                  <TouchableOpacity
+                    key={s.CUSTOMERID}
+                    onPress={() => setSelectedStoreId(s.CUSTOMERID)}
+                    style={{
+                      padding: 12,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: selectedStoreId === s.CUSTOMERID ? '#BCD042' : '#EAEAEA',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ fontFamily: 'Open Sans', fontWeight: '600', fontSize: 16, color: '#181725' }}>{s.CUSTOMERNAME}</Text>
+                    {s.ADDRESS ? <Text style={{ color: '#7C7C7C' }}>{s.ADDRESS}</Text> : null}
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+
             {/* Save Address Button */}
             <TouchableOpacity
               style={{
@@ -93,7 +155,27 @@ export default function SelectStore() {
                 justifyContent: "center",
                 marginBottom: 24,
               }}
-              onPress={handleSelectStore}
+              onPress={() => {
+                if (!stores || stores.length === 0 || !selectedStoreId) {
+                  Alert.alert('No stores available', 'No stores found for this user.');
+                  return;
+                }
+                // When user selects store, navigate to home/shop and pass store info
+                const selected = stores.find((s) => s.CUSTOMERID === selectedStoreId) || null;
+                router.replace({
+                  pathname: '/(tabs)/shop',
+                  params: {
+                    city,
+                    district,
+                    location,
+                    address,
+                    name,
+                    phoneNumber,
+                    selectedStoreId: selected ? selected.CUSTOMERID : null,
+                    selectedStoreName: selected ? selected.CUSTOMERNAME : null,
+                  }
+                });
+              }}
               accessibilityLabel="Select Store"
               activeOpacity={0.85}
             >

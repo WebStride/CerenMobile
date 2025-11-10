@@ -108,17 +108,20 @@ export default function AddAddressDetailsScreen() {
                   console.log("🏠 Navigating back to home screen after adding address");
                   router.push("/(tabs)/shop");
                 } else {
-                  // Normal login flow, navigate to home with user data
-                  console.log("🔐 Normal login flow, navigating to home with user data");
+                  // Normal login flow: navigate to SelectStore so user can pick a store
+                  console.log("🔐 Normal login flow, navigating to SelectStore with user data");
                   router.push({
-                    pathname: "/(tabs)/shop",
+                    pathname: "/login/SelectStore",
                     params: {
                       city,
                       district,
                       location,
                       address,
                       name,
-                      phoneNumber
+                      phoneNumber,
+                      fromLocationModal,
+                      latitude,
+                      longitude
                     },
                   });
                 }

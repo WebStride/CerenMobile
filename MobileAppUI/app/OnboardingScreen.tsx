@@ -12,25 +12,34 @@ export default function OnboardingScreen() {
   const handleGetStarted = async () => {
     console.log("handleGetStarted invoked");
     try {
-      let accessToken = await AsyncStorage.getItem("accessToken");
+      const accessToken = await AsyncStorage.getItem("accessToken");
       console.log("Access token retrieved:", accessToken);
-      let refreshToken = await AsyncStorage.getItem("refreshToken");
+      const refreshToken = await AsyncStorage.getItem("refreshToken");
       console.log("Refresh token retrieved:", refreshToken);
-      refreshToken = "asdfasdfasdfadsf";
 
-
-      if (accessToken) {
-        
-        console.log("Validating tokens with backend : ", accessToken);
-        const isValid = await validateTokens(accessToken, refreshToken);
-        console.log("Token validation result:", isValid);
-        if (isValid) {
-          console.log("Tokens are valid, navigating to shop");
-          router.replace("/(tabs)/shop");
-          return;
-        }
+      // If there's no stored access token, go to login
+      if (!accessToken) {
+        console.log("No access token found, navigating to login");
+        router.replace("/login");
+        return;
       }
-      console.log("No valid token found, navigating to login");
+
+      // Validate tokens with backend. validateTokens returns an object { isValid, user, newAccessToken }
+      console.log("Validating tokens with backend");
+      const validation = await validateTokens(accessToken, refreshToken);
+      console.log("Token validation result:", validation);
+
+      if (validation && validation.isValid) {
+        // Save any newly issued access token
+        if (validation.newAccessToken) {
+          await AsyncStorage.setItem('accessToken', validation.newAccessToken);
+        }
+        console.log("Tokens are valid, navigating to shop");
+        router.replace("/(tabs)/shop");
+        return;
+      }
+
+      console.log("Tokens invalid or expired, navigating to login");
       router.replace("/login");
     } catch (error) {
       console.error("Error checking authentication status:", error);
