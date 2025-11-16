@@ -42,9 +42,10 @@ interface Product {
   productName: string;
   productUnits: number;
   unitsOfMeasurement: string;
-  price: number;
+  price: number | null; // Allow null for catalog mode
   image: string | number | null;
   minOrderQuantity?: number;
+  showPricing?: boolean; // Flag from backend
 }
 
 interface Category {
@@ -495,7 +496,7 @@ const ProductCard = React.memo(({
         productName: item.productName,
         productUnits: item.productUnits.toString(),
         unitsOfMeasurement: item.unitsOfMeasurement,
-        price: item.price.toString(),
+        price: item.price !== null ? item.price.toString() : '0',
         image: (typeof (item as any).image === 'number') ? '' : (item.image || ''),
         minOrderQuantity: minOrder.toString(),
         description: `Fresh and natural ${item.productName} sourced directly from farms. Rich in nutrients and perfect for daily consumption.`,
@@ -532,7 +533,7 @@ const ProductCard = React.memo(({
     addToCart({
       productId: item.productId,
       productName: item.productName,
-      price: item.price,
+      price: item.price || 0, // Use 0 if price is null (catalog mode)
       image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
       productUnits: item.productUnits,
       unitsOfMeasurement: item.unitsOfMeasurement,
@@ -556,7 +557,7 @@ const ProductCard = React.memo(({
       addToCart({
         productId: item.productId,
         productName: item.productName,
-        price: item.price,
+        price: item.price || 0, // Use 0 if price is null (catalog mode)
         image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
         productUnits: item.productUnits,
         unitsOfMeasurement: item.unitsOfMeasurement,
@@ -623,7 +624,11 @@ const ProductCard = React.memo(({
       )}
 
       <View className="w-full mb-2">
-        <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
+        {item.price !== null && item.price !== undefined ? (
+          <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
+        ) : (
+          <Text className="font-semibold text-sm text-gray-500 italic">Price on request</Text>
+        )}
       </View>
 
       {/* FIXED: Quantity Controls - Better Android compatibility */}
@@ -1023,6 +1028,12 @@ const HomeScreen = () => {
 
   const fetchData = async () => {
     try {
+      console.log('🏪 [Shop.fetchData] Starting to fetch products...');
+      
+      // DEBUG: Check AsyncStorage state
+      const storedStoreId = await AsyncStorage.getItem('selectedStoreId');
+      console.log('🏪 [Shop.fetchData] selectedStoreId from AsyncStorage:', storedStoreId);
+      
       setLoading(true);
       const [
         exclusiveRes, bestSellingRes, categoriesRes,
@@ -1034,22 +1045,33 @@ const HomeScreen = () => {
         getNewProducts(),
         getBuyAgainProducts()
       ]);
+      
+      console.log('🏪 [Shop.fetchData] API responses received');
+      console.log('🏪 [Shop.fetchData] bestSellingRes.showPricing:', bestSellingRes.showPricing);
+      console.log('🏪 [Shop.fetchData] bestSellingRes.customerId:', bestSellingRes.customerId);
 
       const normalize = (p: any, idx: number): Product => {
         const id = p.productId ?? p.id ?? p.product_id ?? (idx + 1);
         const name = p.productName ?? p.name ?? p.product_name ?? "";
         const units = p.productUnits ?? p.units ?? p.packetWeight ?? 1;
         const measurement = p.unitsOfMeasurement ?? p.unit ?? p.uom ?? "pcs";
-        const price = p.price ?? p.mrp ?? p.sellingPrice ?? 0;
+        
+        // CRITICAL FIX: Check if price is explicitly null (catalog mode)
+        // Don't default to 0 or any other value if price is null
+        const rawPrice = p.price ?? p.mrp ?? p.sellingPrice;
+        const price = rawPrice !== null && rawPrice !== undefined ? rawPrice : null;
+        
         const img = p.image ?? p.imageUrl ?? p.productImage ?? null;
         const minOrder = p.minimumOrderQuantity ?? p.minOrderQuantity ?? p.minOrder ?? 1;
+        
+        console.log(`📦 [normalize] Product: ${name}, rawPrice: ${rawPrice}, finalPrice: ${price}`);
 
         return {
           productId: Number(id),
           productName: String(name),
           productUnits: Number(units),
           unitsOfMeasurement: String(measurement),
-          price: Number(price),
+          price: price !== null ? Number(price) : null, // Keep null if no price
           image: img && typeof img === 'string' && img.length > 0 ? img : fallbackImages[Number(id) % fallbackImages.length],
           minOrderQuantity: Number(minOrder),
         } as Product;

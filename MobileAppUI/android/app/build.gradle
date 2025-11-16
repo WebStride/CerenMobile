@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.amitavpanda.MobileAppUI'
+    namespace 'com.amitavpanda.mobileappui'
     defaultConfig {
-        applicationId 'com.amitavpanda.MobileAppUI'
+        applicationId 'com.amitavpanda.mobileappui'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

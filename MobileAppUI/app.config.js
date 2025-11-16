@@ -32,6 +32,7 @@ module.exports = ({ config }) => {
       ...config.expo,
       android: {
         ...config.expo?.android,
+        package: "com.amitavpanda.mobileappui",
         config: {
           ...(config.expo?.android?.config || {}),
           googleMaps: {

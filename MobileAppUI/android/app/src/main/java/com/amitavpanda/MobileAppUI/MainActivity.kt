@@ -1,4 +1,4 @@
-package com.amitavpanda.MobileAppUI
+package com.amitavpanda.mobileappui
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

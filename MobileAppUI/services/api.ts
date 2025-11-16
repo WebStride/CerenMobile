@@ -67,6 +67,14 @@ const getCustomerId = async (): Promise<number | null> => {
   return customerId ? Number(customerId) : null;
 };
 
+// Helper to get selected store's customerId (from SelectStore screen)
+const getSelectedStoreId = async (): Promise<number | null> => {
+  const storeId = await AsyncStorage.getItem('selectedStoreId');
+  const result = storeId ? Number(storeId) : null;
+  console.log('🔑 [getSelectedStoreId] Retrieved:', storeId, '→ Returning:', result);
+  return result;
+};
+
 export const validateTokens = async (accessToken: string, refreshToken: string | null): Promise<ValidateTokenResponse> => {
   const endpoint = `${apiUrl}/auth/validate-token`;
   console.log('🔐 Validate Token API call:', endpoint);
@@ -250,11 +258,19 @@ export const getExclusiveOffers = async () => {
 export const getNewProducts = async () => {
   try {
     console.log("Fetching new products...");
-    const response = await fetch(`${apiUrl}/products/newProducts`, {
+    
+    // Get selected store's customerId for pricing
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/newProducts?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -278,11 +294,19 @@ export const getNewProducts = async () => {
 export const getBuyAgainProducts = async () => {
   try {
     console.log("Fetching buy again products...");
-    const response = await fetch(`${apiUrl}/products/buyAgain`, {
+    
+    // Get selected store's customerId for pricing
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/buyAgain?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -306,24 +330,45 @@ export const getBuyAgainProducts = async () => {
 
 export const getBestSelling = async (limit: number = 50) => {
   try {
-    console.log("Fetching best selling products with limit:", limit);
-    const response = await fetch(`${apiUrl}/products/best-selling?limit=${limit}`, {
+    console.log("📦 [getBestSelling] Fetching best selling products with limit:", limit);
+    
+    // Get selected store's customerId for pricing
+    const selectedStoreId = await getSelectedStoreId();
+    console.log("📦 [getBestSelling] Selected Store ID:", selectedStoreId);
+    
+    const queryParams = new URLSearchParams({
+      limit: String(limit),
+      ...(selectedStoreId && { customerId: String(selectedStoreId) })
+    });
+    
+    const url = `${apiUrl}/products/best-selling?${queryParams}`;
+    console.log("📦 [getBestSelling] Request URL:", url);
+    console.log("📦 [getBestSelling] CustomerId in headers:", selectedStoreId ? String(selectedStoreId) : 'NONE');
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
-    console.log("Response status:", response.status);
+    console.log("📦 [getBestSelling] Response status:", response.status);
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Error fetching best selling products:", errorData);
+      console.error("❌ [getBestSelling] Error fetching best selling products:", errorData);
       return { success: false, products: [], message: errorData.message };
     }
 
     const data = await response.json();
-    console.log("Best selling products fetched successfully:", data);
+    console.log("✅ [getBestSelling] Products fetched successfully!");
+    console.log("📦 [getBestSelling] showPricing flag from backend:", data.showPricing);
+    console.log("📦 [getBestSelling] customerId from backend:", data.customerId);
+    console.log("📦 [getBestSelling] First product sample:", data.products && data.products[0] ? {
+      name: data.products[0].ProductName || data.products[0].name,
+      price: data.products[0].price || data.products[0].Price
+    } : 'No products');
     return data;
   } catch (error) {
     console.error("Error fetching best selling products:", error);
@@ -337,11 +382,14 @@ export const getCategories = async () => {
 
   try {
     console.log("Fetching categories...");
+    const selectedStoreId = await getSelectedStoreId();
+    
     const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -365,11 +413,17 @@ export const getCategories = async () => {
 export const getSubCategories = async (categoryId: number) => {
   try {
     console.log(`Fetching subcategories for categoryId=${categoryId}...`);
-    const response = await fetch(`${apiUrl}/categories/subCategories/${categoryId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/categories/subCategories/${categoryId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -393,11 +447,17 @@ export const getSubCategories = async (categoryId: number) => {
 export const getProductsBySubCategory = async (subCategoryId: number) => {
   try {
     console.log(`Fetching products for subCategoryId=${subCategoryId}...`);
-    const response = await fetch(`${apiUrl}/products/productsBySubCategory/${subCategoryId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/productsBySubCategory/${subCategoryId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) }),
       },
     });
 
@@ -421,11 +481,17 @@ export const getProductsBySubCategory = async (subCategoryId: number) => {
 export const getProductsByCatalog = async (productId: number) => {
   try {
     console.log(`Fetching products for catalog of productId=${productId}...`);
-    const response = await fetch(`${apiUrl}/products/catalog/${productId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/catalog/${productId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) }),
       }
     });
 
@@ -448,11 +514,17 @@ export const getProductsByCatalog = async (productId: number) => {
 export const getSimilarProductsApi = async (productId: number) => {
   try {
     console.log(`Fetching similar products for productId=${productId}...`);
-    const response = await fetch(`${apiUrl}/products/similar/${productId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/similar/${productId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) }),
       }
     });
 
