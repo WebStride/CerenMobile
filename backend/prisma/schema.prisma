@@ -497,39 +497,37 @@ model Invoices {
 }
 
 model UserFavourites {
-  id                 Int                @id @default(autoincrement())
-  userId             Int
+  id                 Int      @id @default(autoincrement())
+  customerId         Int
   productId          Int
-  productName        String             @db.VarChar(255)
-  price              Float?             @default(0)
-  image              String?            @db.VarChar(1000)
+  productName        String   @db.VarChar(255)
+  price              Float?   @default(0)
+  image              String?  @db.VarChar(1000)
   productUnits       Float?
-  unitsOfMeasurement String?            @db.VarChar(50)
-  minOrderQuantity   Int?               @default(1)
-  addedAt            DateTime           @default(now())
-  user               USERCUSTOMERMASTER @relation(fields: [userId], references: [id])
+  unitsOfMeasurement String?  @db.VarChar(50)
+  minOrderQuantity   Int?     @default(1)
+  addedAt            DateTime @default(now())
 
-  @@unique([userId, productId], map: "UX_user_favourites_user_product")
-  @@index([userId], map: "IDX_user_favourites_user")
+  @@unique([customerId, productId], map: "UX_user_favourites_customer_product")
+  @@index([customerId], map: "IDX_user_favourites_customer")
 }
 
 model Cart {
-  id                 Int                @id @default(autoincrement())
-  userId             Int
+  id                 Int      @id @default(autoincrement())
+  customerId         Int
   productId          Int
-  productName        String             @db.VarChar(255)
+  productName        String   @db.VarChar(255)
   price              Float
-  image              String?            @db.VarChar(1000)
+  image              String?  @db.VarChar(1000)
   productUnits       Float?
-  unitsOfMeasurement String?            @db.VarChar(50)
-  quantity           Int                @default(1)
-  minOrderQuantity   Int?               @default(1)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  user               USERCUSTOMERMASTER @relation(fields: [userId], references: [id])
+  unitsOfMeasurement String?  @db.VarChar(50)
+  quantity           Int      @default(1)
+  minOrderQuantity   Int?     @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  @@unique([userId, productId], map: "UX_cart_user_product")
-  @@index([userId], map: "IDX_cart_user")
+  @@unique([customerId, productId], map: "UX_cart_customer_product")
+  @@index([customerId], map: "IDX_cart_customer")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -775,14 +773,12 @@ model TEMPORARAYUSER {
 }
 
 model USERCUSTOMERMASTER {
-  id             Int              @id @default(autoincrement())
-  name           String           @db.VarChar(100)
-  phoneNumber    String           @unique @db.VarChar(20)
-  address        String?          @db.VarChar(255)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  Cart           Cart[]
-  UserFavourites UserFavourites[]
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  phoneNumber String   @unique @db.VarChar(20)
+  address     String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ProductCategoryMaster {

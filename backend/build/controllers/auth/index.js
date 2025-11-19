@@ -229,7 +229,14 @@ function checkCustomerPublic(req, res) {
                 return res.status(500).json({ success: false, message: 'Internal server error' });
             }
             // Return name and customerId when present to help the client decide UI
-            return res.status(200).json({ success: true, exists: result.exists, message: result.message, userId: (_a = result.userId) !== null && _a !== void 0 ? _a : null, customerId: (_b = result.customerId) !== null && _b !== void 0 ? _b : null, name: (_c = result.name) !== null && _c !== void 0 ? _c : null });
+            return res.status(200).json({
+                success: true,
+                exists: result.exists,
+                message: result.message,
+                userId: (_a = result.userId) !== null && _a !== void 0 ? _a : null,
+                customerId: (_b = result.customerId) !== null && _b !== void 0 ? _b : null,
+                name: (_c = result.name) !== null && _c !== void 0 ? _c : null
+            });
         }
         catch (error) {
             console.error('Error in checkCustomerPublic controller:', error);

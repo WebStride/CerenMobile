@@ -1,31 +1,31 @@
-export declare function getCart(userId: number): Promise<{
+export declare function getCart(customerId: number): Promise<{
     id: number;
     createdAt: Date;
     updatedAt: Date;
-    userId: number;
     productId: number;
     productName: string;
     image: string | null;
     productUnits: number | null;
     unitsOfMeasurement: string | null;
     price: number;
+    customerId: number;
     minOrderQuantity: number | null;
     quantity: number;
 }[]>;
-export declare function addOrIncrementCartItem(userId: number, product: any): Promise<{
+export declare function addOrIncrementCartItem(customerId: number, product: any): Promise<{
     id: number;
     createdAt: Date;
     updatedAt: Date;
-    userId: number;
     productId: number;
     productName: string;
     image: string | null;
     productUnits: number | null;
     unitsOfMeasurement: string | null;
     price: number;
+    customerId: number;
     minOrderQuantity: number | null;
     quantity: number;
 }>;
-export declare function updateCartQuantity(userId: number, productId: number, quantity: number): Promise<import("@prisma/client").Prisma.BatchPayload>;
-export declare function removeCartItem(userId: number, productId: number): Promise<import("@prisma/client").Prisma.BatchPayload>;
-export declare function clearCart(userId: number): Promise<import("@prisma/client").Prisma.BatchPayload>;
+export declare function updateCartQuantity(customerId: number, productId: number, quantity: number): Promise<import("@prisma/client").Prisma.BatchPayload>;
+export declare function removeCartItem(customerId: number, productId: number): Promise<import("@prisma/client").Prisma.BatchPayload>;
+export declare function clearCart(customerId: number): Promise<import("@prisma/client").Prisma.BatchPayload>;

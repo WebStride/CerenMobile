@@ -44,7 +44,6 @@ export default function SelectStore() {
   const district = (params as any).district || '';
   const location = (params as any).location || '';
   const address = (params as any).address || '';
-  const fromLocationModal = (params as any).fromLocationModal || '';
 
   useEffect(() => {
     let mounted = true;

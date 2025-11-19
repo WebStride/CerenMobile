@@ -47,7 +47,8 @@ const { setConfirmation } = useAuth();
       const fullPhoneNumber = `${countryData.code}${phoneNumber}`; // Add country code
       if (isExistingUser) {
         // Prefer sending userId (USERCUSTOMERMASTER) to backend where supported
-        const resp = await sendOtp(fullPhoneNumber, existingUserId ?? existingCustomerId ?? undefined);
+        const idToSend = existingUserId ?? existingCustomerId ?? undefined;
+        const resp = await sendOtp(fullPhoneNumber, idToSend);
         if (resp.success) {
           Alert.alert("Success", "OTP has been sent successfully to your phone number.", [
             { text: "OK", onPress: () => router.push({ pathname: "/login/otp", params: { phoneNumber: fullPhoneNumber } }) }

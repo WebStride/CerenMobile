@@ -21,8 +21,14 @@ function getCartList(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
-            const cart = yield (0, cart_1.getCart)(userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
+            const cart = yield (0, cart_1.getCart)(customerId);
             res.json({ success: true, cart });
         }
         catch (error) {
@@ -37,11 +43,17 @@ function postCart(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
             const body = req.body;
             if (!(body === null || body === void 0 ? void 0 : body.productId) || !(body === null || body === void 0 ? void 0 : body.productName))
                 return res.status(400).json({ error: 'productId and productName required' });
-            const item = yield (0, cart_1.addOrIncrementCartItem)(userId, body);
+            const item = yield (0, cart_1.addOrIncrementCartItem)(customerId, body);
             res.json({ success: true, item });
         }
         catch (error) {
@@ -56,12 +68,18 @@ function putCartItem(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
             const productId = parseInt(req.params.productId);
             const { quantity } = req.body;
             if (isNaN(productId) || typeof quantity !== 'number')
                 return res.status(400).json({ error: 'Invalid request' });
-            yield (0, cart_1.updateCartQuantity)(userId, productId, quantity);
+            yield (0, cart_1.updateCartQuantity)(customerId, productId, quantity);
             res.json({ success: true });
         }
         catch (error) {
@@ -76,11 +94,17 @@ function deleteCartItem(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
             const productId = parseInt(req.params.productId);
             if (isNaN(productId))
                 return res.status(400).json({ error: 'Invalid productId' });
-            yield (0, cart_1.removeCartItem)(userId, productId);
+            yield (0, cart_1.removeCartItem)(customerId, productId);
             res.json({ success: true });
         }
         catch (error) {
@@ -95,8 +119,14 @@ function postClearCart(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
-            yield (0, cart_1.clearCart)(userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
+            yield (0, cart_1.clearCart)(customerId);
             res.json({ success: true });
         }
         catch (error) {

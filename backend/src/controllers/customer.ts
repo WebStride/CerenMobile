@@ -1,9 +1,7 @@
 
 import { Response } from 'express';
 import { RequestWithUser } from '../types/express';
-import { getStoresForUser } from '../services/customer';
-
-import { checkCustomerExists } from '../services/customer';
+import { getStoresForUser, checkCustomerExists } from '../services/customer';
 
 export async function checkCustomer(req: RequestWithUser, res: Response) {
     try {

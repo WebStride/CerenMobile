@@ -1,18 +1,16 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../lib/prisma';
 
-const prisma = new PrismaClient();
-
-export async function getUserFavourites(userId: number) {
+export async function getUserFavourites(customerId: number) {
   return prisma.userFavourites.findMany({
-    where: { userId },
+    where: { customerId },
     orderBy: { addedAt: 'desc' }
   });
 }
 
-export async function addUserFavourite(userId: number, product: any) {
+export async function addUserFavourite(customerId: number, product: any) {
   // upsert to avoid duplicate unique constraint error
   return prisma.userFavourites.upsert({
-    where: { userId_productId: { userId, productId: product.productId } as any },
+    where: { customerId_productId: { customerId, productId: product.productId } as any },
     update: {
       productName: product.productName,
       price: product.price || 0,
@@ -23,7 +21,7 @@ export async function addUserFavourite(userId: number, product: any) {
       addedAt: new Date()
     },
     create: {
-      userId,
+      customerId,
       productId: product.productId,
       productName: product.productName,
       price: product.price || 0,
@@ -35,10 +33,10 @@ export async function addUserFavourite(userId: number, product: any) {
   });
 }
 
-export async function removeUserFavourite(userId: number, productId: number) {
+export async function removeUserFavourite(customerId: number, productId: number) {
   return prisma.userFavourites.deleteMany({
     where: {
-      userId,
+      customerId,
       productId
     }
   });

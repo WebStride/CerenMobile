@@ -223,7 +223,14 @@ export async function checkCustomerPublic(req: Request, res: Response) {
         }
 
         // Return name and customerId when present to help the client decide UI
-        return res.status(200).json({ success: true, exists: result.exists, message: result.message, userId: result.userId ?? null, customerId: result.customerId ?? null, name: result.name ?? null });
+        return res.status(200).json({
+            success: true,
+            exists: result.exists,
+            message: result.message,
+            userId: result.userId ?? null,
+            customerId: result.customerId ?? null,
+            name: result.name ?? null
+        });
     } catch (error) {
         console.error('Error in checkCustomerPublic controller:', error);
         return res.status(500).json({ success: false, message: 'Internal server error' });

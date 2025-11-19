@@ -564,7 +564,15 @@ export async function checkCustomerExists() {
 // Favourites API helpers
 export const fetchFavourites = async () => {
   try {
-    const response = await fetch(`${apiUrl}/favourites`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for fetchFavourites');
+      return { success: false, favourites: [], message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/favourites?customerId=${selectedStoreId}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
@@ -587,7 +595,15 @@ export const fetchFavourites = async () => {
 
 export const addFavouriteApi = async (product: any) => {
   try {
-    const response = await fetch(`${apiUrl}/favourites`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for addFavouriteApi');
+      return { success: false, message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/favourites?customerId=${selectedStoreId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -611,7 +627,15 @@ export const addFavouriteApi = async (product: any) => {
 
 export const removeFavouriteApi = async (productId: number) => {
   try {
-    const response = await fetch(`${apiUrl}/favourites/${productId}`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for removeFavouriteApi');
+      return { success: false, message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/favourites/${productId}?customerId=${selectedStoreId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': await getAccessToken(),
@@ -633,10 +657,18 @@ export const removeFavouriteApi = async (productId: number) => {
 
 // Cart API helpers
 export const getCart = async () => {
-  const endpoint = `${apiUrl}/cart`;
-  console.log('🛒 Get Cart API call:', endpoint);
-
   try {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for getCart');
+      return { success: false, cart: [], message: 'No store selected' };
+    }
+
+    const endpoint = `${apiUrl}/cart?customerId=${selectedStoreId}`;
+    console.log('🛒 Get Cart API call:', endpoint);
+
     const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
@@ -654,7 +686,15 @@ export const getCart = async () => {
 
 export const addToCartApi = async (product: any) => {
   try {
-    const response = await fetch(`${apiUrl}/cart`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for addToCartApi');
+      return { success: false, message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/cart?customerId=${selectedStoreId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -798,7 +838,15 @@ export const getOrderItems = async (orderId: number) => {
 
 export const updateCartApi = async (productId: number, quantity: number) => {
   try {
-    const response = await fetch(`${apiUrl}/cart/${productId}`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for updateCartApi');
+      return false;
+    }
+
+    const response = await fetch(`${apiUrl}/cart/${productId}?customerId=${selectedStoreId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -816,7 +864,15 @@ export const updateCartApi = async (productId: number, quantity: number) => {
 
 export const removeCartApi = async (productId: number) => {
   try {
-    const response = await fetch(`${apiUrl}/cart/${productId}`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for removeCartApi');
+      return false;
+    }
+
+    const response = await fetch(`${apiUrl}/cart/${productId}?customerId=${selectedStoreId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': await getAccessToken(),
@@ -832,7 +888,15 @@ export const removeCartApi = async (productId: number) => {
 
 export const clearCartApi = async () => {
   try {
-    const response = await fetch(`${apiUrl}/cart/clear`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for clearCartApi');
+      return false;
+    }
+
+    const response = await fetch(`${apiUrl}/cart/clear?customerId=${selectedStoreId}`, {
       method: 'POST',
       headers: {
         'Authorization': await getAccessToken(),

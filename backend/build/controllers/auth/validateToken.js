@@ -14,8 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../../lib/prisma"));
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'your-access-token-secret';
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
 function generateAccessToken(payload) {
@@ -35,7 +34,7 @@ const validateToken = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         // First, try to verify the access token
         const decoded = jsonwebtoken_1.default.verify(accessToken, ACCESS_TOKEN_SECRET);
         // Verify that the user still exists in the database
-        const user = yield prisma.uSERCUSTOMERMASTER.findUnique({
+        const user = yield prisma_1.default.uSERCUSTOMERMASTER.findUnique({
             where: { id: decoded.userId }
         });
         if (!user) {
@@ -58,7 +57,7 @@ const validateToken = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 // Verify refresh token
                 const decoded = jsonwebtoken_1.default.verify(refreshToken, REFRESH_TOKEN_SECRET);
                 // Verify that the user still exists in the database
-                const user = yield prisma.uSERCUSTOMERMASTER.findUnique({
+                const user = yield prisma_1.default.uSERCUSTOMERMASTER.findUnique({
                     where: { id: decoded.userId }
                 });
                 if (!user) {

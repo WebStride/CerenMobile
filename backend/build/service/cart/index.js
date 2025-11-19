@@ -8,27 +8,29 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCart = getCart;
 exports.addOrIncrementCartItem = addOrIncrementCartItem;
 exports.updateCartQuantity = updateCartQuantity;
 exports.removeCartItem = removeCartItem;
 exports.clearCart = clearCart;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
-function getCart(userId) {
+const prisma_1 = __importDefault(require("../../lib/prisma"));
+function getCart(customerId) {
     return __awaiter(this, void 0, void 0, function* () {
-        return prisma.cart.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' } });
+        return prisma_1.default.cart.findMany({ where: { customerId }, orderBy: { updatedAt: 'desc' } });
     });
 }
-function addOrIncrementCartItem(userId, product) {
+function addOrIncrementCartItem(customerId, product) {
     return __awaiter(this, void 0, void 0, function* () {
-        const whereAny = { userId_productId: { userId, productId: product.productId } };
-        const existing = yield prisma.cart.findUnique({ where: whereAny }).catch(() => null);
+        const whereAny = { customerId_productId: { customerId, productId: product.productId } };
+        const existing = yield prisma_1.default.cart.findUnique({ where: whereAny }).catch(() => null);
         if (existing) {
             // If item exists, add the new quantity to existing quantity
             const newQuantity = existing.quantity + (product.quantity || 1);
-            return prisma.cart.update({
+            return prisma_1.default.cart.update({
                 where: { id: existing.id },
                 data: {
                     quantity: newQuantity,
@@ -36,9 +38,9 @@ function addOrIncrementCartItem(userId, product) {
                 }
             });
         }
-        return prisma.cart.create({
+        return prisma_1.default.cart.create({
             data: {
-                userId,
+                customerId,
                 productId: product.productId,
                 productName: product.productName,
                 price: product.price || 0,
@@ -51,21 +53,21 @@ function addOrIncrementCartItem(userId, product) {
         });
     });
 }
-function updateCartQuantity(userId, productId, quantity) {
+function updateCartQuantity(customerId, productId, quantity) {
     return __awaiter(this, void 0, void 0, function* () {
         if (quantity <= 0) {
-            return prisma.cart.deleteMany({ where: { userId, productId } });
+            return prisma_1.default.cart.deleteMany({ where: { customerId, productId } });
         }
-        return prisma.cart.updateMany({ where: { userId, productId }, data: { quantity, updatedAt: new Date() } });
+        return prisma_1.default.cart.updateMany({ where: { customerId, productId }, data: { quantity, updatedAt: new Date() } });
     });
 }
-function removeCartItem(userId, productId) {
+function removeCartItem(customerId, productId) {
     return __awaiter(this, void 0, void 0, function* () {
-        return prisma.cart.deleteMany({ where: { userId, productId } });
+        return prisma_1.default.cart.deleteMany({ where: { customerId, productId } });
     });
 }
-function clearCart(userId) {
+function clearCart(customerId) {
     return __awaiter(this, void 0, void 0, function* () {
-        return prisma.cart.deleteMany({ where: { userId } });
+        return prisma_1.default.cart.deleteMany({ where: { customerId } });
     });
 }
