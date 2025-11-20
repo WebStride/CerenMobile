@@ -527,6 +527,18 @@ const ProductCard = React.memo(({
   }, [isProductFavourite, item, addToFavourites, removeFromFavourites]);
 
   const handleAddToCartPress = useCallback(() => {
+    // Check if user is registered before allowing cart access
+    if (!isCustomerExists) {
+      Alert.alert(
+        'Registration Required',
+        'Please register in the app to access the add to cart feature.',
+        [
+          { text: 'OK', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
     const qty = Math.max(Number(qtyInput), minOrder);
     
     // Add the item with the correct quantity in one call
@@ -540,9 +552,21 @@ const ProductCard = React.memo(({
     }, qty);
     
     setShowControls(true);
-  }, [item, addToCart, qtyInput, minOrder]);
+  }, [item, addToCart, qtyInput, minOrder, isCustomerExists]);
 
   const handleInputChange = useCallback((val: string) => {
+    // Check if user is registered before allowing cart access
+    if (!isCustomerExists) {
+      Alert.alert(
+        'Registration Required',
+        'Please register in the app to access the add to cart feature.',
+        [
+          { text: 'OK', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
     const onlyDigits = val.replace(/[^0-9]/g, "");
     setQtyInput(onlyDigits);
 
@@ -570,19 +594,43 @@ const ProductCard = React.memo(({
         for (let i = 0; i < Math.abs(diff); i++) decrease(item.productId);
       }
     }
-  }, [item, cartItem, addToCart, increase, decrease, removeFromCart, minOrder]);
+  }, [item, cartItem, addToCart, increase, decrease, removeFromCart, minOrder, isCustomerExists]);
 
   const handleDecrease = useCallback(() => {
+    // Check if user is registered before allowing cart access
+    if (!isCustomerExists) {
+      Alert.alert(
+        'Registration Required',
+        'Please register in the app to access the add to cart feature.',
+        [
+          { text: 'OK', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
     if (cartItem && cartItem.quantity > minOrder) {
       decrease(item.productId);
     } else if (cartItem && cartItem.quantity === minOrder) {
       removeFromCart(item.productId);
     }
-  }, [cartItem, decrease, removeFromCart, item.productId, minOrder]);
+  }, [cartItem, decrease, removeFromCart, item.productId, minOrder, isCustomerExists]);
 
   const handleIncrease = useCallback(() => {
+    // Check if user is registered before allowing cart access
+    if (!isCustomerExists) {
+      Alert.alert(
+        'Registration Required',
+        'Please register in the app to access the add to cart feature.',
+        [
+          { text: 'OK', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
     increase(item.productId);
-  }, [increase, item.productId]);
+  }, [increase, item.productId, isCustomerExists]);
 
   return (
     <View
@@ -624,25 +672,26 @@ const ProductCard = React.memo(({
       )}
 
       <View className="w-full mb-2">
-        {item.price !== null && item.price !== undefined ? (
+        {item.price !== null && item.price !== undefined && item.price > 0 ? (
           <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
         ) : (
           <Text className="font-semibold text-sm text-gray-500 italic">Price on request</Text>
         )}
       </View>
 
-      {/* FIXED: Quantity Controls - Better Android compatibility */}
-      {showControls ? (
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#15803d', // green-700
-          borderRadius: 25,
-          paddingHorizontal: 4,
-          paddingVertical: 6, // Increased vertical padding
-          height: 40, // Fixed height for consistency
-        }}>
+      {/* FIXED: Quantity Controls - Only show for products with pricing */}
+      {(item.price !== null && item.price !== undefined && item.price > 0) && (
+        showControls ? (
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#15803d', // green-700
+            borderRadius: 25,
+            paddingHorizontal: 4,
+            paddingVertical: 6, // Increased vertical padding
+            height: 40, // Fixed height for consistency
+          }}>
           <TouchableOpacity
             onPress={handleDecrease}
             style={{
@@ -705,29 +754,30 @@ const ProductCard = React.memo(({
             <Ionicons name="add" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
-      ) : (
-        <TouchableOpacity
-          style={{
-            width: '100%',
-            backgroundColor: '#15803d', // green-700
-            borderRadius: 25,
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: 40, // Same height as controls
-          }}
-          onPress={handleAddToCartPress}
-          activeOpacity={0.8}
-        >
-          <Text style={{
-            color: 'white',
-            fontWeight: '600',
-            fontSize: 14
-          }}>
-            Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
-          </Text>
-        </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={{
+              width: '100%',
+              backgroundColor: '#15803d', // green-700
+              borderRadius: 25,
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 40, // Same height as controls
+            }}
+            onPress={handleAddToCartPress}
+            activeOpacity={0.8}
+          >
+            <Text style={{
+              color: 'white',
+              fontWeight: '600',
+              fontSize: 14
+            }}>
+              Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
+            </Text>
+          </TouchableOpacity>
+        )
       )}
     </View>
   );
@@ -1010,9 +1060,57 @@ const HomeScreen = () => {
     };
     checkCustomer();
     loadUserData();
-    fetchData();
+    fetchData(false); // Initially fetch without Buy Again products
     fetchDefaultAddress();
   }, [loadUserData, fetchDefaultAddress]);
+
+  // Fetch Buy Again products only for registered users
+  useEffect(() => {
+    const fetchBuyAgainProducts = async () => {
+      if (isCustomerExists) {
+        try {
+          console.log('🛒 [Shop] Fetching Buy Again products for registered user');
+          const buyAgainProductsRes = await getBuyAgainProducts();
+          
+          const normalize = (p: any, idx: number): Product => {
+            const id = p.productId ?? p.id ?? p.product_id ?? (idx + 1);
+            const name = p.productName ?? p.name ?? p.product_name ?? "";
+            const units = p.productUnits ?? p.units ?? p.packetWeight ?? 1;
+            const measurement = p.unitsOfMeasurement ?? p.unit ?? p.uom ?? "pcs";
+            
+            const rawPrice = p.price ?? p.mrp ?? p.sellingPrice;
+            const price = rawPrice !== null && rawPrice !== undefined ? rawPrice : null;
+            
+            const img = p.image ?? p.imageUrl ?? p.productImage ?? null;
+            const minOrder = p.minimumOrderQuantity ?? p.minOrderQuantity ?? p.minOrder ?? 1;
+            
+            return {
+              productId: Number(id),
+              productName: String(name),
+              productUnits: Number(units),
+              unitsOfMeasurement: String(measurement),
+              price: price !== null ? Number(price) : null,
+              image: img && typeof img === 'string' && img.length > 0 ? img : fallbackImages[Number(id) % fallbackImages.length],
+              minOrderQuantity: Number(minOrder),
+            } as Product;
+          };
+          
+          if (buyAgainProductsRes && buyAgainProductsRes.success) {
+            setBuyAgainProducts((buyAgainProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
+          }
+        } catch (error) {
+          console.error('Error fetching Buy Again products:', error);
+        }
+      } else {
+        // Clear Buy Again products for unregistered users
+        setBuyAgainProducts([]);
+      }
+    };
+    
+    if (isCustomerExists !== null) {
+      fetchBuyAgainProducts();
+    }
+  }, [isCustomerExists]);
 
   // Debug effect to check user data loading
   useEffect(() => {
@@ -1026,25 +1124,31 @@ const HomeScreen = () => {
     setFilteredProducts(filtered);
   }, [searchQuery, exclusiveOffers, bestSelling]);
 
-  const fetchData = async () => {
+  const fetchData = async (shouldFetchBuyAgain: boolean = true) => {
     try {
       console.log('🏪 [Shop.fetchData] Starting to fetch products...');
+      console.log('🏪 [Shop.fetchData] shouldFetchBuyAgain:', shouldFetchBuyAgain);
       
       // DEBUG: Check AsyncStorage state
       const storedStoreId = await AsyncStorage.getItem('selectedStoreId');
       console.log('🏪 [Shop.fetchData] selectedStoreId from AsyncStorage:', storedStoreId);
       
       setLoading(true);
-      const [
-        exclusiveRes, bestSellingRes, categoriesRes,
-        newProductsRes, buyAgainProductsRes
-      ] = await Promise.all([
+      
+      // Conditionally fetch Buy Again products only for registered users
+      const apiCalls = [
         getExclusiveOffers(),
         getBestSelling(50),
         getCategories(),
-        getNewProducts(),
-        getBuyAgainProducts()
-      ]);
+        getNewProducts()
+      ];
+      
+      if (shouldFetchBuyAgain) {
+        apiCalls.push(getBuyAgainProducts());
+      }
+      
+      const results = await Promise.all(apiCalls);
+      const [exclusiveRes, bestSellingRes, categoriesRes, newProductsRes, buyAgainProductsRes] = results;
       
       console.log('🏪 [Shop.fetchData] API responses received');
       console.log('🏪 [Shop.fetchData] bestSellingRes.showPricing:', bestSellingRes.showPricing);
@@ -1081,7 +1185,7 @@ const HomeScreen = () => {
       if (bestSellingRes.success) setBestSelling((bestSellingRes.products || []).map((p: any, i: number) => normalize(p, i)));
       if (categoriesRes.success) setCategories(categoriesRes.categories);
       if (newProductsRes.success) setNewProducts((newProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
-      if (buyAgainProductsRes.success) setBuyAgainProducts((buyAgainProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
+      if (buyAgainProductsRes && buyAgainProductsRes.success) setBuyAgainProducts((buyAgainProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -1276,31 +1380,35 @@ const HomeScreen = () => {
                   )}
                 />
 
-                {/* Buy Again Products */}
-                <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
-                  <Text className="text-lg font-bold text-gray-900">Buy Again Products</Text>
-                  <TouchableOpacity onPress={handleSeeAllBuyAgain}>
-                    <Text className="text-green-700 font-medium text-base">See all</Text>
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  data={buyAgainProducts}
-                  horizontal
-                  showsVerticalScrollIndicator={false}
-                  keyExtractor={(item, index) => `buyagain_${item.productId}_${index}_${Math.random()}`}
-                  renderItem={({ item, index }) => (
-                    <ProductCard
-                      item={item}
-                      isCustomerExists={isCustomerExists}
-                      sectionKey="buyagain"
-                      index={index}
+                {/* Buy Again Products - Only show for registered users */}
+                {isCustomerExists && (
+                  <>
+                    <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
+                      <Text className="text-lg font-bold text-gray-900">Buy Again Products</Text>
+                      <TouchableOpacity onPress={handleSeeAllBuyAgain}>
+                        <Text className="text-green-700 font-medium text-base">See all</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <FlatList
+                      data={buyAgainProducts}
+                      horizontal
+                      showsVerticalScrollIndicator={false}
+                      keyExtractor={(item, index) => `buyagain_${item.productId}_${index}_${Math.random()}`}
+                      renderItem={({ item, index }) => (
+                        <ProductCard
+                          item={item}
+                          isCustomerExists={isCustomerExists}
+                          sectionKey="buyagain"
+                          index={index}
+                        />
+                      )}
+                      contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
+                      ListEmptyComponent={() => (
+                        <Text className="text-center text-gray-500 mx-4">No buy again products available</Text>
+                      )}
                     />
-                  )}
-                  contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
-                  ListEmptyComponent={() => (
-                    <Text className="text-center text-gray-500 mx-4">No buy again products available</Text>
-                  )}
-                />
+                  </>
+                )}
 
                 {/* Categories */}
                 <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">

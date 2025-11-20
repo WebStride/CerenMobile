@@ -64,7 +64,7 @@ export async function getCustomerPricingInfo(userId: number, selectedCustomerId?
 }
 
 async function getProductImage(productId: number) {
-    const productImage = await prisma.productImages.findFirst({
+    const productImage = await prisma.ProductImages.findFirst({
         where: { ProductID: productId },
         select: {
             ImageID: true
@@ -73,7 +73,7 @@ async function getProductImage(productId: number) {
 
     if (!productImage) return null;
 
-    const imageData = await prisma.imageMaster.findUnique({
+    const imageData = await prisma.ImageMaster.findUnique({
         where: { ImageID: productImage.ImageID },
         select: {
             Url: true

@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, ScrollView, Alert, SafeAreaView, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { checkCustomerExists } from "../../services/api";
 
 const defaultImage = require("../../assets/images/Banana.png");
 
@@ -11,6 +12,42 @@ export default function CartScreen() {
   const router = useRouter();
   const { cart, increase, decrease, removeFromCart, cartTotal, clearCart } = useCart();
   const insets = useSafeAreaInsets();
+  const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
+  
+  // Check customer existence when component mounts
+  useEffect(() => {
+    const checkCustomer = async () => {
+      try {
+        const response = await checkCustomerExists();
+        const isRegistered = response.success ? response.exists : false;
+        setIsCustomerExists(isRegistered);
+        
+        // Show popup if user is not registered
+        if (!isRegistered) {
+          Alert.alert(
+            'Registration Required',
+            'Please register yourself to access add to cart.',
+            [
+              { text: 'OK', onPress: () => router.back() }
+            ]
+          );
+        }
+      } catch (error) {
+        console.error("Error checking customer existence:", error);
+        setIsCustomerExists(false);
+        Alert.alert(
+          'Registration Required',
+          'Please register yourself to access add to cart.',
+          [
+            { text: 'OK', onPress: () => router.back() }
+          ]
+        );
+      }
+    };
+    
+    checkCustomer();
+  }, [router]);
+  
   // height we'll reserve for the checkout bar (approximate)
   const checkoutBarHeight = 72; // px
   // ensure an extra gap above system navigation / gesture bar
@@ -47,6 +84,22 @@ export default function CartScreen() {
   const totalSavings = discountAmount + (isDeliveryFree ? deliveryCharge : 0) + (isHandlingFree ? handlingCharge : 0);
   const finalAmount = itemsTotalAfterDiscount + (isDeliveryFree ? 0 : deliveryCharge) + (isHandlingFree ? 0 : handlingCharge);
   const totalSavingsPercent = ((totalSavings / itemsSubtotal) * 100).toFixed(1);
+
+  // Don't render cart content if user is not registered
+  if (isCustomerExists === false) {
+    return null; // Return null since popup is already shown and user will be navigated back
+  }
+
+  // Show loading state while checking registration
+  if (isCustomerExists === null) {
+    return (
+      <SafeAreaView className="flex-1 bg-white">
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-gray-500">Checking access...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!cart.length) {
     return (

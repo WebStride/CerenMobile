@@ -60,8 +60,18 @@ export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const addToFavourites = useCallback(async (product: Product) => {
+    // Check if user is registered before adding to favourites
     try {
-      // optimistic update
+      const { checkCustomerExists } = await import('../../services/api');
+      const customerCheck = await checkCustomerExists();
+      
+      if (!customerCheck.success || !customerCheck.exists) {
+        // Don't add to favourites for unregistered users
+        console.log('Cannot add to favourites: User not registered');
+        return;
+      }
+
+      // optimistic update for registered users
       const updatedFavourites = [...favourites, product];
       setFavourites(updatedFavourites);
       await AsyncStorage.setItem('favourites', JSON.stringify(updatedFavourites));

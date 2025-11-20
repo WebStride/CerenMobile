@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { getExclusiveOffers, getBestSelling, getNewProducts, getBuyAgainProducts } from "@/services/api";
+import { getExclusiveOffers, getBestSelling, getNewProducts, getBuyAgainProducts, checkCustomerExists } from "@/services/api";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
 
@@ -302,11 +302,15 @@ const ProductCard = React.memo(({
       
       {/* Price */}
       <View className="w-full mb-2">
-        <Text className="font-bold text-sm text-gray-900">₹{item.price}.00</Text>
+        {isCustomerExists && item.price > 0 ? (
+          <Text className="font-bold text-sm text-gray-900">₹{item.price}.00</Text>
+        ) : (
+          <Text className="font-semibold text-xs text-gray-500 italic">Price on request</Text>
+        )}
       </View>
       
       {/* Add to Cart Button OR Quantity Controls */}
-      {isCustomerExists ? (
+      {(isCustomerExists && item.price > 0) ? (
         showControls ? (
           <View className="flex-row items-center justify-center rounded-full bg-green-700 px-1 py-1">
             <TouchableOpacity
@@ -355,11 +359,7 @@ const ProductCard = React.memo(({
             </Text>
           </TouchableOpacity>
         )
-      ) : (
-        <View className="w-full bg-gray-300 rounded-full py-1.5 px-2 items-center justify-center">
-          <Text className="text-gray-600 font-semibold text-xs">Verification Required</Text>
-        </View>
-      )}
+      ) : null}
     </View>
   );
 });
@@ -377,13 +377,27 @@ const AllProductsList = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
-  const [isCustomerExists, setIsCustomerExists] = useState(true);
+  const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
 
   const ITEMS_PER_PAGE = 20;
   const mockData = generateMockProducts(100);
   const fullFeedRef = React.useRef<Product[] | null>(null);
 
   const getFallbackImageFor = (id: number) => fallbackImages[id % fallbackImages.length];
+
+  // Check customer existence
+  useEffect(() => {
+    const checkCustomer = async () => {
+      try {
+        const response = await checkCustomerExists();
+        setIsCustomerExists(response.success ? response.exists : false);
+      } catch (error) {
+        console.error("Error checking customer existence:", error);
+        setIsCustomerExists(false);
+      }
+    };
+    checkCustomer();
+  }, []);
 
   // Initial load
   useEffect(() => {
