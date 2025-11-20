@@ -73,7 +73,7 @@ async function getProductImage(productId: number) {
 
     if (!productImage) return null;
 
-    const imageData = await prisma.ImageMaster.findUnique({
+    const imageData = await prisma.imageMaster.findUnique({
         where: { ImageID: productImage.ImageID },
         select: {
             Url: true
