@@ -118,9 +118,9 @@ function verifyPhoneNumber(req, res) {
             console.log("📤 Sending verification response with user data:", {
                 success: true,
                 user: {
-                    id: user.CUSTOMERID,
-                    name: user.CUSTOMERNAME,
-                    phoneNumber: user.PHONENO
+                    id: user.id,
+                    name: user.name,
+                    phoneNumber: user.phoneNumber
                 }
             });
             res.json({
@@ -128,9 +128,9 @@ function verifyPhoneNumber(req, res) {
                 accessToken: tokens.accessToken,
                 refreshToken: tokens.refreshToken,
                 user: {
-                    id: user.CUSTOMERID,
-                    name: user.CUSTOMERNAME,
-                    phoneNumber: user.PHONENO
+                    id: user.id,
+                    name: user.name,
+                    phoneNumber: user.phoneNumber
                 }
             });
         }
@@ -179,6 +179,7 @@ var validateToken_1 = require("./validateToken");
 Object.defineProperty(exports, "validateToken", { enumerable: true, get: function () { return validateToken_1.validateToken; } });
 function checkCustomer(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c;
         try {
             const tokenPayload = req.user;
             if (!tokenPayload || !tokenPayload.phoneNumber) {
@@ -194,10 +195,14 @@ function checkCustomer(req, res) {
                     message: 'Internal server error'
                 });
             }
+            // Include customerId and name when available so clients can behave accordingly
             return res.status(200).json({
-                success: result.exists, // true if customer exists, false if not
+                success: result.exists,
                 message: result.message,
-                exists: result.exists
+                exists: result.exists,
+                userId: (_a = result.userId) !== null && _a !== void 0 ? _a : null,
+                customerId: (_b = result.customerId) !== null && _b !== void 0 ? _b : null,
+                name: (_c = result.name) !== null && _c !== void 0 ? _c : null
             });
         }
         catch (error) {
@@ -212,15 +217,26 @@ function checkCustomer(req, res) {
 // Public check by phone (no auth) - used by frontend to decide whether to show name field
 function checkCustomerPublic(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c;
         try {
             const phone = String(req.query.phone || '').trim();
+            console.log('[checkCustomerPublic] incoming phone:', phone);
             if (!phone)
                 return res.status(400).json({ success: false, message: 'phone query parameter required' });
             const result = yield (0, auth_2.checkCustomerExists)(phone);
+            console.log('[checkCustomerPublic] lookup result for', phone, ':', result);
             if (!result.success) {
                 return res.status(500).json({ success: false, message: 'Internal server error' });
             }
-            return res.status(200).json({ success: true, exists: result.exists, message: result.message });
+            // Return name and customerId when present to help the client decide UI
+            return res.status(200).json({
+                success: true,
+                exists: result.exists,
+                message: result.message,
+                userId: (_a = result.userId) !== null && _a !== void 0 ? _a : null,
+                customerId: (_b = result.customerId) !== null && _b !== void 0 ? _b : null,
+                name: (_c = result.name) !== null && _c !== void 0 ? _c : null
+            });
         }
         catch (error) {
             console.error('Error in checkCustomerPublic controller:', error);

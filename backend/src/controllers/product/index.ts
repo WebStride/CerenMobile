@@ -20,12 +20,27 @@ export async function getExclusiveProductsList(req: AuthRequest, res: Response) 
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
-        const products = await getExclusiveProducts(customerId, priceColumn);
+        // Get selected customerID from query param or header (from store selection)
+        const selectedCustomerId = req.query.customerId 
+            ? parseInt(req.query.customerId as string) 
+            : req.headers['x-customer-id'] 
+            ? parseInt(req.headers['x-customer-id'] as string)
+            : null;
+
+        console.log(`[getExclusiveProductsList] userId: ${req.user.userId}, selectedCustomerId: ${selectedCustomerId}`);
+
+        const { customerId, priceColumn, showPricing } = await getCustomerPricingInfo(
+            parseInt(req.user.userId), 
+            selectedCustomerId
+        );
+        
+        const products = await getExclusiveProducts(customerId, priceColumn, showPricing);
 
         res.json({
             success: true,
-            products
+            products,
+            showPricing, // Let frontend know whether to display prices
+            customerId   // Return which customer context is being used
         });
     } catch (error: any) {
         console.error('Error fetching exclusive products:', error);
@@ -43,12 +58,24 @@ export async function newProductsList(req: AuthRequest, res: Response) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
-        const products = await getNewProducts(customerId, priceColumn);
+        const selectedCustomerId = req.query.customerId 
+            ? parseInt(req.query.customerId as string) 
+            : req.headers['x-customer-id'] 
+            ? parseInt(req.headers['x-customer-id'] as string)
+            : null;
+
+        const { customerId, priceColumn, showPricing } = await getCustomerPricingInfo(
+            parseInt(req.user.userId), 
+            selectedCustomerId
+        );
+        
+        const products = await getNewProducts(customerId, priceColumn, showPricing);
 
         res.json({
             success: true,
-            products
+            products,
+            showPricing,
+            customerId
         });
     } catch (error: any) {
         console.error('Error fetching exclusive products:', error);
@@ -65,12 +92,24 @@ export async function allProductsList(req: AuthRequest, res: Response) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
-        const products = await getAllProducts(customerId, priceColumn);
+        const selectedCustomerId = req.query.customerId 
+            ? parseInt(req.query.customerId as string) 
+            : req.headers['x-customer-id'] 
+            ? parseInt(req.headers['x-customer-id'] as string)
+            : null;
+
+        const { customerId, priceColumn, showPricing } = await getCustomerPricingInfo(
+            parseInt(req.user.userId), 
+            selectedCustomerId
+        );
+        
+        const products = await getAllProducts(customerId, priceColumn, showPricing);
 
         res.json({
             success: true,
-            products
+            products,
+            showPricing,
+            customerId
         });
     } catch (error: any) {
         console.error('Error fetching exclusive products:', error);
@@ -88,12 +127,24 @@ export async function buyAgainProductsList(req: AuthRequest, res: Response) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
-        const products = await getCustomerPreferredProducts(customerId, priceColumn);
+        const selectedCustomerId = req.query.customerId 
+            ? parseInt(req.query.customerId as string) 
+            : req.headers['x-customer-id'] 
+            ? parseInt(req.headers['x-customer-id'] as string)
+            : null;
+
+        const { customerId, priceColumn, showPricing } = await getCustomerPricingInfo(
+            parseInt(req.user.userId), 
+            selectedCustomerId
+        );
+        
+        const products = await getCustomerPreferredProducts(customerId, priceColumn, showPricing);
 
         res.json({
             success: true,
-            products
+            products,
+            showPricing,
+            customerId
         });
     } catch (error: any) {
         console.error('Error fetching exclusive products:', error);
@@ -111,12 +162,25 @@ export async function getBestSelling(req: AuthRequest, res: Response) {
         }
 
         const sortOrderLimit = parseInt(req.query.limit as string) || 10;
-        const { customerId, priceColumn } = await getCustomerPricingInfo(parseInt(req.user.userId));
-        const products = await getBestSellingProducts(customerId, priceColumn, sortOrderLimit);
+        
+        const selectedCustomerId = req.query.customerId 
+            ? parseInt(req.query.customerId as string) 
+            : req.headers['x-customer-id'] 
+            ? parseInt(req.headers['x-customer-id'] as string)
+            : null;
+
+        const { customerId, priceColumn, showPricing } = await getCustomerPricingInfo(
+            parseInt(req.user.userId), 
+            selectedCustomerId
+        );
+        
+        const products = await getBestSellingProducts(customerId, priceColumn, sortOrderLimit, showPricing);
 
         res.json({
             success: true,
-            products
+            products,
+            showPricing,
+            customerId
         });
     } catch (error: any) {
         console.error('Error fetching best selling products:', error);

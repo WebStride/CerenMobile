@@ -859,7 +859,28 @@ export default function AccountScreen() {
       id: 'favourites',
       title: 'Favourites',
       icon: 'heart-outline',
-      onPress: () => router.push("/favourites/Favourites")
+      onPress: async () => {
+        try {
+          const { checkCustomerExists } = await import('../../services/api');
+          const customerCheck = await checkCustomerExists();
+          
+          if (!customerCheck.success || !customerCheck.exists) {
+            Alert.alert(
+              'Registration Required',
+              'Please register in the app to access your favourites and enjoy personalized shopping experience.',
+              [
+                { text: 'OK', style: 'cancel' }
+              ]
+            );
+            return;
+          }
+          
+          router.push("/favourites/Favourites");
+        } catch (error) {
+          console.error('Error checking registration:', error);
+          Alert.alert('Error', 'Unable to access favourites. Please try again.');
+        }
+      }
     },
    
     {

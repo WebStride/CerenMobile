@@ -1,7 +1,7 @@
 export declare function getOrdersByCustomerId(customerId: number): Promise<{
     success: boolean;
     orders: {
-        OrderID: number;
+        OrderID: bigint;
         OrderNumber: string;
         OrderDate: Date;
         OrderItemCount: number | null;
@@ -67,7 +67,7 @@ export declare function getInvoiceItemsByInvoiceId(invoiceId: number): Promise<{
         ProductID: number;
         OrderQty: string | null;
         Price: number | null;
-        InvoiceID: number;
+        InvoiceID: number | null;
         InvoiceItemID: number;
         SaleQty: number | null;
         TaxableValue: number | null;

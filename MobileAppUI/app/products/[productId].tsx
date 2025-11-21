@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
-import { getProductsByCatalog, getSimilarProductsApi } from "@/services/api";
+import { getProductsByCatalog, getSimilarProductsApi, checkCustomerExists } from "@/services/api";
 
 const { width } = Dimensions.get('window');
 const defaultImage = require("../../assets/images/Banana.png");
@@ -424,10 +424,24 @@ export default function ProductDetailsScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
-  const [isCustomerExists] = useState(true);
+  const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   const isProductFavourite = isFavourite(currentProduct.productId);
+
+  // Check customer existence
+  useEffect(() => {
+    const checkCustomer = async () => {
+      try {
+        const response = await checkCustomerExists();
+        setIsCustomerExists(response.success ? response.exists : false);
+      } catch (error) {
+        console.error("Error checking customer existence:", error);
+        setIsCustomerExists(false);
+      }
+    };
+    checkCustomer();
+  }, []);
 
   // Update quantity when variant changes
   useEffect(() => {
@@ -725,24 +739,38 @@ export default function ProductDetailsScreen() {
                     }}>
                       {variant.units} {variant.unitsOfMeasurement}
                     </Text>
-                    <Text style={{
-                      textAlign: 'center',
-                      fontWeight: 'bold',
-                      fontSize: 16,
-                      color: isSelected ? '#166534' : '#16a34a',
-                      marginBottom: 4
-                    }}>
-                      ₹{variant.price}
-                    </Text>
-                    {variant.originalPrice && (
+                    {isCustomerExists && variant.price > 0 ? (
+                      <>
+                        <Text style={{
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          fontSize: 16,
+                          color: isSelected ? '#166534' : '#16a34a',
+                          marginBottom: 4
+                        }}>
+                          ₹{variant.price}
+                        </Text>
+                        {variant.originalPrice && (
+                          <Text style={{
+                            textAlign: 'center',
+                            color: '#16a34a',
+                            textDecorationLine: 'line-through',
+                            fontSize: 14,
+                            marginBottom: 4
+                          }}>
+                            ₹{variant.originalPrice}
+                          </Text>
+                        )}
+                      </>
+                    ) : (
                       <Text style={{
                         textAlign: 'center',
-                        color: '#16a34a',
-                        textDecorationLine: 'line-through',
                         fontSize: 14,
+                        color: '#6B7280',
+                        fontStyle: 'italic',
                         marginBottom: 4
                       }}>
-                        ₹{variant.originalPrice}
+                        Price on request
                       </Text>
                     )}
                     {variant.minOrderQuantity > 1 && (
@@ -761,15 +789,16 @@ export default function ProductDetailsScreen() {
             </View>
           </View>
 
-          {/* Quantity and Price Section - Fixed positioning */}
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 24,
-            backgroundColor: 'white',
-            zIndex: 3
-          }}>
+          {/* Quantity and Price Section - Only show for registered users */}
+          {isCustomerExists && currentProduct.price > 0 && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 24,
+              backgroundColor: 'white',
+              zIndex: 3
+            }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity
                 onPress={handleDecrease}
@@ -842,6 +871,7 @@ export default function ProductDetailsScreen() {
               ₹{(currentProduct.price * quantity).toFixed(2)}
             </Text>
           </View>
+          )}
 
           {/* Order Quantity Info */}
           {currentProduct.minOrderQuantity > 1 && (
@@ -1070,39 +1100,41 @@ export default function ProductDetailsScreen() {
         </View>
       </ScrollView>
 
-      {/* Add To Basket Button */}
-      <View style={{
-        paddingHorizontal: 16,
-        paddingVertical: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
-        backgroundColor: 'white'
-      }}>
-        <TouchableOpacity
-          onPress={handleAddToBasket}
-          style={{
-            backgroundColor: '#22c55e',
-            borderRadius: 16,
-            paddingVertical: 16,
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3
-          }}
-          activeOpacity={0.9}
-        >
-          <Text style={{
-            color: 'white',
-            fontSize: 18,
-            fontWeight: 'bold'
-          }}>
-            Add To Basket
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Add To Basket Button - Only for registered users */}
+      {isCustomerExists && currentProduct.price > 0 && (
+        <View style={{
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+          borderTopWidth: 1,
+          borderTopColor: '#e5e7eb',
+          backgroundColor: 'white'
+        }}>
+          <TouchableOpacity
+            onPress={handleAddToBasket}
+            style={{
+              backgroundColor: '#22c55e',
+              borderRadius: 16,
+              paddingVertical: 16,
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3
+            }}
+            activeOpacity={0.9}
+          >
+            <Text style={{
+              color: 'white',
+              fontSize: 18,
+              fontWeight: 'bold'
+            }}>
+              Add To Basket
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

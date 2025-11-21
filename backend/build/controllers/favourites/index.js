@@ -19,8 +19,14 @@ function getFavourites(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
-            const favourites = yield (0, favourites_1.getUserFavourites)(userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
+            const favourites = yield (0, favourites_1.getUserFavourites)(customerId);
             res.json({ success: true, favourites });
         }
         catch (error) {
@@ -35,11 +41,17 @@ function postFavourite(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
             const product = req.body;
             if (!(product === null || product === void 0 ? void 0 : product.productId))
                 return res.status(400).json({ error: 'productId required' });
-            const fav = yield (0, favourites_1.addUserFavourite)(userId, product);
+            const fav = yield (0, favourites_1.addUserFavourite)(customerId, product);
             res.json({ success: true, favourite: fav });
         }
         catch (error) {
@@ -54,11 +66,17 @@ function deleteFavourite(req, res) {
         try {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId))
                 return res.status(401).json({ error: 'User not authenticated' });
-            const userId = parseInt(req.user.userId);
+            // Get customerId from query parameter (from store selection)
+            const customerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : parseInt(req.headers['x-customer-id']);
+            if (!customerId || isNaN(customerId)) {
+                return res.status(400).json({ error: 'customerId is required' });
+            }
             const productId = parseInt(req.params.productId);
             if (isNaN(productId))
                 return res.status(400).json({ error: 'Invalid productId' });
-            yield (0, favourites_1.removeUserFavourite)(userId, productId);
+            yield (0, favourites_1.removeUserFavourite)(customerId, productId);
             res.json({ success: true });
         }
         catch (error) {

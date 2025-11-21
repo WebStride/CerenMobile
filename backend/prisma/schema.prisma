@@ -38,7 +38,63 @@ model CUSTOMERACCOUNTHISTORY {
   @@index([ACCOUNTID], map: "ACCOUNTIDIdx")
   @@index([PAYMENTID], map: "PAYMENTIDIdx")
 }
+model USERCUSTOMERMASTER {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  phoneNumber String   @unique @db.VarChar(20)
+  address     String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model Cart {
+  id                 Int      @id @default(autoincrement())
+  customerId         Int
+  productId          Int
+  productName        String   @db.VarChar(255)
+  price              Float
+  image              String?  @db.VarChar(1000)
+  productUnits       Float?
+  unitsOfMeasurement String?  @db.VarChar(50)
+  quantity           Int      @default(1)
+  minOrderQuantity   Int?     @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
+  @@unique([customerId, productId], map: "UX_cart_customer_product")
+  @@index([customerId], map: "IDX_cart_customer")
+}
+model UserFavourites {
+  id                 Int      @id @default(autoincrement())
+  customerId         Int
+  productId          Int
+  productName        String   @db.VarChar(255)
+  price              Float?   @default(0)
+  image              String?  @db.VarChar(1000)
+  productUnits       Float?
+  unitsOfMeasurement String?  @db.VarChar(50)
+  minOrderQuantity   Int?     @default(1)
+  addedAt            DateTime @default(now())
+
+  @@unique([customerId, productId], map: "UX_user_favourites_customer_product")
+  @@index([customerId], map: "IDX_user_favourites_customer")
+}
+model DeliveryAddress {
+  DeliveryAddressID Int      @id @default(autoincrement())
+  UserID            Int?
+  Name              String?  @db.VarChar(100)
+  PhoneNumber       String?  @db.VarChar(20)
+  City              String?  @db.VarChar(100)
+  District          String?  @db.VarChar(100)
+  HouseNumber       String?  @db.VarChar(100)
+  BuildingBlock     String?  @db.VarChar(100)
+  PinCode           String?  @db.VarChar(10)
+  Landmark          String?  @db.VarChar(200)
+  SaveAs            String?  @db.VarChar(20)
+  CreatedAt         DateTime @default(now()) @db.Timestamp(0)
+  UpdatedAt         DateTime @db.Timestamp(0)
+  Active            Boolean  @default(dbgenerated("b'1'")) @db.Bit(1)
+  IsDefault         Boolean? @default(dbgenerated("b'0'")) @db.Bit(1)
+}
 model CUSTOMERMASTER {
   CUSTOMERID        Int       @id @default(autoincrement())
   CUSTOMERNAME      String    @db.VarChar(100)
@@ -62,28 +118,6 @@ model CUSTOMERMASTER {
   USERID            Int?
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model CUSTOMERMASTER_BCK {
-  CUSTOMERID      Int       @default(0)
-  CUSTOMERNAME    String    @db.VarChar(100)
-  ADDRESS         String?   @db.VarChar(1000)
-  PHONENO         String?   @db.VarChar(20)
-  CUSTOMERTYPEID  Int       @default(1) @db.SmallInt
-  LINEID          Int?
-  PRICEGROUPID    Int?
-  DISCOUNTGROUPID Int?
-  GSTIN           String?   @db.VarChar(20)
-  STATEID         String?   @db.VarChar(5)
-  ADDEDDATE       DateTime? @db.DateTime(0)
-  LASTUPDATEDATE  DateTime? @db.DateTime(0)
-  ACTIVE          Boolean?  @db.Bit(1)
-  ORDERDAYS       String    @default("1") @db.VarChar(20)
-  PINCODE         Int?
-  CITY            String?   @db.VarChar(100)
-
-  @@ignore
-}
-
 model CUSTOMERTYPEMASTER {
   CUSTOMERTYPEID Int     @id @default(autoincrement()) @db.UnsignedSmallInt
   CUSTOMERTYPE   String  @db.VarChar(20)
@@ -101,26 +135,9 @@ model CatalogMaster {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model CurrentOrders {
-  ProductName String @db.VarChar(50)
-  OrdQty      Float?
-  OrdAmt      Float?
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model CurrentOrders1 {
-  ProductInvID Int?   @db.UnsignedMediumInt
-  OrdQty       Float?
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model CurrentOrders_Inv {
-  ProductInvID Int?   @db.UnsignedMediumInt
-  OrdQty       Float?
-  OrdAmt       Float?
+  ProductID Int    @db.SmallInt
+  OrdQty    Float?
+  OrdAmt    Float?
 
   @@ignore
 }
@@ -136,8 +153,12 @@ model CurrentStock {
   SP           Decimal? @db.Decimal(10, 0)
   Stock        Float?
   StockAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
   Short        Float?
   ShortAmt     Float?
+  PuneSales    Float?
+  PuneSalesAmt Float?
 
   @@ignore
 }
@@ -153,6 +174,8 @@ model CurrentStock_Prev {
   SP           Float?   @db.Float
   Stock        Float?
   StockAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
   Short        Float?
   ShortAmt     Float?
 
@@ -160,9 +183,11 @@ model CurrentStock_Prev {
 }
 
 model CustomerLedgerDetails {
-  LedgerID   Int     @id @default(autoincrement()) @db.UnsignedSmallInt
-  CustomerID Int?
-  LedgerName String? @db.VarChar(200)
+  LedgerID        Int       @id @default(autoincrement()) @db.UnsignedSmallInt
+  CustomerID      Int?
+  LedgerName      String?   @db.VarChar(200)
+  LastUpdatedDate DateTime? @default(now()) @db.Timestamp(0)
+  CreationDate    DateTime? @default(now()) @db.Timestamp(0)
 }
 
 model CustomerProductPreferenceMaster {
@@ -244,24 +269,6 @@ model EInvoiceItems {
   @@index([EInvoiceID], map: "idx_EInvoiceID")
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model EInvoiceItems_bck {
-  EInvoiceItemID    Int     @default(0) @db.UnsignedInt
-  EInvoiceID        BigInt  @db.UnsignedBigInt
-  ProductID         Int     @db.SmallInt
-  SaleQty           Float?  @default(0) @db.Float
-  Price             Float?  @default(0) @db.Float
-  TaxableValue      Float?  @default(0) @db.Float
-  CGST              Float?  @default(0) @db.Float
-  SGST              Float?  @default(0) @db.Float
-  IGST              Float?  @default(0) @db.Float
-  NetTotal          Float?  @default(0) @db.Float
-  InvoiceItemStatus String? @db.VarChar(20)
-  Discount          Float?  @default(0) @db.Float
-
-  @@ignore
-}
-
 model EInvoices {
   EInvoiceID         BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
   EInvoiceNumber     String    @db.VarChar(20)
@@ -282,98 +289,6 @@ model EInvoices {
   SignedQrCode       String?   @db.VarChar(10000)
 
   @@index([CustomerID], map: "idx_customerid")
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model EInvoices_Change {
-  EInvoiceID         BigInt    @default(0) @db.UnsignedBigInt
-  EInvoiceNumber     String    @db.VarChar(20)
-  EInvoiceDate       DateTime  @db.DateTime(0)
-  CustomerID         Int       @db.UnsignedInt
-  InvoiceID          BigInt
-  InvoiceItemCount   Int?      @default(0) @db.SmallInt
-  GrossInvoiceAmount Float?    @default(0) @db.Float
-  DiscountAmount     Float?    @default(0) @db.Float
-  NetInvoiceAmount   Float?    @default(0) @db.Float
-  InvoiceStatus      String?   @db.VarChar(20)
-  DeliveryLineID     Int?      @db.SmallInt
-  CreationDate       DateTime? @default(now()) @db.Timestamp(0)
-  LastUpdatedDate    DateTime? @default(now()) @db.Timestamp(0)
-  AckNo              String?   @db.VarChar(50)
-  AckDate            DateTime? @db.DateTime(0)
-  IRN                String?   @db.VarChar(100)
-  SignedQrCode       String?   @db.VarChar(10000)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model EInvoices_Dateissue {
-  EInvoiceID         Int       @default(0) @db.UnsignedSmallInt
-  EInvoiceNumber     String    @db.VarChar(20)
-  EInvoiceDate       DateTime  @db.DateTime(0)
-  CustomerID         Int       @db.UnsignedInt
-  InvoiceID          BigInt
-  InvoiceItemCount   Int?      @default(0) @db.SmallInt
-  GrossInvoiceAmount Float?    @default(0) @db.Float
-  DiscountAmount     Float?    @default(0) @db.Float
-  NetInvoiceAmount   Float?    @default(0) @db.Float
-  InvoiceStatus      String?   @db.VarChar(20)
-  DeliveryLineID     Int?      @db.SmallInt
-  CreationDate       DateTime? @default(now()) @db.Timestamp(0)
-  LastUpdatedDate    DateTime? @default(now()) @db.Timestamp(0)
-  AckNo              String?   @db.VarChar(50)
-  AckDate            DateTime? @db.DateTime(0)
-  IRN                String?   @db.VarChar(100)
-  SignedQrCode       String?   @db.VarChar(10000)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model EInvoices_b4Number {
-  EInvoiceID         Int       @default(0) @db.UnsignedSmallInt
-  EInvoiceNumber     String    @db.VarChar(20)
-  EInvoiceDate       DateTime  @db.DateTime(0)
-  CustomerID         Int       @db.UnsignedInt
-  InvoiceID          BigInt
-  InvoiceItemCount   Int?      @default(0) @db.SmallInt
-  GrossInvoiceAmount Float?    @default(0) @db.Float
-  DiscountAmount     Float?    @default(0) @db.Float
-  NetInvoiceAmount   Float?    @default(0) @db.Float
-  InvoiceStatus      String?   @db.VarChar(20)
-  DeliveryLineID     Int?      @db.SmallInt
-  CreationDate       DateTime? @default(now()) @db.Timestamp(0)
-  LastUpdatedDate    DateTime? @default(now()) @db.Timestamp(0)
-  AckNo              String?   @db.VarChar(50)
-  AckDate            DateTime? @db.DateTime(0)
-  IRN                String?   @db.VarChar(100)
-  SignedQrCode       String?   @db.VarChar(10000)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model EInvoices_bck {
-  EInvoiceID         BigInt    @default(0) @db.UnsignedBigInt
-  EInvoiceNumber     String    @db.VarChar(20)
-  EInvoiceDate       DateTime  @db.DateTime(0)
-  CustomerID         Int       @db.UnsignedInt
-  InvoiceID          BigInt
-  InvoiceItemCount   Int?      @default(0) @db.SmallInt
-  GrossInvoiceAmount Float?    @default(0) @db.Float
-  DiscountAmount     Float?    @default(0) @db.Float
-  NetInvoiceAmount   Float?    @default(0) @db.Float
-  InvoiceStatus      String?   @db.VarChar(20)
-  DeliveryLineID     Int?      @db.SmallInt
-  CreationDate       DateTime? @default(now()) @db.Timestamp(0)
-  LastUpdatedDate    DateTime? @default(now()) @db.Timestamp(0)
-  AckNo              String?   @db.VarChar(50)
-  AckDate            DateTime? @db.DateTime(0)
-  IRN                String?   @db.VarChar(100)
-  SignedQrCode       String?   @db.VarChar(10000)
-
-  @@ignore
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -442,7 +357,7 @@ model ImageMaster {
 
 model InvoiceItems {
   InvoiceItemID     Int     @id @default(autoincrement()) @db.UnsignedInt
-  InvoiceID         Int     @db.UnsignedSmallInt
+  InvoiceID         Int?
   ProductID         Int     @db.SmallInt
   OrderQty          String? @db.VarChar(10)
   SaleQty           Float?  @default(0) @db.Float
@@ -458,27 +373,8 @@ model InvoiceItems {
   @@index([InvoiceID], map: "InvoiceIDIdx")
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model InvoiceItems_bck {
-  InvoiceItemID     Int     @default(0) @db.UnsignedInt
-  InvoiceID         Int     @db.UnsignedSmallInt
-  ProductID         Int     @db.SmallInt
-  OrderQty          String? @db.VarChar(10)
-  SaleQty           Float?  @default(0) @db.Float
-  Price             Float?  @default(0) @db.Float
-  TaxableValue      Float?  @default(0) @db.Float
-  CGST              Float?  @default(0) @db.Float
-  SGST              Float?  @default(0) @db.Float
-  IGST              Float?  @default(0) @db.Float
-  NetTotal          Float?  @default(0) @db.Float
-  InvoiceItemStatus String? @db.VarChar(20)
-  Discount          Float?  @default(0) @db.Float
-
-  @@ignore
-}
-
 model Invoices {
-  InvoiceID          Int       @id @default(autoincrement()) @db.UnsignedSmallInt
+  InvoiceID          Int       @id @default(autoincrement()) @db.UnsignedInt
   InvoiceNumber      String    @db.VarChar(20)
   InvoiceDate        DateTime  @db.DateTime(0)
   CustomerID         Int       @db.UnsignedInt
@@ -496,62 +392,6 @@ model Invoices {
   @@index([CustomerID], map: "CustomerIDIdx")
 }
 
-model UserFavourites {
-  id                 Int                @id @default(autoincrement())
-  userId             Int
-  productId          Int
-  productName        String             @db.VarChar(255)
-  price              Float?             @default(0)
-  image              String?            @db.VarChar(1000)
-  productUnits       Float?
-  unitsOfMeasurement String?            @db.VarChar(50)
-  minOrderQuantity   Int?               @default(1)
-  addedAt            DateTime           @default(now())
-  user               USERCUSTOMERMASTER @relation(fields: [userId], references: [id])
-
-  @@unique([userId, productId], map: "UX_user_favourites_user_product")
-  @@index([userId], map: "IDX_user_favourites_user")
-}
-
-model Cart {
-  id                 Int                @id @default(autoincrement())
-  userId             Int
-  productId          Int
-  productName        String             @db.VarChar(255)
-  price              Float
-  image              String?            @db.VarChar(1000)
-  productUnits       Float?
-  unitsOfMeasurement String?            @db.VarChar(50)
-  quantity           Int                @default(1)
-  minOrderQuantity   Int?               @default(1)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  user               USERCUSTOMERMASTER @relation(fields: [userId], references: [id])
-
-  @@unique([userId, productId], map: "UX_cart_user_product")
-  @@index([userId], map: "IDX_cart_user")
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model Invoices_BCK {
-  InvoiceID          Int       @default(0) @db.UnsignedSmallInt
-  InvoiceNumber      String    @db.VarChar(20)
-  InvoiceDate        DateTime  @db.DateTime(0)
-  CustomerID         Int       @db.UnsignedInt
-  OrderID            BigInt
-  InvoiceItemCount   Int?      @default(0) @db.SmallInt
-  GrossInvoiceAmount Float?    @default(0) @db.Float
-  DiscountAmount     Float?    @default(0) @db.Float
-  NetInvoiceAmount   Float?    @default(0) @db.Float
-  InvoiceStatus      String?   @db.VarChar(20)
-  BalanceAmount      Float?    @db.Float
-  DeliveryLineID     Int?      @db.SmallInt
-  CreationDate       DateTime? @default(now()) @db.Timestamp(0)
-  LastUpdatedDate    DateTime? @default(now()) @db.Timestamp(0)
-
-  @@ignore
-}
-
 model LINEMASTER {
   LINEID             Int     @id @default(autoincrement())
   LINENAME           String? @db.VarChar(50)
@@ -563,13 +403,6 @@ model LINEMASTER {
 model LogTable {
   Id        Int       @id @default(autoincrement())
   ExecDate1 DateTime? @db.DateTime(0)
-}
-
-model March16short {
-  ProductID      Int    @default(0) @db.UnsignedMediumInt
-  WholesalePrice Float? @db.Float
-  short          Int    @default(0)
-  id             Int    @id @default(autoincrement())
 }
 
 model OrderItems {
@@ -585,36 +418,8 @@ model OrderItems {
   @@index([OrderID], map: "OrderIDIdx")
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model OrderItems_NotDeli {
-  OrderItemID     Int     @default(0) @db.UnsignedInt
-  OrderID         Int     @db.UnsignedInt
-  ProductID       Int     @db.SmallInt
-  OrderQty        Float?  @db.Float
-  Price           Float?  @db.Float
-  DeliveryLineID  Int?    @db.SmallInt
-  OrderItemStatus String  @default("") @db.VarChar(7)
-  Comments        String? @db.VarChar(200)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model OrderItems_bck {
-  OrderItemID     Int     @default(0) @db.UnsignedInt
-  OrderID         Int     @db.UnsignedInt
-  ProductID       Int     @db.SmallInt
-  OrderQty        Float?  @db.Float
-  Price           Float?  @db.Float
-  DeliveryLineID  Int?    @db.SmallInt
-  OrderItemStatus String? @db.VarChar(20)
-  Comments        String? @db.VarChar(200)
-
-  @@ignore
-}
-
 model Orders {
-  OrderID             Int       @id @default(autoincrement()) @db.UnsignedSmallInt
+  OrderID             BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
   OrderNumber         String    @db.VarChar(20)
   OrderDate           DateTime  @db.DateTime(0)
   CustomerID          Int       @db.SmallInt
@@ -682,7 +487,7 @@ model PRICEGROUPMASTER {
   Discount           Float?  @db.Float
   DiscountType       String? @db.VarChar(50)
   IsDefault          Int     @default(1) @db.TinyInt
-  IsRetailPriceGroup Int     @default(0) @db.TinyInt
+  IsRetailPriceGroup Int?    @default(0) @db.TinyInt
   IsRetailDefault    Int     @default(0) @db.TinyInt
 }
 
@@ -765,26 +570,6 @@ model ProductCategoryImages {
   LastUpdateDate         DateTime @default(now()) @db.DateTime(0)
 }
 
-model TEMPORARAYUSER {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(100)
-  phoneNumber String   @unique @db.VarChar(20)
-  address     String?  @db.VarChar(255)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model USERCUSTOMERMASTER {
-  id             Int              @id @default(autoincrement())
-  name           String           @db.VarChar(100)
-  phoneNumber    String           @unique @db.VarChar(20)
-  address        String?          @db.VarChar(255)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  Cart           Cart[]
-  UserFavourites UserFavourites[]
-}
-
 model ProductCategoryMaster {
   CategoryID   Int    @id @default(autoincrement()) @db.UnsignedSmallInt
   CategoryName String @db.VarChar(50)
@@ -813,13 +598,12 @@ model ProductInventory {
   Active             Int       @default(1) @db.TinyInt
   LastPODate         DateTime? @db.DateTime(0)
   LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
-  MinOrdQty          Float?    @db.Float
 }
 
 model ProductInventoryForApp {
   ProductInvID       Int      @id @default(autoincrement()) @db.UnsignedMediumInt
   StockName          String   @db.VarChar(50)
-  VInventory         Float?   @default(0) @db.Float
+  VInventory         Float?   @db.Float
   UnitsOfMeasurement String   @db.VarChar(50)
   Units              Float    @db.Float
   Active             Int      @default(1) @db.TinyInt
@@ -828,57 +612,7 @@ model ProductInventoryForApp {
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model ProductInventory_b4_PuneOff {
-  ProductInvID       Int       @default(0) @db.UnsignedInt
-  StockName          String    @db.VarChar(50)
-  Inventory          Float     @db.Float
-  Units              Int?      @db.SmallInt
-  UnitsOfMeasurement String?   @db.VarChar(10)
-  ReOrderStockLevel  Float?    @db.Float
-  ReOrderStockQty    Float?    @db.Float
-  Active             Int       @default(1) @db.TinyInt
-  LastPODate         DateTime? @db.DateTime(0)
-  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
-  MinOrdQty          Float?    @db.Float
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model ProductInventory_b4newstock {
-  ProductInvID       Int       @default(0) @db.UnsignedInt
-  StockName          String    @db.VarChar(50)
-  Inventory          Float     @db.Float
-  Units              Int?      @db.SmallInt
-  UnitsOfMeasurement String?   @db.VarChar(10)
-  ReOrderStockLevel  Float?    @db.Float
-  ReOrderStockQty    Float?    @db.Float
-  Active             Int       @default(1) @db.TinyInt
-  LastPODate         DateTime? @db.DateTime(0)
-  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model ProductInventory_bck {
-  ProductInvID       Int       @default(0) @db.UnsignedInt
-  StockName          String    @db.VarChar(50)
-  Inventory          Float     @db.Float
-  Units              Int?      @db.SmallInt
-  UnitsOfMeasurement String?   @db.VarChar(10)
-  ReOrderStockLevel  Float?    @db.Float
-  ReOrderStockQty    Float?    @db.Float
-  Active             Int       @default(1) @db.TinyInt
-  LastPODate         DateTime? @db.DateTime(0)
-  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
-  MinOrdQty          Float?    @db.Float
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model ProductInventory_bck1 {
   ProductInvID       Int       @default(0) @db.UnsignedInt
   StockName          String    @db.VarChar(50)
   Inventory          Float     @db.Float
@@ -894,58 +628,7 @@ model ProductInventory_bck1 {
 }
 
 model ProductMaster {
-  ProductID                Int     @id @default(autoincrement()) @map("# ProductID")
-  ProductSKU               String? @db.VarChar(50)
-  ProductName              String? @db.VarChar(50)
-  Description              String? @db.VarChar(50)
-  SubCategoryID            Int?
-  PurchasePrice            Int?
-  WholesalePrice           Int?
-  RetailPrice              Int?
-  MaxRetailPrice           Int?
-  Units                    Int?
-  UnitsOfMeasurement       String? @db.VarChar(50)
-  SortName                 String? @db.VarChar(50)
-  DisplayName              String? @db.VarChar(50)
-  TaxID                    Int?
-  ProductInvID             Int?
-  VendorID                 Int?
-  Barcode                  String? @db.VarChar(50)
-  IsRetailProduct          Int?
-  Active                   Int?
-  AddedUserID              String? @db.VarChar(50)
-  AddedPOSNumber           String? @db.VarChar(50)
-  AddedDate                String? @db.VarChar(50)
-  LastUpdatedUserID        Int?
-  LastUpdatedPOSNumber     String? @db.VarChar(50)
-  LastUpdateDate           String? @db.VarChar(50)
-  SuperCategoryID          Int?
-  CategoryID               Int?
-  OTSPrePR                 Int?
-  OTSRegPR                 Int?
-  Aliases                  String? @db.VarChar(50)
-  CategoryIDForApp         Int?
-  SubCategoryIDForApp      Int?
-  IsNewProduct             Int?
-  Parcelable               Int?
-  OfferEnabled             Int?
-  MinimumQty               Int?
-  DefaultLSQty             Int?
-  ProductInvIDForApp       Int?
-  CatalogID                Int?
-  CatalogDefault           Int?
-  SortOrder                Int?
-  PremiumPrice             Int?
-  UnitsForApp              Int?
-  UnitsOfMeasurementForApp String? @db.VarChar(50)
-  Measure                  Int?
-
-  @@map("ProductMaster")
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model ProductMaster_b4_PuneOff {
-  ProductID                Int       @default(0) @db.UnsignedMediumInt
+  ProductID                Int       @id @default(autoincrement()) @db.UnsignedMediumInt
   ProductSKU               String    @db.VarChar(15)
   ProductName              String    @db.VarChar(50)
   Description              String    @db.VarChar(200)
@@ -962,9 +645,13 @@ model ProductMaster_b4_PuneOff {
   ProductInvID             Int?      @db.UnsignedMediumInt
   VendorID                 Int?      @db.UnsignedSmallInt
   Barcode                  String?   @db.VarChar(200)
-  IsRetailProduct          Int       @default(0) @db.TinyInt
+  IsRetailProduct          Int       @default(1) @db.TinyInt
   Active                   Int       @default(1) @db.TinyInt
+  AddedUserID              Int?
+  AddedPOSNumber           String?   @db.VarChar(50)
   AddedDate                DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedUserID        Int?
+  LastUpdatedPOSNumber     String?   @db.VarChar(50)
   LastUpdateDate           DateTime? @default(now()) @db.Timestamp(0)
   SuperCategoryID          Int?
   CategoryID               Int       @db.UnsignedSmallInt
@@ -978,40 +665,57 @@ model ProductMaster_b4_PuneOff {
   OfferEnabled             Int?      @db.TinyInt
   MinimumQty               Float?    @db.Float
   DefaultLSQty             Float?    @db.Float
-  UnitsForApp              Float?    @db.Float
-  UnitsOfMeasurementForApp String?   @db.VarChar(20)
   ProductInvIDForApp       Int?
   CatalogID                Int?
   CatalogDefault           Int?      @db.TinyInt
   SortOrder                Int?
+  PremiumPrice             Float?    @db.Float
+  UnitsForApp              Float?    @db.Float
+  UnitsOfMeasurementForApp String?   @db.VarChar(10)
   Measure                  String?   @db.VarChar(20)
 
-  @@ignore
+  @@map("ProductMaster")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model ProductMaster_bck {
-  ProductID          Int       @default(0) @db.UnsignedMediumInt
-  ProductSKU         String    @db.VarChar(15)
-  ProductName        String    @db.VarChar(50)
-  Description        String    @db.VarChar(200)
-  SubCategoryID      Int       @db.UnsignedSmallInt
-  PurchasePrice      Float?    @db.Float
-  WholesalePrice     Float?    @db.Float
-  RetailPrice        Float?    @db.Float
-  MaxRetailPrice     Float?    @db.Float
-  Units              Float?    @db.Float
-  UnitsOfMeasurement String?   @db.VarChar(10)
-  SortName           String    @db.VarChar(50)
-  TaxID              Int?      @db.UnsignedSmallInt
-  ProductInvID       Int?      @db.UnsignedMediumInt
-  VendorID           Int?      @db.UnsignedSmallInt
-  Barcode            String?   @db.VarChar(200)
-  Active             Int       @default(1) @db.TinyInt
-  AddedDate          DateTime? @default(now()) @db.Timestamp(0)
-  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
-  SuperCategoryID    Int?
-  CategoryID         Int       @db.UnsignedSmallInt
+  ProductID           Int       @default(0) @db.UnsignedMediumInt
+  ProductSKU          String    @db.VarChar(15)
+  ProductName         String    @db.VarChar(50)
+  Description         String    @db.VarChar(200)
+  SubCategoryID       Int       @db.UnsignedSmallInt
+  PurchasePrice       Float?    @db.Float
+  WholesalePrice      Float?    @db.Float
+  RetailPrice         Float?    @db.Float
+  MaxRetailPrice      Float?    @db.Float
+  Units               Float?    @db.Float
+  UnitsOfMeasurement  String?   @db.VarChar(10)
+  SortName            String    @db.VarChar(50)
+  DisplayName         String?   @db.VarChar(100)
+  TaxID               Int?      @db.UnsignedSmallInt
+  ProductInvID        Int?      @db.UnsignedMediumInt
+  VendorID            Int?      @db.UnsignedSmallInt
+  Barcode             String?   @db.VarChar(200)
+  IsRetailProduct     Int       @default(1) @db.TinyInt
+  Active              Int       @default(1) @db.TinyInt
+  AddedDate           DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdateDate      DateTime? @default(now()) @db.Timestamp(0)
+  SuperCategoryID     Int?
+  CategoryID          Int       @db.UnsignedSmallInt
+  OTSPrePR            Float?    @db.Float
+  OTSRegPR            Float?    @db.Float
+  Aliases             String?   @db.VarChar(200)
+  CategoryIDForApp    Int?
+  SubCategoryIDForApp Int?
+  IsNewProduct        Int?      @db.TinyInt
+  Parcelable          Int?      @db.TinyInt
+  OfferEnabled        Int?      @db.TinyInt
+  MinimumQty          Float?    @db.Float
+  DefaultLSQty        Float?    @db.Float
+  ProductInvIDForApp  Int?
+  CatalogID           Int?
+  CatalogDefault      Int?      @db.TinyInt
+  SortOrder           Int?
 
   @@ignore
 }
@@ -1060,17 +764,17 @@ model ProductSubCategoryMaster {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model PuneSales {
-  StockName  String @db.VarChar(50)
-  Sales1Wk   Float?
-  Sales2Wk   Float?
-  Salesmonth Float?
-  Salestoday Float?
+  ProductName String   @default("") @db.VarChar(50)
+  wk          Int?
+  sales       Float?
+  salesAmt    Float?
+  salescount  Decimal? @db.Decimal(42, 0)
 
   @@ignore
 }
 
 model Puneorders_copy {
-  OrderID             Int       @default(0) @db.UnsignedSmallInt
+  OrderID             BigInt    @default(0) @db.UnsignedBigInt
   OrderNumber         String    @db.VarChar(20)
   OrderDate           DateTime  @db.DateTime(0)
   CustomerID          Int       @db.SmallInt
@@ -1082,6 +786,8 @@ model Puneorders_copy {
   CreationDate        DateTime? @default(now()) @db.Timestamp(0)
   LastUpdatedDate     DateTime? @default(now()) @db.Timestamp(0)
   DeliveryLineID      Int?      @db.SmallInt
+  LINEID              Int?
+  LOC                 String    @default("") @db.VarChar(3)
   id                  Int       @id @default(autoincrement())
 }
 
@@ -1232,24 +938,6 @@ model Purchase_All {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model Purchase_All_bck {
-  Date1     DateTime? @db.Date
-  Vendor    String?   @db.VarChar(50)
-  BillNo    String?   @db.VarChar(50)
-  ItemName  String?   @db.VarChar(50)
-  QTY       Float?    @db.Float
-  Price     Float?    @db.Float
-  Total     Float?    @db.Float
-  Category  String?   @db.VarChar(50)
-  Units     Float?    @db.Float
-  StockName String?   @db.VarChar(50)
-  STOCKQTY  Float?    @db.Float
-  Take      Int       @default(0)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model Purchase_All_dup {
   Date1        DateTime? @db.Date
   Vendor       String?   @db.VarChar(50)
   BillNo       String?   @db.VarChar(50)
@@ -1301,72 +989,6 @@ model ROLEMASTER {
   P_27        String? @db.TinyText
   P_28        String? @db.TinyText
   P_29        String? @db.TinyText
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model ReOrderData {
-  StockName         String @db.VarChar(50)
-  Inventory         Float  @default(0)
-  ReOrderStockLevel Float? @db.Float
-  ReOrderStockQty   Float? @db.Float
-  Sales1Wk          Float  @default(0)
-  Sales2Wk          Float  @default(0)
-  SalesMonth        Float  @default(0)
-  OpenorderQty      Float? @db.Float
-  ReorderQty        Float? @db.Float
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model ReOrderData1 {
-  StockName         String  @db.VarChar(50)
-  Inventory         Float   @default(0)
-  ReOrderStockLevel Float?  @db.Float
-  ReOrderStockQty   Float?  @db.Float
-  Sales1Wk          Float   @default(0)
-  Sales2Wk          Float   @default(0)
-  SalesMonth        Float   @default(0)
-  OpenorderQty      Float?  @db.Float
-  ReorderQty        Float?  @db.Float
-  CategoryName      String? @db.VarChar(50)
-  SubCategoryName   String? @db.VarChar(50)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model ReOrderData2 {
-  StockName         String  @db.VarChar(50)
-  Inventory         Float   @default(0)
-  ReOrderStockLevel Float?  @db.Float
-  ReOrderStockQty   Float?  @db.Float
-  Sales1Wk          Float   @default(0)
-  Sales2Wk          Float   @default(0)
-  SalesMonth        Float   @default(0)
-  OpenorderQty      Float?  @db.Float
-  ReorderQty        Float?  @db.Float
-  CategoryName      String? @db.VarChar(50)
-  SubCategoryName   String? @db.VarChar(50)
-
-  @@ignore
-}
-
-model ReOrderData3 {
-  StockName         String  @db.VarChar(50)
-  Inventory         Float   @default(0)
-  ReOrderStockLevel Float?  @db.Float
-  ReOrderStockQty   Float?  @db.Float
-  Sales1Wk          Float   @default(0)
-  Sales2Wk          Float   @default(0)
-  SalesMonth        Float   @default(0)
-  OpenorderQty      Float?  @db.Float
-  ReorderQty        Float?  @db.Float
-  CategoryName      String? @db.VarChar(50)
-  SubCategoryName   String? @db.VarChar(50)
-  id                Int     @id @default(autoincrement())
-  OrderNo           Int
-  OrderItemNo       Int
 }
 
 model ReportDefinedParams {
@@ -1427,6 +1049,7 @@ model StockPrev {
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model TaxIDsales {
   GSTTYPE            Int     @default(0)
+  Taxrate            Float?
   ProductName        String  @db.VarChar(50)
   SubCategoryID      Int     @db.UnsignedSmallInt
   UnitsOfMeasurement String? @db.VarChar(10)
@@ -1449,9 +1072,9 @@ model TaxIDsales {
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model TaxIDsales1 {
   GSTTYPE            Int     @default(0)
+  taxrate            Float?
   ProductName        String  @db.VarChar(50)
   HSNCode            String? @db.VarChar(20)
-  IGST               Float?  @db.Float
   Exempted           Int?    @default(0) @db.TinyInt
   UnitsOfMeasurement String? @db.VarChar(10)
   SalesQty           Float?
@@ -1470,19 +1093,19 @@ model TaxIDsales1 {
 }
 
 model TaxLedgerDetails {
-  TaxLedgerID Int     @id @default(autoincrement()) @db.UnsignedSmallInt
-  TaxType     String? @db.VarChar(200)
+  TaxLedgerID Int     @id @default(autoincrement())
+  TaxType     String? @db.VarChar(50)
   TaxPercent  Float?  @db.Float
-  AmountType  String? @db.VarChar(200)
+  AmountType  String? @db.VarChar(50)
   LedgerName  String? @db.VarChar(200)
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model TaxLedgerDetails_B4MH {
-  TaxLedgerID Int     @default(0) @db.UnsignedSmallInt
-  TaxType     String? @db.VarChar(200)
+  TaxLedgerID Int     @default(0)
+  TaxType     String? @db.VarChar(50)
   TaxPercent  Float?  @db.Float
-  AmountType  String? @db.VarChar(200)
+  AmountType  String? @db.VarChar(50)
   LedgerName  String? @db.VarChar(200)
 
   @@ignore
@@ -1490,19 +1113,7 @@ model TaxLedgerDetails_B4MH {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model TaxMaster {
-  TaxID    Int    @default(0) @db.UnsignedSmallInt
-  HSNCode  String @db.VarChar(20)
-  CGST     Float? @db.Float
-  SGST     Float? @db.Float
-  IGST     Float? @db.Float
-  Exempted Int    @default(0) @db.TinyInt
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model TaxMaster_b4_PuneOff {
-  TaxID    Int    @default(0) @db.UnsignedSmallInt
+  TaxID    Int    @id @default(autoincrement()) @db.UnsignedSmallInt
   HSNCode  String @db.VarChar(20)
   CGST     Float? @db.Float
   SGST     Float? @db.Float
@@ -1529,24 +1140,6 @@ model TempPaymentsSummary {
   @@id([CustomerID, InvoiceID])
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model TempPurchase1 {
-  PurchaseDate          DateTime? @db.Date
-  VendorID              Int       @db.UnsignedSmallInt
-  PurchaseInvoiceNumber String    @db.VarChar(20)
-  ProductName           String    @db.VarChar(50)
-  ReceivedQty           Float?    @db.Float
-  Price                 Float?    @db.Float
-  NetTotal              Float?    @db.Float
-  CategoryName          String    @db.VarChar(50)
-  Units                 Float?    @db.Float
-  ProductInvID          Int?      @db.UnsignedMediumInt
-  STOCKQTY              Float?
-  Take                  Int       @default(0)
-
-  @@ignore
-}
-
 model TempVendorPaymentsSummary {
   VendorID          Int       @id @db.UnsignedMediumInt
   PurchaseInvoiceID Int
@@ -1559,34 +1152,6 @@ model TempVendorPaymentsSummary {
   Credit_Card       Float?    @map("Credit Card") @db.Float
   Cheque            Float?    @db.Float
   UPI               Float?    @db.Float
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model Temp_OrderItems_pune {
-  OrderItemID     Int     @default(0) @db.UnsignedInt
-  OrderID         Int     @db.UnsignedInt
-  ProductID       Int     @db.SmallInt
-  OrderQty        Float?  @db.Float
-  Price           Float?  @db.Float
-  DeliveryLineID  Int?    @db.SmallInt
-  OrderItemStatus String? @db.VarChar(20)
-  Comments        String? @db.VarChar(200)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model Temp_OrderItems_pune1 {
-  OrderItemID     Int     @default(0) @db.UnsignedInt
-  OrderID         Int     @db.UnsignedInt
-  ProductID       Int     @db.SmallInt
-  OrderQty        Float?  @db.Float
-  Price           Float?  @db.Float
-  DeliveryLineID  Int?    @db.SmallInt
-  OrderItemStatus String? @db.VarChar(20)
-  Comments        String? @db.VarChar(200)
-
-  @@ignore
 }
 
 model USERMASTER {
@@ -1761,40 +1326,6 @@ model josereport_DEP {
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model josereport_Dep1 {
-  EInvoiceID       Int       @default(0) @db.UnsignedSmallInt
-  EInvoiceNumber   String    @db.VarChar(20)
-  CUSTOMERNAME     String    @db.VarChar(100)
-  CustomerID       Int       @db.UnsignedInt
-  InvoiceDate      DateTime? @db.Date
-  NetInvoiceAmount Float?    @db.Float
-  NetTotalexmpt    Float?
-  NetTotal0        Float?
-  CGST25           Float?
-  SGST25           Float?
-  IGST25           Float?
-  NetTotal25Tax    Float?
-  NetTotal25       Float?
-  CGST6            Float?
-  SGST6            Float?
-  IGST6            Float?
-  NetTotal6Tax     Float?
-  NetTotal6        Float?
-  CGST9            Float?
-  SGST9            Float?
-  IGST9            Float?
-  NetTotal9Tax     Float?
-  NetTotal9        Float?
-  AckNo            String?   @db.VarChar(50)
-  GSTIN            String?   @db.VarChar(20)
-  state            String?   @db.VarChar(50)
-  CITY             String?   @db.VarChar(100)
-  Exempted         Int       @default(0)
-
-  @@ignore
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model ordersall {
   OrderID      Int     @db.UnsignedInt
   CUSTOMERNAME String? @db.VarChar(100)
@@ -1803,6 +1334,7 @@ model ordersall {
   Price        Float?  @db.Float
   NetTotal     Float?
   CategoryName String? @db.VarChar(50)
+  LINEID       Int?
 
   @@ignore
 }
@@ -1812,8 +1344,12 @@ model salesnew {
   ProductInvID Int      @default(0) @db.UnsignedInt
   Sales        Float?
   SalesAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
   Short        Float?
   ShortAmt     Float?
+  PuneSales    Float?
+  PuneSalesAmt Float?
   SP           Decimal? @db.Decimal(10, 0)
 
   @@ignore
@@ -1870,20 +1406,1912 @@ model temp4_ver {
   @@ignore
 }
 
-model DeliveryAddress {
-  DeliveryAddressID Int      @id @default(autoincrement())
-  UserID            Int?
-  Name              String?  @db.VarChar(100)
-  PhoneNumber       String?  @db.VarChar(20)
-  City              String?  @db.VarChar(100)
-  District          String?  @db.VarChar(100)
-  HouseNumber       String?  @db.VarChar(100)
-  BuildingBlock     String?  @db.VarChar(100)
-  PinCode           String?  @db.VarChar(10)
-  Landmark          String?  @db.VarChar(200)
-  SaveAs            String?  @db.VarChar(20)
-  CreatedAt         DateTime @default(now()) @db.Timestamp(0)
-  UpdatedAt         DateTime @db.Timestamp(0)
-  Active            Boolean  @default(dbgenerated("b'1'")) @db.Bit(1)
-  IsDefault         Boolean? @default(dbgenerated("b'0'")) @db.Bit(1)
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model CurStock {
+  Cust         String @default("") @db.VarChar(20)
+  CategoryName String @default("") @db.VarChar(50)
+  StockName    String @default("") @db.VarChar(50)
+  stock        Float?
+  StockAmt     Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model CurrentStock_Prev1 {
+  StockName   String?  @db.VarChar(50)
+  Purchase    Float?
+  PurchaseAmt Float?
+  PP          Decimal? @db.Decimal(10, 0)
+  Sales       Float?
+  SalesAmt    Float?
+  SP          Decimal? @db.Decimal(10, 0)
+  Stock       Float?
+  StockAmt    Float?
+  Short       Float?
+  ShortAmt    Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model CustomerLedgerDetails_b4del {
+  LedgerID        Int       @default(0) @db.UnsignedSmallInt
+  CustomerID      Int?
+  LedgerName      String?   @db.VarChar(200)
+  LastUpdatedDate DateTime? @default(now()) @db.Timestamp(0)
+  CreationDate    DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model CustomerProductPreferenceMaster_bck {
+  ID         Int @default(0) @db.UnsignedMediumInt
+  CustomerID Int @db.UnsignedMediumInt
+  ProductID  Int @db.UnsignedMediumInt
+  SortID     Int @db.UnsignedMediumInt
+
+  @@ignore
+}
+
+model CustomerStoreLink {
+  CustomerStoreLinkID Int       @id @default(autoincrement()) @db.UnsignedMediumInt
+  CustomerID          Int?      @db.MediumInt
+  StoreID             String?   @db.VarChar(100)
+  StoreName           String?   @db.VarChar(200)
+  Active              Int?      @db.TinyInt
+  AddedDate           DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedDate     DateTime? @default(now()) @db.Timestamp(0)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DailyPurRet {
+  shop           String    @default("") @db.VarChar(3)
+  Date           DateTime? @db.Date
+  StockName      String    @default("") @db.VarChar(50)
+  CumPurchase    Float?
+  CumPurchaseAmt Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DailySalesPune {
+  Date        DateTime? @db.Date
+  ProductName String    @default("") @db.VarChar(50)
+  Sales       Float?
+  SalesAmt    Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DailySalesPune1 {
+  Date            DateTime? @db.Date
+  ProductName     String    @default("") @db.VarChar(50)
+  Sales           Float?
+  SalesAmt        Float?
+  CategoryName    String    @db.VarChar(50)
+  SubCategoryName String    @db.VarChar(50)
+  wkno            Int?
+  Year            Int?
+  Month           Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DailySalesPune_BLR {
+  City        String    @default("") @db.VarChar(3)
+  Date        DateTime? @db.Date
+  ProductName String    @db.VarChar(50)
+  Sales       Float?
+  SalesAmt    Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DailySalesPune_Pune {
+  City        String    @default("") @db.VarChar(4)
+  Date        DateTime? @db.Date
+  ProductName String    @db.VarChar(50)
+  Sales       Float?
+  SalesAmt    Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Dates2 {
+  Date DateTime? @db.Timestamp(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Dates3 {
+  ID    Int       @default(0)
+  Date  DateTime? @db.Date
+  wkno  Int?
+  Year  Int?
+  Month Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DuplicateEinvoice {
+  EInvoiceNumber String @db.VarChar(20)
+  counts         BigInt @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DuplicateEinvoice1 {
+  EInvoiceNumber String @db.VarChar(20)
+  counts         BigInt @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DuplicateEinvoices {
+  EInvoiceNumber String @db.VarChar(20)
+  Counts         BigInt @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DuplicateEinvoicesCheck {
+  EInvoiceNumber String @db.VarChar(20)
+  Counts         BigInt @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model HSNSales {
+  StockName String @db.VarChar(50)
+  Sales     Float?
+  SalesAmt  Float?
+  Short     Float?
+  ShortAmt  Float?
+  TaxID     Int?   @db.UnsignedSmallInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model HSNSales1 {
+  StockName String  @db.VarChar(50)
+  Sales     Float?
+  SalesAmt  Float?
+  Short     Float?
+  ShortAmt  Float?
+  TaxID     Int?    @db.UnsignedSmallInt
+  HSNCode   String? @db.VarChar(20)
+  CGST      Float?  @db.Float
+  SGST      Float?  @db.Float
+  IGST      Float?  @db.Float
+
+  @@ignore
+}
+
+model HYDorders_copy {
+  OrderID             BigInt    @default(0) @db.UnsignedBigInt
+  OrderNumber         String    @db.VarChar(20)
+  OrderDate           DateTime  @db.DateTime(0)
+  CustomerID          Int       @db.SmallInt
+  OrderItemCount      Int?      @default(0) @db.SmallInt
+  EstimateOrderAmount Float?    @default(0) @db.Float
+  OrderStatus         String?   @db.VarChar(20)
+  DateDelivered       DateTime? @db.DateTime(0)
+  DateInvoiceCreated  DateTime? @db.DateTime(0)
+  CreationDate        DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedDate     DateTime? @default(now()) @db.Timestamp(0)
+  DeliveryLineID      Int?      @db.SmallInt
+  LINEID              Int?
+  LOC                 String    @default("") @db.VarChar(3)
+  id                  Int       @id @default(autoincrement())
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model HydOrderItems_Blcoked {
+  OrderNumber String @db.VarChar(20)
+  ProductID   Int    @db.SmallInt
+  OrderQty    Float?
+  CUSTOMERID  Int?   @db.MediumInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ItemPurchaseMonthly {
+  ProductInvID Int?
+  Y            Int?
+  M            Int?
+  purchase     Float?
+  PurchaseAmt  Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ItemSalesMonthly {
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Y            Int?
+  M            Int?
+  Sales        Float?
+  SalesAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
+  Short        Float?
+  ShortAmt     Float?
+  PuneSales    Float?
+  PuneSalesAmt Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Itemprice {
+  ProductName String @db.VarChar(50)
+  SP          Float? @default(0) @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Itemscheck {
+  OrderItemID         Int     @default(0) @db.UnsignedInt
+  OrderID             Int     @db.UnsignedInt
+  ProductID           Int     @db.SmallInt
+  OrderQty            Float?  @db.Float
+  Price               Float?  @db.Float
+  DeliveryLineID      Int?    @db.SmallInt
+  OrderItemStatus     String? @db.VarChar(20)
+  Comments            String? @db.VarChar(200)
+  OrderNumber         String  @db.VarChar(20)
+  OrderItemCount      Int?    @db.SmallInt
+  EstimateOrderAmount Float?  @db.Float
+  LOC                 String  @default("") @db.VarChar(3)
+  CustomerID          Int     @db.SmallInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model LINEID1 {
+  LINEID Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model LINEMASTER_BCK {
+  LINEID             Int     @default(0)
+  LINENAME           String? @db.VarChar(50)
+  DESCRIPTION        String? @db.VarChar(50)
+  LineManagerName    String? @db.VarChar(500)
+  LineManagerPhoneNo String? @db.VarChar(20)
+  City               String? @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model LatestPurchasePriceTable {
+  ProductInvID        Int      @db.UnsignedMediumInt
+  PurchaseInvoiceDate DateTime @db.DateTime(0)
+  ReceivedQty         Float?   @db.Float
+  Price               Float?   @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Linemonthsales {
+  LineID   Int?
+  Y        Int?
+  M        Int?
+  SalesAmt Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Mindate1 {
+  ProductName String    @db.VarChar(50)
+  mindate     DateTime? @db.Date
+
+  @@ignore
+}
+
+model Monthlytable {
+  y  Int?
+  M  Int?
+  id Int  @id @default(autoincrement())
+}
+
+model Monthstable {
+  Y  Int?
+  M  Int?
+  ID Int  @id @default(autoincrement())
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model NewPrice {
+  ProductName String? @db.Text
+  RetPr       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model NonActiveProd {
+  ProductID    Int    @default(0) @db.UnsignedMediumInt
+  ProductName  String @db.VarChar(50)
+  active       Int    @default(1) @db.TinyInt
+  ProductInvID Int?   @db.UnsignedMediumInt
+  sales        Float  @default(0)
+  SalesAmt     Float  @default(0)
+  counts       BigInt @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model NonActiveProd1 {
+  ProductID    Int    @default(0) @db.UnsignedMediumInt
+  ProductName  String @db.VarChar(50)
+  active       Int    @default(1) @db.TinyInt
+  ProductInvID Int?   @db.UnsignedMediumInt
+  sales        Float  @default(0)
+  SalesAmt     Float  @default(0)
+  counts       BigInt @default(0)
+  Stock        Float?
+  StockAmt     Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model NonActiveProd2 {
+  ProductID       Int    @default(0) @db.UnsignedMediumInt
+  ProductName     String @db.VarChar(50)
+  active          Int    @default(1) @db.TinyInt
+  ProductInvID    Int?   @db.UnsignedMediumInt
+  sales           Float  @default(0)
+  SalesAmt        Float  @default(0)
+  counts          BigInt @default(0)
+  Stock           Float?
+  StockAmt        Float?
+  CategoryName    String @db.VarChar(50)
+  SubCategoryName String @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OBlist {
+  CustomerName String? @db.Text
+  OB           Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OBlist1 {
+  CustomerName String? @db.Text
+  OB           Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OnamSales_Customer {
+  CUSTOMERNAME String  @db.VarChar(100)
+  City         String? @db.VarChar(50)
+  Sales        Float?
+  Y            Int     @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OnamSales_Customer1 {
+  CUSTOMERNAME String  @db.VarChar(100)
+  City         String? @db.VarChar(50)
+  Sales        Float?
+  SalesAmt     Float?
+  Y            Int     @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OnamSales_Items1 {
+  StockName String    @db.VarChar(50)
+  City      String?   @db.VarChar(50)
+  Date      DateTime? @db.Date
+  Sales     Float?
+  Rev       Float?
+  Y         Int       @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OnamSpecialitems {
+  StockName String @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OnamSplItems {
+  ProductID   Int    @default(0) @db.UnsignedMediumInt
+  ProductName String @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model OnamVegSales {
+  LineID       Int?
+  CUSTOMERNAME String    @db.VarChar(100)
+  StockName    String    @db.VarChar(50)
+  InvDate      DateTime? @db.Date
+  SalesNext    Float?
+  SalesAmt     Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Orders_BCKHYD {
+  OrderID             BigInt    @default(0) @db.UnsignedBigInt
+  OrderNumber         String    @db.VarChar(20)
+  OrderDate           DateTime  @db.DateTime(0)
+  CustomerID          Int       @db.SmallInt
+  OrderItemCount      Int?      @default(0) @db.SmallInt
+  EstimateOrderAmount Float?    @default(0) @db.Float
+  OrderStatus         String?   @db.VarChar(20)
+  DateDelivered       DateTime? @db.DateTime(0)
+  DateInvoiceCreated  DateTime? @db.DateTime(0)
+  CreationDate        DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedDate     DateTime? @default(now()) @db.Timestamp(0)
+  DeliveryLineID      Int?      @db.SmallInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PRICEGROUPMASTER_bck {
+  PriceGroupID   Int     @default(0) @db.UnsignedSmallInt
+  PriceGroupName String  @db.VarChar(50)
+  Description    String? @db.VarChar(200)
+  PriceColumn    String  @db.VarChar(50)
+  Discount       Float?  @db.Float
+  DiscountType   String? @db.VarChar(50)
+  IsDefault      Int     @default(1) @db.TinyInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Persons {
+  PersonID  Int?
+  LastName  String? @db.VarChar(255)
+  FirstName String? @db.VarChar(255)
+  Address   String? @db.VarChar(255)
+  City      String? @db.VarChar(255)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PrevStock {
+  Cust         String @default("") @db.VarChar(20)
+  CategoryName String @default("") @db.VarChar(50)
+  StockName    String @default("") @db.VarChar(50)
+  stock        Float?
+  StockAmt     Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdOrders {
+  ProductID  Int    @db.SmallInt
+  OrderQty   Float?
+  CurrentInv Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdPurchase2024Pune {
+  Month        Int?
+  ProductInvID Int?
+  Purchase     Float?
+  PurchaseAmt  Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdPurchasebyMonth {
+  Month        Int?
+  ProductInvID Int?
+  Purchase     Float?
+  PurchasesAmt Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdSales2024BLR {
+  Month        Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Sales        Float?
+  SalesAmt     Float?
+  Watage       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdSales2024Pune {
+  Month        Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Sales        Float?
+  SalesAmt     Float?
+  Watage       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdSalesbyMonth {
+  Month        Int?
+  ProductInvID Int?   @db.UnsignedMediumInt
+  ActSales     Float?
+  ActSalesAmt  Float?
+  Wastage      Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdSalesbyMonthPune {
+  Month        Int?
+  ProductInvID Int?   @db.UnsignedMediumInt
+  ActSales     Float?
+  ActSalesAmt  Float?
+  Wastage      Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProdSalesbyday {
+  Date         DateTime? @db.Date
+  ProductInvID Int?      @db.UnsignedMediumInt
+  Sales        Float?
+  SalesAmt     Float?
+  short        Float?
+  waste        Float?
+  shortAmt     Float?
+  wasteAmt     Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductCategoryMaster_bck_jun14 {
+  CategoryID   Int    @default(0) @db.UnsignedSmallInt
+  CategoryName String @db.VarChar(50)
+  Description  String @db.VarChar(200)
+  Active       Int    @default(1) @db.TinyInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductImages_MAD {
+  ProductID Int
+  M         String? @db.VarChar(1)
+  T         String? @db.VarChar(1)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductImages_New {
+  ProductImageID Int      @default(0) @db.UnsignedInt
+  ProductID      Int
+  ImageID        Int
+  SortOrder      Int
+  Active         Int      @default(1) @db.TinyInt
+  AddedDate      DateTime @default(now()) @db.DateTime(0)
+  LastUpdateDate DateTime @default(now()) @db.DateTime(0)
+  PTYPE          String   @default("") @db.VarChar(1)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductInventory_bck_jun14 {
+  ProductInvID       Int       @default(0) @db.UnsignedInt
+  StockName          String    @db.VarChar(50)
+  Inventory          Float     @db.Float
+  Units              Int?      @db.SmallInt
+  UnitsOfMeasurement String?   @db.VarChar(10)
+  ReOrderStockLevel  Float?    @db.Float
+  ReOrderStockQty    Float?    @db.Float
+  Active             Int       @default(1) @db.TinyInt
+  LastPODate         DateTime? @db.DateTime(0)
+  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductInventory_sys {
+  ProductInvID       Int       @default(0) @db.UnsignedInt
+  StockName          String    @db.VarChar(50)
+  Inventory          Float     @db.Float
+  Units              Int?      @db.SmallInt
+  UnitsOfMeasurement String?   @db.VarChar(10)
+  ReOrderStockLevel  Float?    @db.Float
+  ReOrderStockQty    Float?    @db.Float
+  Active             Int       @default(1) @db.TinyInt
+  LastPODate         DateTime? @db.DateTime(0)
+  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductInventory_tmp {
+  ProductInvID Int   @default(0) @db.UnsignedInt
+  Inventory    Float @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductMaster_BCK1 {
+  ProductID           Int       @default(0) @db.UnsignedMediumInt
+  ProductSKU          String    @db.VarChar(15)
+  ProductName         String    @db.VarChar(50)
+  Description         String    @db.VarChar(200)
+  SubCategoryID       Int       @db.UnsignedSmallInt
+  PurchasePrice       Float?    @db.Float
+  WholesalePrice      Float?    @db.Float
+  RetailPrice         Float?    @db.Float
+  MaxRetailPrice      Float?    @db.Float
+  Units               Float?    @db.Float
+  UnitsOfMeasurement  String?   @db.VarChar(10)
+  SortName            String    @db.VarChar(50)
+  DisplayName         String?   @db.VarChar(100)
+  TaxID               Int?      @db.UnsignedSmallInt
+  ProductInvID        Int?      @db.UnsignedMediumInt
+  VendorID            Int?      @db.UnsignedSmallInt
+  Barcode             String?   @db.VarChar(200)
+  IsRetailProduct     Int       @default(1) @db.TinyInt
+  Active              Int       @default(1) @db.TinyInt
+  AddedDate           DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdateDate      DateTime? @default(now()) @db.Timestamp(0)
+  SuperCategoryID     Int?
+  CategoryID          Int       @db.UnsignedSmallInt
+  OTSPrePR            Float?    @db.Float
+  OTSRegPR            Float?    @db.Float
+  Aliases             String?   @db.VarChar(200)
+  CategoryIDForApp    Int?
+  SubCategoryIDForApp Int?
+  IsNewProduct        Int?      @db.TinyInt
+  Parcelable          Int?      @db.TinyInt
+  OfferEnabled        Int?      @db.TinyInt
+  MinimumQty          Float?    @db.Float
+  DefaultLSQty        Float?    @db.Float
+  ProductInvIDForApp  Int?
+  CatalogID           Int?
+  CatalogDefault      Int?      @db.TinyInt
+  SortOrder           Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductMaster_b4PriceCorrect {
+  ProductID                Int       @default(0) @db.UnsignedMediumInt
+  ProductSKU               String    @db.VarChar(15)
+  ProductName              String    @db.VarChar(50)
+  Description              String    @db.VarChar(200)
+  SubCategoryID            Int       @db.UnsignedSmallInt
+  PurchasePrice            Float?    @db.Float
+  WholesalePrice           Float?    @db.Float
+  RetailPrice              Float?    @db.Float
+  MaxRetailPrice           Float?    @db.Float
+  Units                    Float?    @db.Float
+  UnitsOfMeasurement       String?   @db.VarChar(10)
+  SortName                 String    @db.VarChar(50)
+  DisplayName              String?   @db.VarChar(100)
+  TaxID                    Int?      @db.UnsignedSmallInt
+  ProductInvID             Int?      @db.UnsignedMediumInt
+  VendorID                 Int?      @db.UnsignedSmallInt
+  Barcode                  String?   @db.VarChar(200)
+  IsRetailProduct          Int       @default(1) @db.TinyInt
+  Active                   Int       @default(1) @db.TinyInt
+  AddedUserID              Int?
+  AddedPOSNumber           String?   @db.VarChar(50)
+  AddedDate                DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedUserID        Int?
+  LastUpdatedPOSNumber     String?   @db.VarChar(50)
+  LastUpdateDate           DateTime? @default(now()) @db.Timestamp(0)
+  SuperCategoryID          Int?
+  CategoryID               Int       @db.UnsignedSmallInt
+  OTSPrePR                 Float?    @db.Float
+  OTSRegPR                 Float?    @db.Float
+  Aliases                  String?   @db.VarChar(200)
+  CategoryIDForApp         Int?
+  SubCategoryIDForApp      Int?
+  IsNewProduct             Int?      @db.TinyInt
+  Parcelable               Int?      @db.TinyInt
+  OfferEnabled             Int?      @db.TinyInt
+  MinimumQty               Float?    @db.Float
+  DefaultLSQty             Float?    @db.Float
+  ProductInvIDForApp       Int?
+  CatalogID                Int?
+  CatalogDefault           Int?      @db.TinyInt
+  SortOrder                Int?
+  PremiumPrice             Float?    @db.Float
+  UnitsForApp              Float?    @db.Float
+  UnitsOfMeasurementForApp String?   @db.VarChar(10)
+  Measure                  String?   @db.VarChar(20)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductMaster_bck1 {
+  ProductID          Int       @default(0) @db.UnsignedMediumInt
+  ProductSKU         String    @db.VarChar(15)
+  ProductName        String    @db.VarChar(50)
+  Description        String    @db.VarChar(200)
+  SubCategoryID      Int       @db.UnsignedSmallInt
+  PurchasePrice      Float?    @db.Float
+  WholesalePrice     Float?    @db.Float
+  RetailPrice        Float?    @db.Float
+  MaxRetailPrice     Float?    @db.Float
+  Units              Float?    @db.Float
+  UnitsOfMeasurement String?   @db.VarChar(10)
+  SortName           String    @db.VarChar(50)
+  DisplayName        String?   @db.VarChar(100)
+  TaxID              Int?      @db.UnsignedSmallInt
+  ProductInvID       Int?      @db.UnsignedMediumInt
+  VendorID           Int?      @db.UnsignedSmallInt
+  Barcode            String?   @db.VarChar(200)
+  IsRetailProduct    Int       @default(1) @db.TinyInt
+  Active             Int       @default(1) @db.TinyInt
+  AddedDate          DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
+  SuperCategoryID    Int?
+  CategoryID         Int       @db.UnsignedSmallInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductMaster_bck_jun14 {
+  ProductID          Int       @default(0) @db.UnsignedMediumInt
+  ProductSKU         String    @db.VarChar(15)
+  ProductName        String    @db.VarChar(50)
+  Description        String    @db.VarChar(200)
+  SubCategoryID      Int       @db.UnsignedSmallInt
+  PurchasePrice      Float?    @db.Float
+  WholesalePrice     Float?    @db.Float
+  RetailPrice        Float?    @db.Float
+  MaxRetailPrice     Float?    @db.Float
+  Units              Float?    @db.Float
+  UnitsOfMeasurement String?   @db.VarChar(10)
+  SortName           String    @db.VarChar(50)
+  DisplayName        String?   @db.VarChar(100)
+  TaxID              Int?      @db.UnsignedSmallInt
+  ProductInvID       Int?      @db.UnsignedMediumInt
+  VendorID           Int?      @db.UnsignedSmallInt
+  Barcode            String?   @db.VarChar(200)
+  IsRetailProduct    Int       @default(1) @db.TinyInt
+  Active             Int       @default(1) @db.TinyInt
+  AddedDate          DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdateDate     DateTime? @default(now()) @db.Timestamp(0)
+  SuperCategoryID    Int?
+  CategoryID         Int       @db.UnsignedSmallInt
+
+  @@ignore
+}
+
+model ProductSKUMaster_NEW {
+  ProductSKUID             Int       @id @default(autoincrement()) @db.UnsignedMediumInt
+  ProductSKU               String    @db.VarChar(15)
+  ProductID                Int       @db.UnsignedMediumInt
+  PurchasePrice            Float?    @db.Float
+  WholesalePrice           Float?    @db.Float
+  RetailPrice              Float?    @db.Float
+  MaxRetailPrice           Float?    @db.Float
+  PremiumPrice             Float?    @db.Float
+  OTSPrePR                 Float?    @db.Float
+  OTSRegPR                 Float?    @db.Float
+  ProductInvID             Int?      @db.UnsignedMediumInt
+  Units                    Float?    @db.Float
+  UnitsOfMeasurement       String?   @db.VarChar(10)
+  ProductInvIDForApp       Int?
+  UnitsForApp              Float?    @db.Float
+  UnitsOfMeasurementForApp String?   @db.VarChar(10)
+  Barcode                  String?   @db.VarChar(200)
+  Active                   Int       @default(1) @db.TinyInt
+  AddedUserID              Int
+  AddedPOSNumber           String    @db.VarChar(50)
+  AddedDate                DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedUserID        Int
+  LastUpdatedPOSNumber     String    @db.VarChar(50)
+  LastUpdatedDate          DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model ProductSKUsExportLog {
+  ProductSKUsExportLogID Int       @id @default(autoincrement()) @db.UnsignedMediumInt
+  ProductSKUID           Int?      @db.MediumInt
+  Active                 Int?      @db.TinyInt
+  AddedDate              DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedDate        DateTime? @default(now()) @db.Timestamp(0)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductSales {
+  ProductName String    @db.VarChar(50)
+  Date        DateTime? @db.Date
+  Sales       Float?
+  SalesAmt    Float?
+  Short       Float?
+  ShortAmt    Float?
+  noofsales   BigInt    @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductSubCategoryMaster_bck_jun14 {
+  SubCategoryID   Int    @default(0) @db.UnsignedSmallInt
+  SubCategoryName String @db.VarChar(50)
+  Description     String @db.VarChar(200)
+  Active          Int    @default(1) @db.TinyInt
+  CategoryID      Int    @db.UnsignedSmallInt
+
+  @@ignore
+}
+
+model ProductsExportLog {
+  ProductsExportLogID Int       @id @default(autoincrement()) @db.UnsignedMediumInt
+  ProductID           Int?      @db.MediumInt
+  Active              Int?      @db.TinyInt
+  AddedDate           DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedDate     DateTime? @default(now()) @db.Timestamp(0)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductsHSN {
+  ProductName  String @db.VarChar(50)
+  CategoryName String @db.VarChar(50)
+  HSNCODE      String @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProductsHSN1 {
+  ProductName  String @db.VarChar(50)
+  CategoryName String @db.VarChar(50)
+  HSNCODE      String @db.VarChar(50)
+  TaxID        Int?   @default(0) @db.UnsignedSmallInt
+
+  @@ignore
+}
+
+model ProductsSales {
+  DisplayName String? @db.VarChar(100)
+  Sales       Float?
+  SalesAmt    Float?
+  id          Int     @id @default(autoincrement())
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneOrderItems_Blcoked {
+  OrderNumber String @db.VarChar(20)
+  ProductID   Int    @db.SmallInt
+  OrderQty    Float?
+  CUSTOMERID  Int?   @db.MediumInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneOrderItems_Blcoked_bck {
+  OrderNumber String @db.VarChar(20)
+  ProductID   Int    @db.SmallInt
+  OrderQty    Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneProdSales {
+  ProductID Int       @db.SmallInt
+  INVDATE   DateTime? @db.Date
+  Sales     Float?
+  SalesAmt  Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneProdSales1 {
+  ProductID Int       @db.SmallInt
+  INVDATE   DateTime? @db.Date
+  Sales     Float?
+  SalesAmt  Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneProdsales {
+  ProductID Int    @db.SmallInt
+  nos       BigInt @default(0)
+  amt       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneProdsales1 {
+  ProductID Int      @db.SmallInt
+  nos       Decimal? @db.Decimal(42, 0)
+  amt       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneSales_Pune {
+  ProductName String @db.VarChar(50)
+  WK          Int?
+  Sales       Float?
+  SalesAmt    Float?
+  Short       Float?
+  ShortAmt    Float?
+  salescount  BigInt @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PuneSales_blr {
+  ProductName String @db.VarChar(50)
+  WK          Int?
+  Sales       Float?
+  SalesAmt    Float?
+  Short       Float?
+  ShortAmt    Float?
+  salescount  BigInt @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Puneorders_Check {
+  OrderID             BigInt    @default(0) @db.UnsignedBigInt
+  OrderNumber         String    @db.VarChar(20)
+  OrderDate           DateTime  @db.DateTime(0)
+  CustomerID          Int       @db.SmallInt
+  OrderItemCount      Int?      @default(0) @db.SmallInt
+  EstimateOrderAmount Float?    @default(0) @db.Float
+  OrderStatus         String?   @db.VarChar(20)
+  DateDelivered       DateTime? @db.DateTime(0)
+  DateInvoiceCreated  DateTime? @db.DateTime(0)
+  CreationDate        DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedDate     DateTime? @default(now()) @db.Timestamp(0)
+  DeliveryLineID      Int?      @db.SmallInt
+  CUSTOMERNAME        String    @db.VarChar(100)
+  LINEID              Int?
+  LOC                 String    @default("") @db.VarChar(3)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PurchaseAll {
+  Date1     DateTime? @db.Date
+  Vendor    String?   @db.VarChar(50)
+  BillNo    String?   @db.VarChar(50)
+  ItemName  String?   @db.VarChar(50)
+  QTY       Float?    @db.Float
+  Price     Float?    @db.Float
+  Total     Float?    @db.Float
+  Category  String?   @db.VarChar(50)
+  Units     Float?    @db.Float
+  StockName String?   @db.VarChar(50)
+  STOCKQTY  Float?    @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PurchaseInvoices_lalsonGinger {
+  PurchaseInvoiceID        Int       @default(0) @db.UnsignedMediumInt
+  PurchaseInvoiceNumber    String    @db.VarChar(20)
+  PurchaseInvoiceDate      DateTime  @db.DateTime(0)
+  VendorID                 Int       @db.UnsignedSmallInt
+  PurchaseOrderID          Int       @db.UnsignedMediumInt
+  PurchaseInvoiceItemCount Int?      @default(0) @db.SmallInt
+  GrossInvoiceAmount       Float?    @default(0) @db.Float
+  DiscountAmount           Float?    @default(0) @db.Float
+  NetInvoiceAmount         Float?    @default(0) @db.Float
+  PurchaseInvoiceStatus    String?   @db.VarChar(20)
+  CreationDate             DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdatedDate          DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PurchaseNew {
+  Date1     DateTime? @db.Date
+  Vendor    String?   @db.VarChar(50)
+  BillNo    String?   @db.VarChar(50)
+  ItemName  String?   @db.VarChar(50)
+  QTY       Float?    @db.Float
+  Price     Float?    @db.Float
+  Total     Float?    @db.Float
+  Category  String?   @db.VarChar(50)
+  Units     Float?    @db.Float
+  StockName String?   @db.VarChar(50)
+  STOCKQTY  Float?    @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PurchaseNew1 {
+  Date1     DateTime? @db.Date
+  Vendor    String?   @db.VarChar(50)
+  BillNo    String?   @db.VarChar(50)
+  ItemName  String?   @db.VarChar(50)
+  QTY       Float?    @db.Float
+  Price     Float?    @db.Float
+  Total     Float?    @db.Float
+  Category  String?   @db.VarChar(50)
+  Units     Float?    @db.Float
+  StockName String?   @db.VarChar(50)
+  STOCKQTY  Float?    @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model PurchaseNew2 {
+  Date1     DateTime? @db.Date
+  Vendor    String?   @db.VarChar(50)
+  BillNo    String?   @db.VarChar(50)
+  ItemName  String?   @db.VarChar(50)
+  QTY       Float?    @db.Float
+  Price     Float?    @db.Float
+  Total     Float?    @db.Float
+  Category  String?   @db.VarChar(50)
+  Units     Float?    @db.Float
+  StockName String?   @db.VarChar(50)
+  STOCKQTY  Float?    @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Purchase_All_Dup {
+  Date1        DateTime? @db.Date
+  Vendor       String?   @db.VarChar(50)
+  BillNo       String?   @db.VarChar(50)
+  ItemName     String?   @db.VarChar(50)
+  QTY          Float?    @db.Float
+  Price        Float?    @db.Float
+  Total        Float?    @db.Float
+  Category     String?   @db.VarChar(50)
+  Units        Float?    @db.Float
+  StockName    String?   @db.VarChar(50)
+  STOCKQTY     Float?    @db.Float
+  Take         Int       @default(0)
+  ProductID    Int?
+  ProductInvID Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Purchase_All_KACh {
+  Date1        DateTime? @db.Date
+  Vendor       String?   @db.VarChar(50)
+  BillNo       String?   @db.VarChar(50)
+  ItemName     String?   @db.VarChar(50)
+  QTY          Float?    @db.Float
+  Price        Float?    @db.Float
+  Total        Float?    @db.Float
+  Category     String?   @db.VarChar(50)
+  Units        Float?    @db.Float
+  StockName    String?   @db.VarChar(50)
+  STOCKQTY     Float?    @db.Float
+  Take         Int       @default(0)
+  ProductID    Int?
+  ProductInvID Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Purchase_All_temp {
+  Date1        DateTime? @db.Date
+  Vendor       String?   @db.VarChar(50)
+  BillNo       String?   @db.VarChar(50)
+  ItemName     String?   @db.VarChar(50)
+  QTY          Float?    @db.Float
+  Price        Float?    @db.Float
+  Total        Float?    @db.Float
+  Category     String?   @db.VarChar(50)
+  Units        Float?    @db.Float
+  StockName    String?   @db.VarChar(50)
+  STOCKQTY     Float?    @db.Float
+  Take         Int       @default(0)
+  ProductID    Int?
+  ProductInvID Int?
+
+  @@ignore
+}
+
+model ServiceLog {
+  ServiceLogID     Int       @id @default(autoincrement()) @db.UnsignedInt
+  HTTPMethod       String?   @db.VarChar(20)
+  RequestURI       String?   @db.VarChar(200)
+  QueryString      String?   @db.VarChar(200)
+  RequestDateTime  DateTime? @db.DateTime(0)
+  UserName         String?   @db.VarChar(50)
+  UserAgent        String?   @db.VarChar(200)
+  RequestBody      String?   @db.VarChar(500)
+  ClientIPAddress  String?   @db.VarChar(30)
+  StatusCode       Int?      @db.SmallInt
+  ResponseTimeInMs Int?      @db.MediumInt
+  ErrorStackTrace  String?   @db.VarChar(2000)
+  Application      String?   @db.VarChar(100)
+  AddedDate        DateTime  @default(now()) @db.Timestamp(0)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SettingsMaster_bck {
+  SettingID      Int       @default(0) @db.UnsignedSmallInt
+  XMLString      String    @db.Text
+  LastUpdateDate DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Stock {
+  stockname   String?  @db.VarChar(30)
+  vendor      String?  @db.VarChar(30)
+  category    String?  @db.VarChar(30)
+  PurchaseAmt Decimal? @db.Decimal(10, 0)
+  SalesAmt    Decimal? @db.Decimal(10, 0)
+  ProfitAmt   Decimal? @db.Decimal(10, 0)
+  purchase    Decimal? @db.Decimal(10, 0)
+  sales       Decimal? @db.Decimal(10, 0)
+  shortQty    Decimal? @db.Decimal(10, 0)
+  shortAmt    Decimal? @db.Decimal(10, 0)
+  ShortPerc   Decimal? @db.Decimal(10, 0)
+  pp          Decimal? @db.Decimal(10, 0)
+  SP          Decimal? @db.Decimal(10, 0)
+  stock       Decimal? @db.Decimal(10, 0)
+  Stockamt    Decimal? @db.Decimal(10, 0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Stockhist {
+  HistoryEntryID Int       @default(0) @db.UnsignedInt
+  ProductInvID   Int       @db.UnsignedSmallInt
+  Type           String?   @db.VarChar(10)
+  OrderedQty     Float?    @db.Float
+  ReceivedQty    Float?    @db.Float
+  NetQty         Float?    @db.Float
+  PODate         DateTime? @db.DateTime(0)
+  UpdateDate     DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+}
+
+model SuperCategoryMaster {
+  SuperCategoryID   Int     @id @default(autoincrement()) @db.UnsignedMediumInt
+  SuperCategoryNAME String? @db.VarChar(50)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model T1 {
+  InvoiceID    Int?
+  CUSTOMERNAME String? @db.VarChar(100)
+  ProductName  String? @db.VarChar(50)
+  SaleQty      Float?  @db.Float
+  Price        Float?  @db.Float
+  NetTotal     Float?
+  CategoryName String? @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPPuneOrderItems {
+  OrderItemID     Int     @default(0) @db.UnsignedInt
+  OrderID         Int     @db.UnsignedInt
+  ProductID       Int     @db.SmallInt
+  OrderQty        Float?  @db.Float
+  Price           Float?  @db.Float
+  DeliveryLineID  Int?    @db.SmallInt
+  OrderItemStatus String? @db.VarChar(20)
+  Comments        String? @db.VarChar(200)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPPurchase {
+  Y            Int?
+  M            Int?
+  ProductInvID Int?
+  STOCKQTY     Float?
+  Total        Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPPurchase_BLR {
+  Y            Int?
+  M            Int?
+  ProductInvID Int?
+  STOCKQTY     Float?
+  Total        Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPPurchase_PUNE {
+  Y            Int?
+  M            Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  STOCKQTY     Float?
+  Total        Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPPurchase_Pune {
+  Y            Int?
+  M            Int?
+  ProductInvID Int?
+  STOCKQTY     Float?
+  Total        Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPsalesnew {
+  Y            Int?
+  M            Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Sales        Float?
+  SalesAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
+  Short        Float?
+  ShortAmt     Float?
+  PunSales     Float?
+  PuneAmt      Float?
+  HYDSales     Float?
+  HYDAmt       Float?
+  BlrSales     Float?
+  BlrAmt       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPsalesnew_BLR {
+  Y            Int?
+  M            Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Sales        Float?
+  SalesAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
+  Short        Float?
+  ShortAmt     Float?
+  PunSales     Float?
+  PuneAmt      Float?
+  HYDSales     Float?
+  HYDAmt       Float?
+  BlrSales     Float?
+  BlrAmt       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPsalesnew_PUNE {
+  Y            Int?
+  M            Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Sales        Float?
+  SalesAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
+  Short        Float?
+  ShortAmt     Float?
+  PunSales     Float?
+  PuneAmt      Float?
+  HYDSales     Float?
+  HYDAmt       Float?
+  BlrSales     Float?
+  BlrAmt       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPsalesnew_Pune {
+  Y            Int?
+  M            Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Sales        Float?
+  SalesAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
+  Short        Float?
+  ShortAmt     Float?
+  PunSales     Float?
+  PuneAmt      Float?
+  HYDSales     Float?
+  HYDAmt       Float?
+  BlrSales     Float?
+  BlrAmt       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TMPsalesnew_pune {
+  Y            Int?
+  M            Int?
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  Sales        Float?
+  SalesAmt     Float?
+  Orphange     Float?
+  OrphangeAmt  Float?
+  Short        Float?
+  ShortAmt     Float?
+  PunSales     Float?
+  PuneAmt      Float?
+  HYDSales     Float?
+  HYDAmt       Float?
+  BlrSales     Float?
+  BlrAmt       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TaxIDpurchase {
+  TaxID                Int?   @db.UnsignedSmallInt
+  StateID              Int    @db.UnsignedSmallInt
+  PurchaseTaxableValue Float?
+  PurchaseAmt          Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TempOrderTable {
+  ID        Float? @db.Float
+  StockName String @db.VarChar(50)
+  SatOrders Float?
+  TueOrders Float?
+  WedOrders Float?
+  ThuOrders Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TempP1 {
+  Date1       DateTime? @db.Date
+  StockName   String?   @db.VarChar(50)
+  Purchase    Float?
+  PurchaseAmt Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TempProductSelect {
+  CUSTOMERNAME String   @default("") @db.VarChar(100)
+  ProductID    Int      @default(0) @db.SmallInt
+  ProductName  String   @default("") @db.VarChar(50)
+  Weigted      Decimal? @db.Decimal(65, 1)
+  counts       Decimal? @db.Decimal(64, 0)
+  sales        Float?
+  Total        Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TempPurchaseTable {
+  ID          Float? @db.Float
+  StockName   String @db.VarChar(50)
+  SatPurchase Float  @default(0)
+  TuePurchase Float  @default(0)
+  WedPurchase Float  @default(0)
+  ThuPurchase Float  @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TempSalesTable {
+  ID            Float? @db.Float
+  StockName     String @db.VarChar(50)
+  OrderUnits    Bytes? @db.Binary(0)
+  Inventory     Float  @default(0)
+  SatSales      Float  @default(0)
+  TueSales      Float  @default(0)
+  WedSales      Float  @default(0)
+  ThuSales      Float  @default(0)
+  SatSalesWaste Float  @default(0)
+  TueSalesWaste Float  @default(0)
+  WedSalesWaste Float  @default(0)
+  ThuSalesWaste Float  @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TempSalesTable1 {
+  StockName    String @db.VarChar(50)
+  Salestuesday Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TempSalesTable2 {
+  StockName    String @db.VarChar(50)
+  Salestuesday Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Tempordercancelcheck {
+  CustomerID Int    @db.SmallInt
+  OrderID    Int    @db.UnsignedInt
+  ProductID  Int    @db.SmallInt
+  OrderQty   Float? @db.Float
+  Price      Float? @db.Float
+  Sales      Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TemppurchaseItemsOrder {
+  ProductName  String   @db.VarChar(50)
+  Inventory    Float    @db.Float
+  Vendor       String?  @db.VarChar(50)
+  ReOrderUnits Decimal? @db.Decimal(10, 0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VIForApp {
+  ProductInvID Int    @default(0) @db.UnsignedMediumInt
+  VInventory   Float? @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VIForApp_test {
+  ProductInvID Int    @default(0) @db.UnsignedMediumInt
+  VInventory   Float? @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VegMainFile {
+  DATE         DateTime? @db.Timestamp(0)
+  BillNo       String?   @db.VarChar(500)
+  CUSTOMERNAME String?   @db.VarChar(500)
+  Sale         Float?
+  Candel       Float?    @db.Float
+  Return       Float?    @db.Float
+  Discount     Float?    @db.Float
+  Cash         Float?    @db.Float
+  Balance      Float?    @db.Float
+  CUSTOMERID   Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VegStockCheck {
+  ID           Int    @default(0)
+  StockName    String @db.VarChar(50)
+  ProductInvID Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VendorMaster_bck {
+  VendorID        Int       @default(0) @db.UnsignedSmallInt
+  VendorName      String    @db.VarChar(50)
+  Address         String?   @db.VarChar(1000)
+  PhoneNo         String?   @db.VarChar(20)
+  GSTIN           String?   @db.VarChar(20)
+  StateID         Int       @db.UnsignedSmallInt
+  Active          Int       @default(1) @db.TinyInt
+  AddedDate       DateTime? @default(now()) @db.Timestamp(0)
+  LastUpdateDate  DateTime? @default(now()) @db.Timestamp(0)
+  VendorGroupName String    @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VendorOB {
+  VendorName    String @db.VarChar(50)
+  BalanceAmount Float? @default(0) @db.Float
+  VendorID      Int    @db.UnsignedMediumInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VishuProducts {
+  ProductID   Int    @default(0) @db.UnsignedMediumInt
+  ProductName String @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VishuSales1Pune {
+  StockName       String    @db.VarChar(50)
+  DeliveryLineID  Int?      @db.SmallInt
+  Date1           DateTime? @db.Date
+  Sales1          Float?
+  SaleAmt         Float?
+  LINENAME        String?   @db.VarChar(50)
+  CategoryName    String    @db.VarChar(50)
+  SubCategoryName String    @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VishuSales1Ver {
+  ProductName    String    @db.VarChar(50)
+  DeliveryLineID Int?      @db.SmallInt
+  Date1          DateTime? @db.Date
+  Sales1         Float?
+  SaleAmt        Float?
+  LINENAME       String?   @db.VarChar(50)
+  CategoryName   String    @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VishuSalesPune {
+  StockName      String    @db.VarChar(50)
+  DeliveryLineID Int?      @db.SmallInt
+  Date1          DateTime? @db.Date
+  Sales1         Float?
+  SaleAmt        Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VishuSalesVer {
+  ProductName    String    @db.VarChar(50)
+  DeliveryLineID Int?      @db.SmallInt
+  Date1          DateTime? @db.Date
+  Sales1         Float?
+  SaleAmt        Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model WKLYAVGSALE {
+  ProductInvID Int    @default(0) @db.UnsignedInt
+  StockName    String @db.VarChar(50)
+  Avgsales     Float?
+  SDsales      Float?
+
+  @@ignore
+}
+
+model audit_ProductSKUMaster {
+  audit_ProductSKUMasterID Int       @id @default(autoincrement()) @db.UnsignedInt
+  ProductSKUID             Int?      @db.UnsignedMediumInt
+  ProductSKU               String?   @db.VarChar(15)
+  ProductID                Int?      @db.UnsignedMediumInt
+  PurchasePrice            Float?    @db.Float
+  WholesalePrice           Float?    @db.Float
+  OTSPrePR                 Float?    @db.Float
+  OTSRegPR                 Float?    @db.Float
+  PremiumPrice             Float?    @db.Float
+  RetailPrice              Float?    @db.Float
+  MaxRetailPrice           Float?    @db.Float
+  ProductInvID             Int?      @db.UnsignedMediumInt
+  Units                    Float?    @db.Float
+  UnitsOfMeasurement       String?   @db.VarChar(10)
+  ProductInvIDForApp       Int?      @db.UnsignedMediumInt
+  UnitsForApp              Float?    @db.Float
+  UnitsOfMeasurementForApp String?   @db.VarChar(10)
+  Measure                  String?   @db.VarChar(20)
+  Barcode                  String?   @db.VarChar(200)
+  Active                   Int?      @db.TinyInt
+  LastUpdatedUserID        Int?      @db.UnsignedMediumInt
+  LastUpdatedPOSNumber     String?   @db.VarChar(50)
+  LastUpdatedDate          DateTime? @db.DateTime(0)
+  DBAction                 String?   @db.VarChar(5)
+  DBActionUser             String?   @db.VarChar(50)
+  DBActionDate             DateTime  @default(now()) @db.Timestamp(0)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model cerenpunereorders {
+  ProductID Int    @db.SmallInt
+  orderqty  Float?
+  orderamt  Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model cerenpunereorders1 {
+  ProductID       Int    @db.SmallInt
+  orderqty        Float?
+  orderamt        Float?
+  ProductName     String @db.VarChar(50)
+  CategoryName    String @db.VarChar(50)
+  SubCategoryName String @db.VarChar(50)
+  Inventory       Float? @db.Float
+  Ordqty          Float?
+  ordAmt          Float?
+  ReorderQty      Float? @db.Float
+
+  @@ignore
+}
+
+model cerenpunereorders1_1 {
+  ProductID       Int    @db.SmallInt
+  orderqty        Float?
+  orderamt        Float?
+  ProductName     String @db.VarChar(50)
+  CategoryName    String @db.VarChar(50)
+  SubCategoryName String @db.VarChar(50)
+  Inventory       Float? @db.Float
+  Ordqty          Float?
+  ordAmt          Float?
+  ReorderQty      Float? @db.Float
+  id1             Int    @id @default(autoincrement())
+}
+
+model cerenpunereorders1_2 {
+  ProductID       Int    @db.SmallInt
+  orderqty        Float?
+  orderamt        Float?
+  ProductName     String @db.VarChar(50)
+  CategoryName    String @db.VarChar(50)
+  SubCategoryName String @db.VarChar(50)
+  Inventory       Float? @db.Float
+  Ordqty          Float?
+  ordAmt          Float?
+  ReorderQty      Float? @db.Float
+  id1             Int    @id @default(autoincrement())
+}
+
+model cerenpunereorders1_3 {
+  ProductID       Int    @db.SmallInt
+  orderqty        Float?
+  orderamt        Float?
+  ProductName     String @db.VarChar(50)
+  CategoryName    String @db.VarChar(50)
+  SubCategoryName String @db.VarChar(50)
+  Inventory       Float? @db.Float
+  Ordqty          Float?
+  ordAmt          Float?
+  ReorderQty      Float? @db.Float
+  id1             Int    @id @default(autoincrement())
+}
+
+model cerenpunereorders1_4 {
+  ProductID       Int    @db.SmallInt
+  orderqty        Float?
+  orderamt        Float?
+  ProductName     String @db.VarChar(50)
+  CategoryName    String @db.VarChar(50)
+  SubCategoryName String @db.VarChar(50)
+  Inventory       Float? @db.Float
+  Ordqty          Float?
+  ordAmt          Float?
+  ReorderQty      Float? @db.Float
+  id1             Int    @id @default(autoincrement())
+}
+
+model cerenpunereorders1_5 {
+  ProductID       Int    @db.SmallInt
+  orderqty        Float?
+  orderamt        Float?
+  ProductName     String @db.VarChar(50)
+  CategoryName    String @db.VarChar(50)
+  SubCategoryName String @db.VarChar(50)
+  Inventory       Float? @db.Float
+  Ordqty          Float?
+  ordAmt          Float?
+  ReorderQty      Float? @db.Float
+  id1             Int    @id @default(autoincrement())
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model josereport_DEP1 {
+  EInvoiceID       Int       @default(0) @db.UnsignedSmallInt
+  EInvoiceNumber   String    @db.VarChar(20)
+  CUSTOMERNAME     String    @db.VarChar(100)
+  CustomerID       Int       @db.UnsignedInt
+  InvoiceDate      DateTime? @db.Date
+  NetInvoiceAmount Float?    @db.Float
+  NetTotalexmpt    Float?
+  NetTotal0        Float?
+  CGST25           Float?
+  SGST25           Float?
+  IGST25           Float?
+  NetTotal25Tax    Float?
+  NetTotal25       Float?
+  CGST6            Float?
+  SGST6            Float?
+  IGST6            Float?
+  NetTotal6Tax     Float?
+  NetTotal6        Float?
+  CGST9            Float?
+  SGST9            Float?
+  IGST9            Float?
+  NetTotal9Tax     Float?
+  NetTotal9        Float?
+  AckNo            String?   @db.VarChar(50)
+  GSTIN            String?   @db.VarChar(20)
+  state            String?   @db.VarChar(50)
+  CITY             String?   @db.VarChar(100)
+  Exempted         Int       @default(0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model mindate1 {
+  ProductName String?   @db.VarChar(50)
+  mindate     DateTime? @db.Date
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ob {
+  CUSTOMERNAME String  @db.VarChar(100)
+  OldBalance   Float?  @default(0) @db.Float
+  Line         String? @default("0") @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ordersall1 {
+  wk          Int?
+  ProductName String? @db.VarChar(50)
+  counts      BigInt  @default(0)
+  NetTotal    Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ordersall2 {
+  wk              Int?
+  ProductName     String? @db.VarChar(50)
+  counts          BigInt  @default(0)
+  NetTotal        Float?
+  CategoryName    String  @db.VarChar(50)
+  SubCategoryName String  @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model purchaseItemsOrder {
+  ProductName  String   @db.VarChar(50)
+  Inventory    Float    @db.Float
+  Vendor       String?  @db.VarChar(50)
+  ReOrderUnits Decimal? @db.Decimal(10, 0)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model stock {
+  ProductName String @db.VarChar(50)
+  stock       Float? @db.Float
+  stockPrice  Float? @db.Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model stockupdate {
+  ProductName String @db.VarChar(50)
+  stock       Float? @db.Float
+  stockPrice  Float? @db.Float
+  Purchase    Float?
+  sales       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model t1 {
+  StockName    String  @db.VarChar(50)
+  Inventory    Float   @db.Float
+  CategoryName String? @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model t111 {
+  OrderNumber     String  @db.VarChar(20)
+  CustomerID      Int     @db.SmallInt
+  ProductID       Int     @db.SmallInt
+  OrderQTY        Float?  @db.Float
+  OrderItemStatus String? @db.VarChar(20)
+  OrderID         Int     @default(0) @db.UnsignedSmallInt
+
+  @@ignore
 }

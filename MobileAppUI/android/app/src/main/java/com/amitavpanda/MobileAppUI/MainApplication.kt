@@ -1,4 +1,4 @@
-package com.amitavpanda.MobileAppUI
+package com.amitavpanda.mobileappui
 
 import android.app.Application
 import android.content.res.Configuration

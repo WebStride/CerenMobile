@@ -2,16 +2,50 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function getCustomerPricingInfo(userId: number) {
+/**
+ * Get customer pricing info based on userId and optional selectedCustomerId
+ * Priority: selectedCustomerId > userId lookup
+ * @param userId - User ID from token
+ * @param selectedCustomerId - Optional selected customer/store ID
+ * @returns Pricing information including whether to show prices
+ */
+export async function getCustomerPricingInfo(userId: number, selectedCustomerId?: number | null) {
+    console.log(`[getCustomerPricingInfo] userId: ${userId}, selectedCustomerId: ${selectedCustomerId}`);
+
+    // If a specific customerID is provided (from store selection), use it
+    if (selectedCustomerId) {
+        const customer = await prisma.cUSTOMERMASTER.findFirst({
+            where: { CUSTOMERID: selectedCustomerId }
+        });
+
+        if (customer) {
+            const priceGroup = await prisma.pRICEGROUPMASTER.findUnique({
+                where: { PriceGroupID: customer.PRICEGROUPID || 1 }
+            });
+
+            console.log(`[getCustomerPricingInfo] Found customer ${selectedCustomerId}, priceColumn: ${priceGroup?.PriceColumn}`);
+
+            return {
+                customerPresent: true,
+                customerId: customer.CUSTOMERID,
+                priceColumn: priceGroup?.PriceColumn || 'RetailPrice',
+                showPricing: true // Show pricing when customer is selected
+            };
+        }
+    }
+
+    // Fallback: try to find customer by userId
     const customer = await prisma.cUSTOMERMASTER.findFirst({
-        where: { CUSTOMERID: userId }
+        where: { USERID: userId }
     });
 
     if (!customer) {
+        console.log(`[getCustomerPricingInfo] No customer found - catalog mode (no pricing)`);
         return {
             customerPresent: false,
             customerId: null,
-            priceColumn: null
+            priceColumn: null,
+            showPricing: false // Don't show pricing in catalog mode
         };
     }
 
@@ -19,10 +53,13 @@ export async function getCustomerPricingInfo(userId: number) {
         where: { PriceGroupID: customer.PRICEGROUPID || 1 }
     });
 
+    console.log(`[getCustomerPricingInfo] Found customer via userId, priceColumn: ${priceGroup?.PriceColumn}`);
+
     return {
         customerPresent: true,
         customerId: customer.CUSTOMERID,
-        priceColumn: priceGroup?.PriceColumn || 'RetailPrice' // Default to RetailPrice if no price group found
+        priceColumn: priceGroup?.PriceColumn || 'RetailPrice',
+        showPricing: true // Show pricing when customer exists
     };
 }
 
@@ -43,10 +80,22 @@ async function getProductImage(productId: number) {
         }
     });
 
-    return imageData?.Url || null;
+    if (!imageData?.Url) return null;
+    
+    // Prepend base URL if the URL is relative
+    const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+    const imageUrl = imageData.Url;
+    
+    // Check if URL is already absolute (starts with http:// or https://)
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        return imageUrl;
+    }
+    
+    // Prepend base URL to relative path
+    return `${imageBaseUrl}${imageUrl}`;
 }
 
-export async function getExclusiveProducts(customerId: number | null, priceColumn: string | null) {
+export async function getExclusiveProducts(customerId: number | null, priceColumn: string | null, showPricing: boolean = true) {
     const catalogProducts = await prisma.productMaster.findMany({
         where: {
             OfferEnabled: 1,
@@ -59,7 +108,7 @@ export async function getExclusiveProducts(customerId: number | null, priceColum
             UnitsOfMeasurement: true,
             CatalogID: true,
             MinimumQty: true,
-            ...(priceColumn ? { [priceColumn]: true } : {})
+            ...(priceColumn && showPricing ? { [priceColumn]: true } : {})
         }
     });
 
@@ -72,9 +121,10 @@ export async function getExclusiveProducts(customerId: number | null, priceColum
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null, // null = don't show price
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing // Flag to indicate if pricing should be displayed
             };
         })
     );
@@ -83,7 +133,7 @@ export async function getExclusiveProducts(customerId: number | null, priceColum
 }
 
 
-export async function getCustomerPreferredProducts(customerId: number | null, priceColumn: string | null) {
+export async function getCustomerPreferredProducts(customerId: number | null, priceColumn: string | null, showPricing: boolean = true) {
     if (!customerId) {
         return [];
     }
@@ -110,7 +160,7 @@ export async function getCustomerPreferredProducts(customerId: number | null, pr
             UnitsOfMeasurement: true,
             CatalogID: true,
             MinimumQty: true,
-            ...(priceColumn ? { [priceColumn]: true } : {})
+            ...(priceColumn && showPricing ? { [priceColumn]: true } : {})
         }
     });
 
@@ -123,9 +173,10 @@ export async function getCustomerPreferredProducts(customerId: number | null, pr
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })
     );
@@ -133,7 +184,7 @@ export async function getCustomerPreferredProducts(customerId: number | null, pr
     return productsWithImages;
 }
 
-export async function getAllProducts(customerId: number | null, priceColumn: string | null) {
+export async function getAllProducts(customerId: number | null, priceColumn: string | null, showPricing: boolean = true) {
 
     const catalogProducts = await prisma.productMaster.findMany({
         where: {
@@ -146,7 +197,7 @@ export async function getAllProducts(customerId: number | null, priceColumn: str
             UnitsOfMeasurement: true,
             CatalogID: true,
             MinimumQty: true,
-            ...(priceColumn ? { [priceColumn]: true } : {})
+            ...(priceColumn && showPricing ? { [priceColumn]: true } : {})
         }
     });
 
@@ -159,9 +210,10 @@ export async function getAllProducts(customerId: number | null, priceColumn: str
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })
     );
@@ -170,7 +222,7 @@ export async function getAllProducts(customerId: number | null, priceColumn: str
 }
 
 
-export async function getNewProducts(customerId: number | null, priceColumn: string | null) {
+export async function getNewProducts(customerId: number | null, priceColumn: string | null, showPricing: boolean = true) {
     const catalogProducts = await prisma.productMaster.findMany({
         where: {
             IsNewProduct: 1,
@@ -183,7 +235,7 @@ export async function getNewProducts(customerId: number | null, priceColumn: str
             UnitsOfMeasurement: true,
             CatalogID: true,
             MinimumQty: true,
-            ...(priceColumn ? { [priceColumn]: true } : {})
+            ...(priceColumn && showPricing ? { [priceColumn]: true } : {})
         }
     });
 
@@ -196,16 +248,17 @@ export async function getNewProducts(customerId: number | null, priceColumn: str
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })
     );
 
     return productsWithImages;
 }
-export async function getBestSellingProducts(customerId: number | null, priceColumn: string | null, sortOrderLimit: number) {
+export async function getBestSellingProducts(customerId: number | null, priceColumn: string | null, sortOrderLimit: number, showPricing: boolean = true) {
     const products = await prisma.productMaster.findMany({
         where: {
             Active: 1,
@@ -236,9 +289,10 @@ export async function getBestSellingProducts(customerId: number | null, priceCol
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })
     );
@@ -247,6 +301,8 @@ export async function getBestSellingProducts(customerId: number | null, priceCol
 }
 
 export async function getCategories() {
+    const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+    
     const categories = await prisma.productCategoryMaster.findMany({
         where: {
             Active: 1
@@ -274,7 +330,15 @@ export async function getCategories() {
                         Url: true
                     }
                 });
-                imageUrl = imageData?.Url;
+                if (imageData?.Url) {
+                    const url = imageData.Url;
+                    // Check if URL is already absolute
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        imageUrl = url;
+                    } else {
+                        imageUrl = `${imageBaseUrl}${url}`;
+                    }
+                }
             }
 
             return {
@@ -294,6 +358,8 @@ export async function getCategories() {
 // ...existing code...
 
 export async function getSubCategoriesByCategoryId(categoryId: number) {
+    const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+    
     // Fetch subcategories for the given categoryId
     const subCategories = await prisma.productSubCategoryMaster.findMany({
         where: {
@@ -321,7 +387,15 @@ export async function getSubCategoriesByCategoryId(categoryId: number) {
                     where: { ImageID: subCategoryImage.ImageID },
                     select: { Url: true }
                 });
-                imageUrl = imageData?.Url || null;
+                if (imageData?.Url) {
+                    const url = imageData.Url;
+                    // Check if URL is already absolute
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        imageUrl = url;
+                    } else {
+                        imageUrl = `${imageBaseUrl}${url}`;
+                    }
+                }
             }
 
             return {

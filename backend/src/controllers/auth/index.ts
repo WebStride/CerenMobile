@@ -108,9 +108,9 @@ export async function verifyPhoneNumber(req: Request, res: Response) {
         console.log("📤 Sending verification response with user data:", {
             success: true,
             user: {
-                id: user.CUSTOMERID,
-                name: user.CUSTOMERNAME,
-                phoneNumber: user.PHONENO
+                id: user.id,
+                name: user.name,
+                phoneNumber: user.phoneNumber
             }
         });
 
@@ -119,9 +119,9 @@ export async function verifyPhoneNumber(req: Request, res: Response) {
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
             user: {
-                id: user.CUSTOMERID,
-                name: user.CUSTOMERNAME,
-                phoneNumber: user.PHONENO
+                id: user.id,
+                name: user.name,
+                phoneNumber: user.phoneNumber
             }
         });
     } catch (error: any) {
@@ -191,10 +191,14 @@ export async function checkCustomer(req: RequestWithUser, res: Response) {
             });
         }
 
+        // Include customerId and name when available so clients can behave accordingly
         return res.status(200).json({ 
-            success: result.exists,  // true if customer exists, false if not
+            success: result.exists,
             message: result.message,
-            exists: result.exists
+            exists: result.exists,
+            userId: result.userId ?? null,
+            customerId: result.customerId ?? null,
+            name: result.name ?? null
         });
     } catch (error) {
         console.error('Error in checkCustomer controller:', error);
@@ -209,14 +213,24 @@ export async function checkCustomer(req: RequestWithUser, res: Response) {
 export async function checkCustomerPublic(req: Request, res: Response) {
     try {
         const phone = String(req.query.phone || '').trim();
+        console.log('[checkCustomerPublic] incoming phone:', phone);
         if (!phone) return res.status(400).json({ success: false, message: 'phone query parameter required' });
 
         const result = await checkCustomerExists(phone);
+        console.log('[checkCustomerPublic] lookup result for', phone, ':', result);
         if (!result.success) {
             return res.status(500).json({ success: false, message: 'Internal server error' });
         }
 
-        return res.status(200).json({ success: true, exists: result.exists, message: result.message });
+        // Return name and customerId when present to help the client decide UI
+        return res.status(200).json({
+            success: true,
+            exists: result.exists,
+            message: result.message,
+            userId: result.userId ?? null,
+            customerId: result.customerId ?? null,
+            name: result.name ?? null
+        });
     } catch (error) {
         console.error('Error in checkCustomerPublic controller:', error);
         return res.status(500).json({ success: false, message: 'Internal server error' });

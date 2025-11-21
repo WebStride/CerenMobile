@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const prisma_1 = __importDefault(require("../../lib/prisma"));
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'your-access-token-secret';
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
 function generateAccessToken(payload) {
@@ -32,6 +33,18 @@ const validateToken = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     try {
         // First, try to verify the access token
         const decoded = jsonwebtoken_1.default.verify(accessToken, ACCESS_TOKEN_SECRET);
+        // Verify that the user still exists in the database
+        const user = yield prisma_1.default.uSERCUSTOMERMASTER.findUnique({
+            where: { id: decoded.userId }
+        });
+        if (!user) {
+            console.log('[validateToken] User not found in DB for userId:', decoded.userId);
+            return res.status(401).json({
+                isValid: false,
+                error: 'User no longer exists',
+                code: 'USER_NOT_FOUND'
+            });
+        }
         return res.status(200).json({
             isValid: true,
             user: decoded
@@ -43,6 +56,18 @@ const validateToken = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             try {
                 // Verify refresh token
                 const decoded = jsonwebtoken_1.default.verify(refreshToken, REFRESH_TOKEN_SECRET);
+                // Verify that the user still exists in the database
+                const user = yield prisma_1.default.uSERCUSTOMERMASTER.findUnique({
+                    where: { id: decoded.userId }
+                });
+                if (!user) {
+                    console.log('[validateToken] User not found in DB for userId:', decoded.userId);
+                    return res.status(401).json({
+                        isValid: false,
+                        error: 'User no longer exists',
+                        code: 'USER_NOT_FOUND'
+                    });
+                }
                 // Generate new access token
                 const newAccessToken = generateAccessToken({
                     userId: decoded.userId,

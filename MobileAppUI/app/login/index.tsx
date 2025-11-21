@@ -30,6 +30,8 @@ export default function LoginNumberScreen() {
   const [name, setName] = useState("");
   const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
   const [existingCustomerId, setExistingCustomerId] = useState<number | null>(null);
+  // New: track existing user id from USERCUSTOMERMASTER (primary auth id)
+  const [existingUserId, setExistingUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
   const recaptchaVerifier = useRef(null);
@@ -44,7 +46,9 @@ const { setConfirmation } = useAuth();
       setLoading(true);
       const fullPhoneNumber = `${countryData.code}${phoneNumber}`; // Add country code
       if (isExistingUser) {
-        const resp = await sendOtp(fullPhoneNumber, existingCustomerId ?? undefined);
+        // Prefer sending userId (USERCUSTOMERMASTER) to backend where supported
+        const idToSend = existingUserId ?? existingCustomerId ?? undefined;
+        const resp = await sendOtp(fullPhoneNumber, idToSend);
         if (resp.success) {
           Alert.alert("Success", "OTP has been sent successfully to your phone number.", [
             { text: "OK", onPress: () => router.push({ pathname: "/login/otp", params: { phoneNumber: fullPhoneNumber } }) }
@@ -74,14 +78,25 @@ const { setConfirmation } = useAuth();
     try {
       if (phoneNumber.length < 10) return;
       const fullPhoneNumber = `${countryData.code}${phoneNumber}`;
+      console.log('[LoginNumberScreen] Starting checkCustomer for:', fullPhoneNumber);
       const resp = await checkCustomer(fullPhoneNumber);
+      console.log('[LoginNumberScreen] checkCustomer response:', resp);
+      console.log('[LoginNumberScreen] resp.success:', resp.success, 'resp.exists:', resp.exists);
       if (resp.success && resp.exists) {
+        console.log('[LoginNumberScreen] User exists - hiding name field');
+        // Use userId (from USERCUSTOMERMASTER) as the canonical id for auth flows
         setIsExistingUser(true);
+        setExistingUserId(resp.userId ?? null);
         setExistingCustomerId(resp.customerId ?? null);
-        if (resp.name) setName(resp.name);
+        if (resp.name) {
+          console.log('[LoginNumberScreen] Prefilling name:', resp.name);
+          setName(resp.name);
+        }
       } else {
+        console.log('[LoginNumberScreen] User does NOT exist - showing name field');
         setIsExistingUser(false);
         setExistingCustomerId(null);
+        setExistingUserId(null);
       }
     } catch (err) {
       console.warn('check customer failed', err);
@@ -167,8 +182,8 @@ const { setConfirmation } = useAuth();
                 />
               </View>
             </View>
-            {/* Name Field (show only for new users) */}
-            {isExistingUser === false && (
+            {/* Name Field (show for new users or when check hasn't confirmed existing user) */}
+            {isExistingUser !== true && (
               <View className="mb-10">
               <Text
                 style={{

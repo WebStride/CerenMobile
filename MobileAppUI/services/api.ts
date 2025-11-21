@@ -67,8 +67,16 @@ const getCustomerId = async (): Promise<number | null> => {
   return customerId ? Number(customerId) : null;
 };
 
+// Helper to get selected store's customerId (from SelectStore screen)
+const getSelectedStoreId = async (): Promise<number | null> => {
+  const storeId = await AsyncStorage.getItem('selectedStoreId');
+  const result = storeId ? Number(storeId) : null;
+  console.log('🔑 [getSelectedStoreId] Retrieved:', storeId, '→ Returning:', result);
+  return result;
+};
+
 export const validateTokens = async (accessToken: string, refreshToken: string | null): Promise<ValidateTokenResponse> => {
-  const endpoint = `${apiUrl}/api/validate-token`;
+  const endpoint = `${apiUrl}/auth/validate-token`;
   console.log('🔐 Validate Token API call:', endpoint);
 
   try {
@@ -116,14 +124,16 @@ export const register = async (phoneNumber: string, name: string): Promise<{ suc
   }
 };
 // Public check if a customer exists by phone
-export const checkCustomer = async (phoneNumber: string): Promise<{ success: boolean; exists?: boolean; customerId?: number; name?: string; message?: string }> => {
+export const checkCustomer = async (phoneNumber: string): Promise<{ success: boolean; exists?: boolean; userId?: number; customerId?: number; name?: string; message?: string }> => {
   const endpoint = `${apiUrl}/auth/check-customer?phone=${encodeURIComponent(phoneNumber)}`;
   console.log('📡 Check Customer API call:', endpoint);
   try {
     const response = await fetch(endpoint, { method: 'GET' });
     const text = await response.text();
+    console.log('📡 Check customer HTTP status:', response.status);
     try {
       const data = text ? JSON.parse(text) : null;
+      console.log('📡 Check customer parsed response:', data);
       return data;
     } catch (err) {
       console.warn('Check customer: non-JSON response', text && text.slice(0, 500));
@@ -189,6 +199,33 @@ export const verify = async (phoneNumber: string, code: string, name: string): P
   }
 };
 
+// Fetch stores for current authenticated user (uses access token)
+export const getStoresForUser = async (): Promise<{ success: boolean; stores?: Array<any>; message?: string }> => {
+  const endpoint = `${apiUrl}/customer/stores`;
+  console.log('📡 Get Stores API call:', endpoint);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, message: errorData.message || 'Failed to fetch stores' };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Get stores API error:', error);
+    return { success: false, message: 'Network error' };
+  }
+};
+
 export const getExclusiveOffers = async () => {
   try {
     console.log("Fetching exclusive offers...");
@@ -221,11 +258,19 @@ export const getExclusiveOffers = async () => {
 export const getNewProducts = async () => {
   try {
     console.log("Fetching new products...");
-    const response = await fetch(`${apiUrl}/products/newProducts`, {
+    
+    // Get selected store's customerId for pricing
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/newProducts?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -249,11 +294,19 @@ export const getNewProducts = async () => {
 export const getBuyAgainProducts = async () => {
   try {
     console.log("Fetching buy again products...");
-    const response = await fetch(`${apiUrl}/products/buyAgain`, {
+    
+    // Get selected store's customerId for pricing
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/buyAgain?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -277,24 +330,45 @@ export const getBuyAgainProducts = async () => {
 
 export const getBestSelling = async (limit: number = 50) => {
   try {
-    console.log("Fetching best selling products with limit:", limit);
-    const response = await fetch(`${apiUrl}/products/best-selling?limit=${limit}`, {
+    console.log("📦 [getBestSelling] Fetching best selling products with limit:", limit);
+    
+    // Get selected store's customerId for pricing
+    const selectedStoreId = await getSelectedStoreId();
+    console.log("📦 [getBestSelling] Selected Store ID:", selectedStoreId);
+    
+    const queryParams = new URLSearchParams({
+      limit: String(limit),
+      ...(selectedStoreId && { customerId: String(selectedStoreId) })
+    });
+    
+    const url = `${apiUrl}/products/best-selling?${queryParams}`;
+    console.log("📦 [getBestSelling] Request URL:", url);
+    console.log("📦 [getBestSelling] CustomerId in headers:", selectedStoreId ? String(selectedStoreId) : 'NONE');
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
-    console.log("Response status:", response.status);
+    console.log("📦 [getBestSelling] Response status:", response.status);
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Error fetching best selling products:", errorData);
+      console.error("❌ [getBestSelling] Error fetching best selling products:", errorData);
       return { success: false, products: [], message: errorData.message };
     }
 
     const data = await response.json();
-    console.log("Best selling products fetched successfully:", data);
+    console.log("✅ [getBestSelling] Products fetched successfully!");
+    console.log("📦 [getBestSelling] showPricing flag from backend:", data.showPricing);
+    console.log("📦 [getBestSelling] customerId from backend:", data.customerId);
+    console.log("📦 [getBestSelling] First product sample:", data.products && data.products[0] ? {
+      name: data.products[0].ProductName || data.products[0].name,
+      price: data.products[0].price || data.products[0].Price
+    } : 'No products');
     return data;
   } catch (error) {
     console.error("Error fetching best selling products:", error);
@@ -308,11 +382,14 @@ export const getCategories = async () => {
 
   try {
     console.log("Fetching categories...");
+    const selectedStoreId = await getSelectedStoreId();
+    
     const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -336,11 +413,17 @@ export const getCategories = async () => {
 export const getSubCategories = async (categoryId: number) => {
   try {
     console.log(`Fetching subcategories for categoryId=${categoryId}...`);
-    const response = await fetch(`${apiUrl}/categories/subCategories/${categoryId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/categories/subCategories/${categoryId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
@@ -364,11 +447,17 @@ export const getSubCategories = async (categoryId: number) => {
 export const getProductsBySubCategory = async (subCategoryId: number) => {
   try {
     console.log(`Fetching products for subCategoryId=${subCategoryId}...`);
-    const response = await fetch(`${apiUrl}/products/productsBySubCategory/${subCategoryId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/productsBySubCategory/${subCategoryId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) }),
       },
     });
 
@@ -392,11 +481,17 @@ export const getProductsBySubCategory = async (subCategoryId: number) => {
 export const getProductsByCatalog = async (productId: number) => {
   try {
     console.log(`Fetching products for catalog of productId=${productId}...`);
-    const response = await fetch(`${apiUrl}/products/catalog/${productId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/catalog/${productId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) }),
       }
     });
 
@@ -419,11 +514,17 @@ export const getProductsByCatalog = async (productId: number) => {
 export const getSimilarProductsApi = async (productId: number) => {
   try {
     console.log(`Fetching similar products for productId=${productId}...`);
-    const response = await fetch(`${apiUrl}/products/similar/${productId}`, {
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+    
+    const response = await fetch(`${apiUrl}/products/similar/${productId}?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) }),
       }
     });
 
@@ -463,7 +564,15 @@ export async function checkCustomerExists() {
 // Favourites API helpers
 export const fetchFavourites = async () => {
   try {
-    const response = await fetch(`${apiUrl}/favourites`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for fetchFavourites');
+      return { success: false, favourites: [], message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/favourites?customerId=${selectedStoreId}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
@@ -486,7 +595,15 @@ export const fetchFavourites = async () => {
 
 export const addFavouriteApi = async (product: any) => {
   try {
-    const response = await fetch(`${apiUrl}/favourites`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for addFavouriteApi');
+      return { success: false, message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/favourites?customerId=${selectedStoreId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -510,7 +627,15 @@ export const addFavouriteApi = async (product: any) => {
 
 export const removeFavouriteApi = async (productId: number) => {
   try {
-    const response = await fetch(`${apiUrl}/favourites/${productId}`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for removeFavouriteApi');
+      return { success: false, message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/favourites/${productId}?customerId=${selectedStoreId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': await getAccessToken(),
@@ -532,10 +657,18 @@ export const removeFavouriteApi = async (productId: number) => {
 
 // Cart API helpers
 export const getCart = async () => {
-  const endpoint = `${apiUrl}/cart`;
-  console.log('🛒 Get Cart API call:', endpoint);
-
   try {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for getCart');
+      return { success: false, cart: [], message: 'No store selected' };
+    }
+
+    const endpoint = `${apiUrl}/cart?customerId=${selectedStoreId}`;
+    console.log('🛒 Get Cart API call:', endpoint);
+
     const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
@@ -553,7 +686,15 @@ export const getCart = async () => {
 
 export const addToCartApi = async (product: any) => {
   try {
-    const response = await fetch(`${apiUrl}/cart`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for addToCartApi');
+      return { success: false, message: 'No store selected' };
+    }
+
+    const response = await fetch(`${apiUrl}/cart?customerId=${selectedStoreId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -697,7 +838,15 @@ export const getOrderItems = async (orderId: number) => {
 
 export const updateCartApi = async (productId: number, quantity: number) => {
   try {
-    const response = await fetch(`${apiUrl}/cart/${productId}`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for updateCartApi');
+      return false;
+    }
+
+    const response = await fetch(`${apiUrl}/cart/${productId}?customerId=${selectedStoreId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -715,7 +864,15 @@ export const updateCartApi = async (productId: number, quantity: number) => {
 
 export const removeCartApi = async (productId: number) => {
   try {
-    const response = await fetch(`${apiUrl}/cart/${productId}`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for removeCartApi');
+      return false;
+    }
+
+    const response = await fetch(`${apiUrl}/cart/${productId}?customerId=${selectedStoreId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': await getAccessToken(),
@@ -731,7 +888,15 @@ export const removeCartApi = async (productId: number) => {
 
 export const clearCartApi = async () => {
   try {
-    const response = await fetch(`${apiUrl}/cart/clear`, {
+    // Get selected store's customerId
+    const selectedStoreId = await getSelectedStoreId();
+    
+    if (!selectedStoreId) {
+      console.warn('No customerId available for clearCartApi');
+      return false;
+    }
+
+    const response = await fetch(`${apiUrl}/cart/clear?customerId=${selectedStoreId}`, {
       method: 'POST',
       headers: {
         'Authorization': await getAccessToken(),

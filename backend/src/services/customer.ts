@@ -22,3 +22,23 @@ export async function checkCustomerExists(phoneNumber: string) {
         };
     }
 }
+
+export async function getStoresForUser(userId: number) {
+    try {
+        const stores = await prisma.cUSTOMERMASTER.findMany({
+            where: { USERID: userId },
+            select: {
+                CUSTOMERID: true,
+                CUSTOMERNAME: true,
+                ADDRESS: true,
+                CITY: true,
+                PINCODE: true,
+            },
+        });
+
+        return { success: true, stores };
+    } catch (error) {
+        console.error('Error in getStoresForUser service:', error);
+        return { success: false, stores: [], message: 'Error fetching stores' };
+    }
+}

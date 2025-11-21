@@ -19,6 +19,7 @@ import { getFavourites, postFavourite, deleteFavourite } from "./controllers/fav
 import { getCartList, postCart, putCartItem, deleteCartItem, postClearCart } from "./controllers/cart";
 import { authenticateToken } from "./middleware/auth";
 import { checkCustomer } from "./controllers/auth";
+import { getStores } from "./controllers/customer";
 import { getOrdersByCustomer, getOrderItemsByOrder, getInvoicesByCustomer, getInvoiceItemsByInvoice } from "./controllers/orders";
 const prisma = new PrismaClient();
 
@@ -103,6 +104,8 @@ function routes(app: Express) {
 
     // Customer routes
     app.get('/customer/check', authenticateToken, checkCustomer);
+    // Get stores associated with the authenticated user
+    app.get('/customer/stores', authenticateToken, getStores);
 
     // Orders routes
     app.get('/orders', authenticateToken, getOrdersByCustomer);

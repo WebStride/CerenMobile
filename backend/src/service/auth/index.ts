@@ -161,39 +161,40 @@ export async function verifyOTP(phoneNumber: string, code: string) {
 
         throw new Error(`Verification failed: ${error.message}`);
     }
-}export async function saveUserAndGenerateTokens(name: string, phoneNumber: string) {
-    console.log("🔧 Creating/updating user:", { name, phoneNumber });
+}
+export async function saveUserAndGenerateTokens(name: string, phoneNumber: string) {
+    console.log("🔧 Creating/updating user (UserCustomerMaster):", { name, phoneNumber });
 
-    // Check if user already exists
-    let user = await prisma.cUSTOMERMASTER.findFirst({
-        where: { PHONENO: phoneNumber }
+    // Check if user already exists in USERCUSTOMERMASTER
+    let user = await prisma.uSERCUSTOMERMASTER.findFirst({
+        where: { phoneNumber: phoneNumber }
     });
 
     if (user) {
         // Update existing user
-        user = await prisma.cUSTOMERMASTER.update({
-            where: { CUSTOMERID: user.CUSTOMERID },
-            data: { CUSTOMERNAME: name }
+        user = await prisma.uSERCUSTOMERMASTER.update({
+            where: { id: user.id },
+            data: { name }
         });
-        console.log("✅ User updated:", user);
+        console.log("✅ UserCustomer updated:", user);
     } else {
-        // Create new user
-        user = await prisma.cUSTOMERMASTER.create({
+        // Create new user in USERCUSTOMERMASTER
+        user = await prisma.uSERCUSTOMERMASTER.create({
             data: {
-                CUSTOMERNAME: name,
-                PHONENO: phoneNumber,
+                name,
+                phoneNumber,
             }
         });
-        console.log("✅ User created:", user);
+        console.log("✅ UserCustomer created:", user);
     }
 
-    // Generate tokens
+    // Generate tokens using the user table id (not the legacy CUSTOMERID)
     const tokens = generateTokens({
-        userId: user.CUSTOMERID,
-        phoneNumber: user.PHONENO || phoneNumber
+        userId: user.id,
+        phoneNumber: user.phoneNumber || phoneNumber
     });
 
-    console.log("🎫 Tokens generated for user:", user.CUSTOMERID);
+    console.log("🎫 Tokens generated for user (id):", user.id);
 
     return { user, tokens };
 }
@@ -201,14 +202,32 @@ export async function verifyOTP(phoneNumber: string, code: string) {
 
 export async function checkCustomerExists(phoneNumber: string) {
     try {
-        const customer = await prisma.cUSTOMERMASTER.findFirst({
-            where: { PHONENO: phoneNumber },
+        // First, check if a user record exists in USERCUSTOMERMASTER (new auth table)
+        const user = await prisma.uSERCUSTOMERMASTER.findFirst({
+            where: { phoneNumber: phoneNumber },
         });
 
+        if (user) {
+            // If a legacy CUSTOMERMASTER record has been linked to this user (via USERID), return that id too
+            const customer = await prisma.cUSTOMERMASTER.findFirst({
+                where: { USERID: user.id }
+            });
+
+            return {
+                success: true,
+                exists: true,
+                message: 'User exists',
+                userId: user.id,
+                name: user.name || null,
+                customerId: customer ? customer.CUSTOMERID : null
+            };
+        }
+
+        // No user found in USERCUSTOMERMASTER — treat as new
         return {
             success: true,
-            exists: !!customer,
-            message: customer ? 'Customer exists' : 'Customer does not exist'
+            exists: false,
+            message: 'Customer does not exist'
         };
     } catch (error) {
         console.error('Error in checkCustomerExists service:', error);

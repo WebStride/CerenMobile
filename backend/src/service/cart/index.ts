@@ -1,13 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../lib/prisma';
 
-const prisma = new PrismaClient();
-
-export async function getCart(userId: number) {
-  return prisma.cart.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' } });
+export async function getCart(customerId: number) {
+  return prisma.cart.findMany({ where: { customerId }, orderBy: { updatedAt: 'desc' } });
 }
 
-export async function addOrIncrementCartItem(userId: number, product: any) {
-  const whereAny = { userId_productId: { userId, productId: product.productId } } as any;
+export async function addOrIncrementCartItem(customerId: number, product: any) {
+  const whereAny = { customerId_productId: { customerId, productId: product.productId } } as any;
   const existing = await prisma.cart.findUnique({ where: whereAny }).catch(() => null);
   
   if (existing) {
@@ -24,7 +22,7 @@ export async function addOrIncrementCartItem(userId: number, product: any) {
 
   return prisma.cart.create({
     data: {
-      userId,
+      customerId,
       productId: product.productId,
       productName: product.productName,
       price: product.price || 0,
@@ -37,17 +35,17 @@ export async function addOrIncrementCartItem(userId: number, product: any) {
   });
 }
 
-export async function updateCartQuantity(userId: number, productId: number, quantity: number) {
+export async function updateCartQuantity(customerId: number, productId: number, quantity: number) {
   if (quantity <= 0) {
-    return prisma.cart.deleteMany({ where: { userId, productId } });
+    return prisma.cart.deleteMany({ where: { customerId, productId } });
   }
-  return prisma.cart.updateMany({ where: { userId, productId }, data: { quantity, updatedAt: new Date() } });
+  return prisma.cart.updateMany({ where: { customerId, productId }, data: { quantity, updatedAt: new Date() } });
 }
 
-export async function removeCartItem(userId: number, productId: number) {
-  return prisma.cart.deleteMany({ where: { userId, productId } });
+export async function removeCartItem(customerId: number, productId: number) {
+  return prisma.cart.deleteMany({ where: { customerId, productId } });
 }
 
-export async function clearCart(userId: number) {
-  return prisma.cart.deleteMany({ where: { userId } });
+export async function clearCart(customerId: number) {
+  return prisma.cart.deleteMany({ where: { customerId } });
 }

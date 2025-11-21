@@ -8,25 +8,27 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUserFavourites = getUserFavourites;
 exports.addUserFavourite = addUserFavourite;
 exports.removeUserFavourite = removeUserFavourite;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
-function getUserFavourites(userId) {
+const prisma_1 = __importDefault(require("../../lib/prisma"));
+function getUserFavourites(customerId) {
     return __awaiter(this, void 0, void 0, function* () {
-        return prisma.userFavourites.findMany({
-            where: { userId },
+        return prisma_1.default.userFavourites.findMany({
+            where: { customerId },
             orderBy: { addedAt: 'desc' }
         });
     });
 }
-function addUserFavourite(userId, product) {
+function addUserFavourite(customerId, product) {
     return __awaiter(this, void 0, void 0, function* () {
         // upsert to avoid duplicate unique constraint error
-        return prisma.userFavourites.upsert({
-            where: { userId_productId: { userId, productId: product.productId } },
+        return prisma_1.default.userFavourites.upsert({
+            where: { customerId_productId: { customerId, productId: product.productId } },
             update: {
                 productName: product.productName,
                 price: product.price || 0,
@@ -37,7 +39,7 @@ function addUserFavourite(userId, product) {
                 addedAt: new Date()
             },
             create: {
-                userId,
+                customerId,
                 productId: product.productId,
                 productName: product.productName,
                 price: product.price || 0,
@@ -49,11 +51,11 @@ function addUserFavourite(userId, product) {
         });
     });
 }
-function removeUserFavourite(userId, productId) {
+function removeUserFavourite(customerId, productId) {
     return __awaiter(this, void 0, void 0, function* () {
-        return prisma.userFavourites.deleteMany({
+        return prisma_1.default.userFavourites.deleteMany({
             where: {
-                userId,
+                customerId,
                 productId
             }
         });

@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
-import { getSubCategories, getProductsBySubCategory } from "../../services/api";
+import { getSubCategories, getProductsBySubCategory, checkCustomerExists } from "../../services/api";
 
 // Types
 interface Product {
@@ -323,11 +323,15 @@ const ProductCard = React.memo(({
       
       {/* Price */}
       <View className="w-full mb-2">
-        <Text className="font-bold text-sm text-gray-900">₹{item.price}.00</Text>
+        {isCustomerExists && item.price > 0 ? (
+          <Text className="font-bold text-sm text-gray-900">₹{item.price}.00</Text>
+        ) : (
+          <Text className="font-semibold text-xs text-gray-500 italic">Price on request</Text>
+        )}
       </View>
       
-      {/* FIXED: Add to Cart Button OR Quantity Controls - Android Compatible */}
-      {isCustomerExists ? (
+      {/* FIXED: Add to Cart Button OR Quantity Controls - Only for registered users with pricing */}
+      {(isCustomerExists && item.price > 0) ? (
         showControls ? (
           <View style={{
             flexDirection: 'row',
@@ -425,26 +429,7 @@ const ProductCard = React.memo(({
             </Text>
           </TouchableOpacity>
         )
-      ) : (
-        <View style={{
-          width: '100%',
-          backgroundColor: '#d1d5db',
-          borderRadius: 20,
-          paddingVertical: 6,
-          paddingHorizontal: 8,
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: 32,
-        }}>
-          <Text style={{
-            color: '#6b7280',
-            fontWeight: '600',
-            fontSize: 12
-          }}>
-            Verification Required
-          </Text>
-        </View>
-      )}
+      ) : null}
     </View>
   );
 });
@@ -535,9 +520,23 @@ const CategoryProductsScreen = () => {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreData, setHasMoreData] = useState(true);
-  const [isCustomerExists, setIsCustomerExists] = useState(true);
+  const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
 
   const ITEMS_PER_PAGE = 20;
+
+  // Check customer existence
+  useEffect(() => {
+    const checkCustomer = async () => {
+      try {
+        const response = await checkCustomerExists();
+        setIsCustomerExists(response.success ? response.exists : false);
+      } catch (error) {
+        console.error("Error checking customer existence:", error);
+        setIsCustomerExists(false);
+      }
+    };
+    checkCustomer();
+  }, []);
 
   // Load subcategories on mount
   useEffect(() => {
@@ -687,7 +686,7 @@ const CategoryProductsScreen = () => {
   const renderProduct = useCallback(({ item, index }: { item: Product, index: number }) => (
     <ProductCard 
       item={item} 
-      isCustomerExists={isCustomerExists}
+      isCustomerExists={isCustomerExists || false}
       index={index}
     />
   ), [isCustomerExists]);

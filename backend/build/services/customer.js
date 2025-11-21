@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkCustomerExists = checkCustomerExists;
+exports.getStoresForUser = getStoresForUser;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 function checkCustomerExists(phoneNumber) {
@@ -31,6 +32,27 @@ function checkCustomerExists(phoneNumber) {
                 exists: false,
                 message: 'Error checking customer existence'
             };
+        }
+    });
+}
+function getStoresForUser(userId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const stores = yield prisma.cUSTOMERMASTER.findMany({
+                where: { USERID: userId },
+                select: {
+                    CUSTOMERID: true,
+                    CUSTOMERNAME: true,
+                    ADDRESS: true,
+                    CITY: true,
+                    PINCODE: true,
+                },
+            });
+            return { success: true, stores };
+        }
+        catch (error) {
+            console.error('Error in getStoresForUser service:', error);
+            return { success: false, stores: [], message: 'Error fetching stores' };
         }
     });
 }

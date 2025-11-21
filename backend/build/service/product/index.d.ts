@@ -1,13 +1,22 @@
-export declare function getCustomerPricingInfo(userId: number): Promise<{
-    customerPresent: boolean;
-    customerId: null;
-    priceColumn: null;
-} | {
+/**
+ * Get customer pricing info based on userId and optional selectedCustomerId
+ * Priority: selectedCustomerId > userId lookup
+ * @param userId - User ID from token
+ * @param selectedCustomerId - Optional selected customer/store ID
+ * @returns Pricing information including whether to show prices
+ */
+export declare function getCustomerPricingInfo(userId: number, selectedCustomerId?: number | null): Promise<{
     customerPresent: boolean;
     customerId: number;
     priceColumn: string;
+    showPricing: boolean;
+} | {
+    customerPresent: boolean;
+    customerId: null;
+    priceColumn: null;
+    showPricing: boolean;
 }>;
-export declare function getExclusiveProducts(customerId: number | null, priceColumn: string | null): Promise<{
+export declare function getExclusiveProducts(customerId: number | null, priceColumn: string | null, showPricing?: boolean): Promise<{
     productId: any;
     productName: any;
     productUnits: any;
@@ -15,8 +24,9 @@ export declare function getExclusiveProducts(customerId: number | null, priceCol
     price: any;
     image: string | null;
     minimumOrderQuantity: any;
+    showPricing: boolean;
 }[]>;
-export declare function getCustomerPreferredProducts(customerId: number | null, priceColumn: string | null): Promise<{
+export declare function getCustomerPreferredProducts(customerId: number | null, priceColumn: string | null, showPricing?: boolean): Promise<{
     productId: any;
     productName: any;
     productUnits: any;
@@ -24,8 +34,9 @@ export declare function getCustomerPreferredProducts(customerId: number | null, 
     price: any;
     image: string | null;
     minimumOrderQuantity: any;
+    showPricing: boolean;
 }[]>;
-export declare function getAllProducts(customerId: number | null, priceColumn: string | null): Promise<{
+export declare function getAllProducts(customerId: number | null, priceColumn: string | null, showPricing?: boolean): Promise<{
     productId: any;
     productName: any;
     productUnits: any;
@@ -33,8 +44,9 @@ export declare function getAllProducts(customerId: number | null, priceColumn: s
     price: any;
     image: string | null;
     minimumOrderQuantity: any;
+    showPricing: boolean;
 }[]>;
-export declare function getNewProducts(customerId: number | null, priceColumn: string | null): Promise<{
+export declare function getNewProducts(customerId: number | null, priceColumn: string | null, showPricing?: boolean): Promise<{
     productId: any;
     productName: any;
     productUnits: any;
@@ -42,8 +54,9 @@ export declare function getNewProducts(customerId: number | null, priceColumn: s
     price: any;
     image: string | null;
     minimumOrderQuantity: any;
+    showPricing: boolean;
 }[]>;
-export declare function getBestSellingProducts(customerId: number | null, priceColumn: string | null, sortOrderLimit: number): Promise<{
+export declare function getBestSellingProducts(customerId: number | null, priceColumn: string | null, sortOrderLimit: number, showPricing?: boolean): Promise<{
     productId: any;
     productName: any;
     productUnits: any;
@@ -51,11 +64,12 @@ export declare function getBestSellingProducts(customerId: number | null, priceC
     price: any;
     image: string | null;
     minimumOrderQuantity: any;
+    showPricing: boolean;
 }[]>;
 export declare function getCategories(): Promise<{
     categoryId: number;
     categoryName: string;
-    categoryImage: string | null | undefined;
+    categoryImage: string | null;
 }[]>;
 export declare function getSubCategoriesByCategoryId(categoryId: number): Promise<{
     subCategoryId: number;

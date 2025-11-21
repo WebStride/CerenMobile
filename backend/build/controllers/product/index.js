@@ -29,11 +29,20 @@ function getExclusiveProductsList(req, res) {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
                 return res.status(401).json({ error: 'User not authenticated' });
             }
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
-            const products = yield (0, product_1.getExclusiveProducts)(customerId, priceColumn);
+            // Get selected customerID from query param or header (from store selection)
+            const selectedCustomerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : req.headers['x-customer-id']
+                    ? parseInt(req.headers['x-customer-id'])
+                    : null;
+            console.log(`[getExclusiveProductsList] userId: ${req.user.userId}, selectedCustomerId: ${selectedCustomerId}`);
+            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const products = yield (0, product_1.getExclusiveProducts)(customerId, priceColumn, showPricing);
             res.json({
                 success: true,
-                products
+                products,
+                showPricing, // Let frontend know whether to display prices
+                customerId // Return which customer context is being used
             });
         }
         catch (error) {
@@ -52,11 +61,18 @@ function newProductsList(req, res) {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
                 return res.status(401).json({ error: 'User not authenticated' });
             }
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
-            const products = yield (0, product_1.getNewProducts)(customerId, priceColumn);
+            const selectedCustomerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : req.headers['x-customer-id']
+                    ? parseInt(req.headers['x-customer-id'])
+                    : null;
+            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const products = yield (0, product_1.getNewProducts)(customerId, priceColumn, showPricing);
             res.json({
                 success: true,
-                products
+                products,
+                showPricing,
+                customerId
             });
         }
         catch (error) {
@@ -75,11 +91,18 @@ function allProductsList(req, res) {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
                 return res.status(401).json({ error: 'User not authenticated' });
             }
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
-            const products = yield (0, product_1.getAllProducts)(customerId, priceColumn);
+            const selectedCustomerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : req.headers['x-customer-id']
+                    ? parseInt(req.headers['x-customer-id'])
+                    : null;
+            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const products = yield (0, product_1.getAllProducts)(customerId, priceColumn, showPricing);
             res.json({
                 success: true,
-                products
+                products,
+                showPricing,
+                customerId
             });
         }
         catch (error) {
@@ -98,11 +121,18 @@ function buyAgainProductsList(req, res) {
             if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
                 return res.status(401).json({ error: 'User not authenticated' });
             }
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
-            const products = yield (0, product_1.getCustomerPreferredProducts)(customerId, priceColumn);
+            const selectedCustomerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : req.headers['x-customer-id']
+                    ? parseInt(req.headers['x-customer-id'])
+                    : null;
+            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const products = yield (0, product_1.getCustomerPreferredProducts)(customerId, priceColumn, showPricing);
             res.json({
                 success: true,
-                products
+                products,
+                showPricing,
+                customerId
             });
         }
         catch (error) {
@@ -122,11 +152,18 @@ function getBestSelling(req, res) {
                 return res.status(401).json({ error: 'User not authenticated' });
             }
             const sortOrderLimit = parseInt(req.query.limit) || 10;
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
-            const products = yield (0, product_1.getBestSellingProducts)(customerId, priceColumn, sortOrderLimit);
+            const selectedCustomerId = req.query.customerId
+                ? parseInt(req.query.customerId)
+                : req.headers['x-customer-id']
+                    ? parseInt(req.headers['x-customer-id'])
+                    : null;
+            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const products = yield (0, product_1.getBestSellingProducts)(customerId, priceColumn, sortOrderLimit, showPricing);
             res.json({
                 success: true,
-                products
+                products,
+                showPricing,
+                customerId
             });
         }
         catch (error) {

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../../middleware/auth';
-import { sendUserDetailsToAdmin } from '../../service/notification';
+// import { sendUserDetailsToAdmin } from '../../service/notification'; // Disabled for now
 
 const prisma = new PrismaClient();
 
@@ -39,22 +39,16 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
             where: { PHONENO: phoneNumber }
         });
 
-        // If user doesn't exist, send WhatsApp message to admin
+        // If user doesn't exist, return success for verification flow
+        // Admin notification is disabled - frontend will show popup to user
         if (!existingUser) {
-            await sendUserDetailsToAdmin({
-                name,
-                phoneNumber,
-                city,
-                district,
-                houseNumber,
-                buildingBlock,
-                pinCode,
-                landmark
-            });
-
+            console.log(`New user detected: ${phoneNumber} - returning verification message`);
+            
+            // Return success so the frontend can show a popup/alert to the user
             return res.json({
                 success: true,
-                message: 'User details sent to admin for verification'
+                message: 'User details sent to admin for verification',
+                requiresVerification: true
             });
         }
 

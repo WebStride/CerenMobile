@@ -22,25 +22,56 @@ exports.getProductsByCatalogOfProduct = getProductsByCatalogOfProduct;
 exports.getSimilarProducts = getSimilarProducts;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
-function getCustomerPricingInfo(userId) {
+/**
+ * Get customer pricing info based on userId and optional selectedCustomerId
+ * Priority: selectedCustomerId > userId lookup
+ * @param userId - User ID from token
+ * @param selectedCustomerId - Optional selected customer/store ID
+ * @returns Pricing information including whether to show prices
+ */
+function getCustomerPricingInfo(userId, selectedCustomerId) {
     return __awaiter(this, void 0, void 0, function* () {
+        console.log(`[getCustomerPricingInfo] userId: ${userId}, selectedCustomerId: ${selectedCustomerId}`);
+        // If a specific customerID is provided (from store selection), use it
+        if (selectedCustomerId) {
+            const customer = yield prisma.cUSTOMERMASTER.findFirst({
+                where: { CUSTOMERID: selectedCustomerId }
+            });
+            if (customer) {
+                const priceGroup = yield prisma.pRICEGROUPMASTER.findUnique({
+                    where: { PriceGroupID: customer.PRICEGROUPID || 1 }
+                });
+                console.log(`[getCustomerPricingInfo] Found customer ${selectedCustomerId}, priceColumn: ${priceGroup === null || priceGroup === void 0 ? void 0 : priceGroup.PriceColumn}`);
+                return {
+                    customerPresent: true,
+                    customerId: customer.CUSTOMERID,
+                    priceColumn: (priceGroup === null || priceGroup === void 0 ? void 0 : priceGroup.PriceColumn) || 'RetailPrice',
+                    showPricing: true // Show pricing when customer is selected
+                };
+            }
+        }
+        // Fallback: try to find customer by userId
         const customer = yield prisma.cUSTOMERMASTER.findFirst({
-            where: { CUSTOMERID: userId }
+            where: { USERID: userId }
         });
         if (!customer) {
+            console.log(`[getCustomerPricingInfo] No customer found - catalog mode (no pricing)`);
             return {
                 customerPresent: false,
                 customerId: null,
-                priceColumn: null
+                priceColumn: null,
+                showPricing: false // Don't show pricing in catalog mode
             };
         }
         const priceGroup = yield prisma.pRICEGROUPMASTER.findUnique({
             where: { PriceGroupID: customer.PRICEGROUPID || 1 }
         });
+        console.log(`[getCustomerPricingInfo] Found customer via userId, priceColumn: ${priceGroup === null || priceGroup === void 0 ? void 0 : priceGroup.PriceColumn}`);
         return {
             customerPresent: true,
             customerId: customer.CUSTOMERID,
-            priceColumn: (priceGroup === null || priceGroup === void 0 ? void 0 : priceGroup.PriceColumn) || 'RetailPrice' // Default to RetailPrice if no price group found
+            priceColumn: (priceGroup === null || priceGroup === void 0 ? void 0 : priceGroup.PriceColumn) || 'RetailPrice',
+            showPricing: true // Show pricing when customer exists
         };
     });
 }
@@ -60,17 +91,27 @@ function getProductImage(productId) {
                 Url: true
             }
         });
-        return (imageData === null || imageData === void 0 ? void 0 : imageData.Url) || null;
+        if (!(imageData === null || imageData === void 0 ? void 0 : imageData.Url))
+            return null;
+        // Prepend base URL if the URL is relative
+        const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+        const imageUrl = imageData.Url;
+        // Check if URL is already absolute (starts with http:// or https://)
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+        // Prepend base URL to relative path
+        return `${imageBaseUrl}${imageUrl}`;
     });
 }
-function getExclusiveProducts(customerId, priceColumn) {
-    return __awaiter(this, void 0, void 0, function* () {
+function getExclusiveProducts(customerId_1, priceColumn_1) {
+    return __awaiter(this, arguments, void 0, function* (customerId, priceColumn, showPricing = true) {
         const catalogProducts = yield prisma.productMaster.findMany({
             where: {
                 OfferEnabled: 1,
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn && showPricing ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -80,16 +121,17 @@ function getExclusiveProducts(customerId, priceColumn) {
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null, // null = don't show price
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing // Flag to indicate if pricing should be displayed
             };
         })));
         return productsWithImages;
     });
 }
-function getCustomerPreferredProducts(customerId, priceColumn) {
-    return __awaiter(this, void 0, void 0, function* () {
+function getCustomerPreferredProducts(customerId_1, priceColumn_1) {
+    return __awaiter(this, arguments, void 0, function* (customerId, priceColumn, showPricing = true) {
         if (!customerId) {
             return [];
         }
@@ -106,7 +148,7 @@ function getCustomerPreferredProducts(customerId, priceColumn) {
                 ProductID: { in: productIds }, // Filter by preferred product IDs
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn && showPricing ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -116,21 +158,22 @@ function getCustomerPreferredProducts(customerId, priceColumn) {
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })));
         return productsWithImages;
     });
 }
-function getAllProducts(customerId, priceColumn) {
-    return __awaiter(this, void 0, void 0, function* () {
+function getAllProducts(customerId_1, priceColumn_1) {
+    return __awaiter(this, arguments, void 0, function* (customerId, priceColumn, showPricing = true) {
         const catalogProducts = yield prisma.productMaster.findMany({
             where: {
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn && showPricing ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -140,22 +183,23 @@ function getAllProducts(customerId, priceColumn) {
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })));
         return productsWithImages;
     });
 }
-function getNewProducts(customerId, priceColumn) {
-    return __awaiter(this, void 0, void 0, function* () {
+function getNewProducts(customerId_1, priceColumn_1) {
+    return __awaiter(this, arguments, void 0, function* (customerId, priceColumn, showPricing = true) {
         const catalogProducts = yield prisma.productMaster.findMany({
             where: {
                 IsNewProduct: 1,
                 CatalogDefault: 1
             },
-            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {}))
+            select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn && showPricing ? { [priceColumn]: true } : {}))
         });
         // Fetch images for all products in parallel
         const productsWithImages = yield Promise.all(catalogProducts.map((product) => __awaiter(this, void 0, void 0, function* () {
@@ -165,16 +209,17 @@ function getNewProducts(customerId, priceColumn) {
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })));
         return productsWithImages;
     });
 }
-function getBestSellingProducts(customerId, priceColumn, sortOrderLimit) {
-    return __awaiter(this, void 0, void 0, function* () {
+function getBestSellingProducts(customerId_1, priceColumn_1, sortOrderLimit_1) {
+    return __awaiter(this, arguments, void 0, function* (customerId, priceColumn, sortOrderLimit, showPricing = true) {
         const products = yield prisma.productMaster.findMany({
             where: {
                 Active: 1,
@@ -195,9 +240,10 @@ function getBestSellingProducts(customerId, priceColumn, sortOrderLimit) {
                 productName: product.ProductName,
                 productUnits: product.Units || 0,
                 unitsOfMeasurement: product.UnitsOfMeasurement || '',
-                price: priceColumn ? (product[priceColumn] || 0) : "",
+                price: (priceColumn && showPricing) ? (product[priceColumn] || 0) : null,
                 image: imageUrl,
-                minimumOrderQuantity: product.MinimumQty || 1
+                minimumOrderQuantity: product.MinimumQty || 1,
+                showPricing
             };
         })));
         return productsWithImages;
@@ -205,6 +251,7 @@ function getBestSellingProducts(customerId, priceColumn, sortOrderLimit) {
 }
 function getCategories() {
     return __awaiter(this, void 0, void 0, function* () {
+        const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
         const categories = yield prisma.productCategoryMaster.findMany({
             where: {
                 Active: 1
@@ -229,7 +276,16 @@ function getCategories() {
                         Url: true
                     }
                 });
-                imageUrl = imageData === null || imageData === void 0 ? void 0 : imageData.Url;
+                if (imageData === null || imageData === void 0 ? void 0 : imageData.Url) {
+                    const url = imageData.Url;
+                    // Check if URL is already absolute
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        imageUrl = url;
+                    }
+                    else {
+                        imageUrl = `${imageBaseUrl}${url}`;
+                    }
+                }
             }
             return {
                 categoryId: category.CategoryID,
@@ -243,6 +299,7 @@ function getCategories() {
 // ...existing code...
 function getSubCategoriesByCategoryId(categoryId) {
     return __awaiter(this, void 0, void 0, function* () {
+        const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
         // Fetch subcategories for the given categoryId
         const subCategories = yield prisma.productSubCategoryMaster.findMany({
             where: {
@@ -267,7 +324,16 @@ function getSubCategoriesByCategoryId(categoryId) {
                     where: { ImageID: subCategoryImage.ImageID },
                     select: { Url: true }
                 });
-                imageUrl = (imageData === null || imageData === void 0 ? void 0 : imageData.Url) || null;
+                if (imageData === null || imageData === void 0 ? void 0 : imageData.Url) {
+                    const url = imageData.Url;
+                    // Check if URL is already absolute
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        imageUrl = url;
+                    }
+                    else {
+                        imageUrl = `${imageBaseUrl}${url}`;
+                    }
+                }
             }
             return {
                 subCategoryId: subCategory.SubCategoryID,
