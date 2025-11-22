@@ -69,7 +69,7 @@ export declare function getBestSellingProducts(customerId: number | null, priceC
 export declare function getCategories(): Promise<{
     categoryId: number;
     categoryName: string;
-    categoryImage: string | null | undefined;
+    categoryImage: string | null;
 }[]>;
 export declare function getSubCategoriesByCategoryId(categoryId: number): Promise<{
     subCategoryId: number;

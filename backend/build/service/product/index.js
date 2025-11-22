@@ -91,7 +91,17 @@ function getProductImage(productId) {
                 Url: true
             }
         });
-        return (imageData === null || imageData === void 0 ? void 0 : imageData.Url) || null;
+        if (!(imageData === null || imageData === void 0 ? void 0 : imageData.Url))
+            return null;
+        // Prepend base URL if the URL is relative
+        const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+        const imageUrl = imageData.Url;
+        // Check if URL is already absolute (starts with http:// or https://)
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+        // Prepend base URL to relative path
+        return `${imageBaseUrl}${imageUrl}`;
     });
 }
 function getExclusiveProducts(customerId_1, priceColumn_1) {
@@ -241,6 +251,7 @@ function getBestSellingProducts(customerId_1, priceColumn_1, sortOrderLimit_1) {
 }
 function getCategories() {
     return __awaiter(this, void 0, void 0, function* () {
+        const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
         const categories = yield prisma.productCategoryMaster.findMany({
             where: {
                 Active: 1
@@ -265,7 +276,16 @@ function getCategories() {
                         Url: true
                     }
                 });
-                imageUrl = imageData === null || imageData === void 0 ? void 0 : imageData.Url;
+                if (imageData === null || imageData === void 0 ? void 0 : imageData.Url) {
+                    const url = imageData.Url;
+                    // Check if URL is already absolute
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        imageUrl = url;
+                    }
+                    else {
+                        imageUrl = `${imageBaseUrl}${url}`;
+                    }
+                }
             }
             return {
                 categoryId: category.CategoryID,
@@ -279,6 +299,7 @@ function getCategories() {
 // ...existing code...
 function getSubCategoriesByCategoryId(categoryId) {
     return __awaiter(this, void 0, void 0, function* () {
+        const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
         // Fetch subcategories for the given categoryId
         const subCategories = yield prisma.productSubCategoryMaster.findMany({
             where: {
@@ -303,7 +324,16 @@ function getSubCategoriesByCategoryId(categoryId) {
                     where: { ImageID: subCategoryImage.ImageID },
                     select: { Url: true }
                 });
-                imageUrl = (imageData === null || imageData === void 0 ? void 0 : imageData.Url) || null;
+                if (imageData === null || imageData === void 0 ? void 0 : imageData.Url) {
+                    const url = imageData.Url;
+                    // Check if URL is already absolute
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        imageUrl = url;
+                    }
+                    else {
+                        imageUrl = `${imageBaseUrl}${url}`;
+                    }
+                }
             }
             return {
                 subCategoryId: subCategory.SubCategoryID,

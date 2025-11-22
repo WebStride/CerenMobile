@@ -96,9 +96,14 @@ export default function AddAddressDetailsScreen() {
       const response = await sendAddressDetails(payload);
 
       if (response.success) {
+        // Check if this is a new user requiring verification
+        const isNewUser = (response as any).requiresVerification === true;
+        
         Alert.alert(
           "Success",
-          response.message || "Address saved successfully!",
+          isNewUser 
+            ? "Your details have been sent to admin for verification. You will be notified once approved."
+            : response.message || "Address saved successfully!",
           [
             {
               text: "OK",
