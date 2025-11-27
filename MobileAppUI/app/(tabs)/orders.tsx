@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router"; // Import useRouter
 import { getOrders } from "../../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Local UI order shape
 type UiOrder = {
@@ -217,8 +218,20 @@ export default function OrdersScreen() {
       setLoading(true);
       setError(null);
       try {
-        // use the customerid provided by you for testing
-        const res = await getOrders(2005);
+        // Get the selected store's customerId from AsyncStorage
+        const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
+        const customerId = selectedStoreId ? Number(selectedStoreId) : undefined;
+        
+        console.log('📦 Fetching orders for customerId:', customerId);
+        
+        if (!customerId) {
+          setError('No store selected. Please select a store first.');
+          setOrders([]);
+          setLoading(false);
+          return;
+        }
+        
+        const res = await getOrders(customerId);
         if (!mounted) return;
         if (res && Array.isArray(res.orders)) {
           const mapped = res.orders.map((o: any) => {
