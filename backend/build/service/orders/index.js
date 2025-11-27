@@ -15,6 +15,32 @@ exports.getInvoicesByCustomerId = getInvoicesByCustomerId;
 exports.getInvoiceItemsByInvoiceId = getInvoiceItemsByInvoiceId;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
+// Helper function to safely convert BigInt and Date to serializable format for JSON
+const serializeForJson = (value) => {
+    if (value === null || value === undefined)
+        return value;
+    // Handle BigInt - convert to number if safe, otherwise to string
+    if (typeof value === 'bigint') {
+        return Number(value) <= Number.MAX_SAFE_INTEGER ? Number(value) : String(value);
+    }
+    // Handle Date objects - convert to ISO string
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    // Handle arrays recursively
+    if (Array.isArray(value)) {
+        return value.map(serializeForJson);
+    }
+    // Handle objects recursively
+    if (typeof value === 'object' && value !== null) {
+        const result = {};
+        for (const key in value) {
+            result[key] = serializeForJson(value[key]);
+        }
+        return result;
+    }
+    return value;
+};
 function getOrdersByCustomerId(customerId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -36,9 +62,11 @@ function getOrdersByCustomerId(customerId) {
                 }
             });
             console.log('📊 Found orders count:', orders.length);
+            // Convert BigInt and Date values to serializable format
+            const serializedOrders = serializeForJson(orders);
             return {
                 success: true,
-                orders
+                orders: serializedOrders
             };
         }
         catch (error) {
@@ -59,9 +87,11 @@ function getOrderItemsByOrderId(orderId) {
                 where: { OrderID: orderId }
             });
             console.log('📊 Found order items count:', orderItems.length);
+            // Convert BigInt and Date values to serializable format
+            const serializedOrderItems = serializeForJson(orderItems);
             return {
                 success: true,
-                orderItems
+                orderItems: serializedOrderItems
             };
         }
         catch (error) {
@@ -83,13 +113,11 @@ function getInvoicesByCustomerId(customerId) {
                 orderBy: { InvoiceDate: 'desc' }
             });
             console.log('📊 Found invoices count:', invoices.length);
-            // Convert any BigInt fields (Prisma may return BigInt for large integer DB cols)
-            const serializable = invoices.map(inv => (Object.assign(Object.assign({}, inv), { 
-                // OrderID in your schema is BigInt - convert to number if safe, otherwise to string
-                OrderID: typeof inv.OrderID === 'bigint' ? (Number(inv.OrderID) <= Number.MAX_SAFE_INTEGER ? Number(inv.OrderID) : String(inv.OrderID)) : inv.OrderID })));
+            // Convert BigInt and Date values to serializable format
+            const serializedInvoices = serializeForJson(invoices);
             return {
                 success: true,
-                invoices: serializable
+                invoices: serializedInvoices
             };
         }
         catch (error) {
@@ -110,9 +138,11 @@ function getInvoiceItemsByInvoiceId(invoiceId) {
                 where: { InvoiceID: invoiceId }
             });
             console.log('📊 Found invoice items count:', invoiceItems.length);
+            // Convert BigInt and Date values to serializable format
+            const serializedInvoiceItems = serializeForJson(invoiceItems);
             return {
                 success: true,
-                invoiceItems
+                invoiceItems: serializedInvoiceItems
             };
         }
         catch (error) {

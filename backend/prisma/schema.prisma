@@ -38,6 +38,7 @@ model CUSTOMERACCOUNTHISTORY {
   @@index([ACCOUNTID], map: "ACCOUNTIDIdx")
   @@index([PAYMENTID], map: "PAYMENTIDIdx")
 }
+
 model USERCUSTOMERMASTER {
   id          Int      @id @default(autoincrement())
   name        String   @db.VarChar(100)
@@ -46,6 +47,7 @@ model USERCUSTOMERMASTER {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
 model Cart {
   id                 Int      @id @default(autoincrement())
   customerId         Int
@@ -63,6 +65,7 @@ model Cart {
   @@unique([customerId, productId], map: "UX_cart_customer_product")
   @@index([customerId], map: "IDX_cart_customer")
 }
+
 model UserFavourites {
   id                 Int      @id @default(autoincrement())
   customerId         Int
@@ -78,6 +81,7 @@ model UserFavourites {
   @@unique([customerId, productId], map: "UX_user_favourites_customer_product")
   @@index([customerId], map: "IDX_user_favourites_customer")
 }
+
 model DeliveryAddress {
   DeliveryAddressID Int      @id @default(autoincrement())
   UserID            Int?
@@ -95,14 +99,15 @@ model DeliveryAddress {
   Active            Boolean  @default(dbgenerated("b'1'")) @db.Bit(1)
   IsDefault         Boolean? @default(dbgenerated("b'0'")) @db.Bit(1)
 }
+
 model CUSTOMERMASTER {
   CUSTOMERID        Int       @id @default(autoincrement())
   CUSTOMERNAME      String    @db.VarChar(100)
   ADDRESS           String?   @db.VarChar(1000)
   PHONENO           String?   @db.VarChar(20)
   CUSTOMERTYPEID    Int       @default(1) @db.SmallInt
-  StoreAreaInSFT    BigInt?
   AvgDailySales     BigInt?
+  StoreAreaInSFT    BigInt?
   ContactPersonName String?   @db.VarChar(100)
   LINEID            Int?
   PRICEGROUPID      Int?

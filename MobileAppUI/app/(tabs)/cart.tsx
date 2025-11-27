@@ -4,7 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { checkCustomerExists } from "../../services/api";
+import { checkCustomerExists, placeOrder } from "../../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const defaultImage = require("../../assets/images/Banana.png");
 
@@ -13,6 +14,7 @@ export default function CartScreen() {
   const { cart, increase, decrease, removeFromCart, cartTotal, clearCart } = useCart();
   const insets = useSafeAreaInsets();
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   
   // Check customer existence when component mounts
   useEffect(() => {
@@ -341,17 +343,77 @@ export default function CartScreen() {
         bottom: bottomOffset,
       }} className="bg-white border-t border-gray-200 px-4 py-4">
         <TouchableOpacity
-          onPress={() => {
-            // clear local cart and trigger server clear in background
-            clearCart();
-            Alert.alert("Order placed", "Your order has been placed and the cart is cleared.", [
-              { text: 'OK', onPress: () => router.push('/shop') }
-            ]);
+          onPress={async () => {
+            if (isPlacingOrder) return;
+            
+            setIsPlacingOrder(true);
+            
+            try {
+              // Get customer info from AsyncStorage
+              const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
+              const customerName = await AsyncStorage.getItem('customerName') || 'Customer';
+              
+              if (!selectedStoreId) {
+                Alert.alert('Error', 'No store selected. Please select a store first.');
+                setIsPlacingOrder(false);
+                return;
+              }
+
+              // Prepare order items from cart
+              const orderItems = cart.map(item => ({
+                productId: item.productId,
+                productName: item.productName,
+                quantity: item.quantity,
+                price: item.price,
+              }));
+
+              // Place order via external API
+              const result = await placeOrder(
+                Number(selectedStoreId),
+                customerName,
+                orderItems
+              );
+
+              if (result.success) {
+                // Clear cart on success
+                clearCart();
+                
+                Alert.alert(
+                  'Success',
+                  'Your order has been placed successfully!',
+                  [
+                    { 
+                      text: 'OK', 
+                      onPress: () => router.push('/(tabs)/shop') 
+                    }
+                  ]
+                );
+              } else {
+                Alert.alert(
+                  'Order Failed',
+                  result.message || 'Failed to place order. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              console.error('Error placing order:', error);
+              Alert.alert(
+                'Error',
+                'An unexpected error occurred. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setIsPlacingOrder(false);
+            }
           }}
           className="bg-green-700 rounded-full py-4 px-6 flex-row items-center justify-between"
           activeOpacity={0.8}
+          disabled={isPlacingOrder}
+          style={{ opacity: isPlacingOrder ? 0.6 : 1 }}
         >
-          <Text className="text-white font-bold text-base">Place Order</Text>
+          <Text className="text-white font-bold text-base">
+            {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
+          </Text>
           <View className="flex-row items-center">
             <Text className="text-white font-bold text-base mr-2">
               ₹{finalAmount.toFixed(2)}

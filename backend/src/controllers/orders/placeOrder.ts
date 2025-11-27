@@ -1,0 +1,96 @@
+import { Response } from 'express';
+import { AuthRequest } from '../../middleware/auth';
+import { placeOrderViaExternalApi } from '../../service/orders/placeOrder';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+interface OrderItemRequest {
+    productId: number;
+    productName: string;
+    quantity: number;
+    price: number;
+}
+
+interface PlaceOrderRequest {
+    customerId: number;
+    customerName: string;
+    orderItems: OrderItemRequest[];
+}
+
+export async function placeOrder(req: AuthRequest, res: Response) {
+    try {
+        if (!req.user?.userId) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'User not authenticated' 
+            });
+        }
+
+        const { customerId, customerName, orderItems } = req.body as PlaceOrderRequest;
+
+        // Validate request
+        if (!customerId || !customerName || !orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: customerId, customerName, and orderItems are required',
+            });
+        }
+
+        // Validate order items
+        for (const item of orderItems) {
+            if (!item.productId || !item.productName || !item.quantity || !item.price) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Each order item must have productId, productName, quantity, and price',
+                });
+            }
+        }
+
+        console.log('📦 Processing place order request:', {
+            userId: req.user.userId,
+            customerId,
+            customerName,
+            itemCount: orderItems.length,
+        });
+
+        // Place order via external API
+        const result = await placeOrderViaExternalApi(
+            customerId,
+            customerName,
+            orderItems
+        );
+
+        if (!result.success) {
+            return res.status(500).json({
+                success: false,
+                error: result.message || 'Failed to place order',
+            });
+        }
+
+        // Optional: Clear cart after successful order
+        // You can uncomment this if you want to auto-clear cart
+        // try {
+        //     await prisma.cart.deleteMany({
+        //         where: { CustomerID: customerId }
+        //     });
+        //     console.log('🗑️ Cart cleared after successful order');
+        // } catch (cartError) {
+        //     console.warn('⚠️ Failed to clear cart after order:', cartError);
+        // }
+
+        res.json({
+            success: true,
+            message: 'Order placed successfully',
+            data: result.data,
+        });
+
+    } catch (error: any) {
+        console.error('❌ Error in placeOrder controller:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to place order',
+            details: error.message,
+        });
+    }
+}

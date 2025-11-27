@@ -19,6 +19,7 @@ const auth_2 = require("./middleware/auth");
 const auth_3 = require("./controllers/auth");
 const customer_1 = require("./controllers/customer");
 const orders_1 = require("./controllers/orders");
+const placeOrder_1 = require("./controllers/orders/placeOrder");
 const prisma = new client_1.PrismaClient();
 function routes(app) {
     app.get('/healthcheck', (req, res) => res.sendStatus(200));
@@ -88,6 +89,7 @@ function routes(app) {
     // Orders routes
     app.get('/orders', auth_2.authenticateToken, orders_1.getOrdersByCustomer);
     app.get('/orders/:orderId/items', auth_2.authenticateToken, orders_1.getOrderItemsByOrder);
+    app.post('/orders/place', auth_2.authenticateToken, placeOrder_1.placeOrder);
     // Invoices routes
     app.get('/invoices', auth_2.authenticateToken, orders_1.getInvoicesByCustomer);
     app.get('/invoices/:invoiceId/items', auth_2.authenticateToken, orders_1.getInvoiceItemsByInvoice);

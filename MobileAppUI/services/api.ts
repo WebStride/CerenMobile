@@ -1062,3 +1062,56 @@ export const deleteUserAddress = async (addressId: number) => {
     return { success: false, message: 'Failed to delete address' };
   }
 };
+
+// Place order via external API
+export const placeOrder = async (
+  customerId: number,
+  customerName: string,
+  orderItems: Array<{
+    productId: number;
+    productName: string;
+    quantity: number;
+    price: number;
+  }>
+): Promise<{ success: boolean; message?: string; data?: any }> => {
+  try {
+    const endpoint = `${apiUrl}/orders/place`;
+    console.log('📦 Place Order API call:', endpoint);
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+      body: JSON.stringify({
+        customerId,
+        customerName,
+        orderItems,
+      }),
+    });
+
+    console.log('Place Order response status:', response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Error placing order:', errorData);
+      return {
+        success: false,
+        message: errorData.error || errorData.message || 'Failed to place order',
+      };
+    }
+
+    const data = await response.json();
+    console.log('✅ Order placed successfully:', data);
+    return data;
+  } catch (error: any) {
+    console.error('Error in placeOrder:', error);
+    return {
+      success: false,
+      message: error.message || 'Network error while placing order',
+    };
+  }
+};
+
