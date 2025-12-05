@@ -21,6 +21,7 @@ import { authenticateToken } from "./middleware/auth";
 import { checkCustomer } from "./controllers/auth";
 import { getStores } from "./controllers/customer";
 import { getOrdersByCustomer, getOrderItemsByOrder, getInvoicesByCustomer, getInvoiceItemsByInvoice } from "./controllers/orders";
+import { placeOrder } from "./controllers/orders/placeOrder";
 const prisma = new PrismaClient();
 
 function routes(app: Express) {
@@ -110,6 +111,8 @@ function routes(app: Express) {
     // Orders routes
     app.get('/orders', authenticateToken, getOrdersByCustomer);
     app.get('/orders/:orderId/items', authenticateToken, getOrderItemsByOrder);
+    app.post('/orders/place', authenticateToken, placeOrder);
+    
     // Invoices routes
     app.get('/invoices', authenticateToken, getInvoicesByCustomer);
     app.get('/invoices/:invoiceId/items', authenticateToken, getInvoiceItemsByInvoice);

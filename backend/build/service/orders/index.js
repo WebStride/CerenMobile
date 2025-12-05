@@ -15,12 +15,43 @@ exports.getInvoicesByCustomerId = getInvoicesByCustomerId;
 exports.getInvoiceItemsByInvoiceId = getInvoiceItemsByInvoiceId;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
-function getOrdersByCustomerId(customerId) {
+// Helper function to safely convert BigInt and Date to serializable format for JSON
+const serializeForJson = (value) => {
+    if (value === null || value === undefined)
+        return value;
+    // Handle BigInt - convert to number if safe, otherwise to string
+    if (typeof value === 'bigint') {
+        return Number(value) <= Number.MAX_SAFE_INTEGER ? Number(value) : String(value);
+    }
+    // Handle Date objects - convert to ISO string
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    // Handle arrays recursively
+    if (Array.isArray(value)) {
+        return value.map(serializeForJson);
+    }
+    // Handle objects recursively
+    if (typeof value === 'object' && value !== null) {
+        const result = {};
+        for (const key in value) {
+            result[key] = serializeForJson(value[key]);
+        }
+        return result;
+    }
+    return value;
+};
+function getOrdersByCustomerId(customerId, status) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('🔍 Querying orders for CustomerID:', customerId);
+            console.log('🔍 Querying orders for CustomerID:', customerId, 'status:', status || 'all');
+            const whereClause = { CustomerID: customerId };
+            if (status) {
+                // Use case-insensitive equality where supported to tolerate case differences
+                whereClause.OrderStatus = { equals: status, mode: 'insensitive' };
+            }
             const orders = yield prisma.orders.findMany({
-                where: { CustomerID: customerId },
+                where: whereClause,
                 orderBy: { OrderDate: 'desc' },
                 select: {
                     OrderID: true,
@@ -36,9 +67,11 @@ function getOrdersByCustomerId(customerId) {
                 }
             });
             console.log('📊 Found orders count:', orders.length);
+            // Convert BigInt and Date values to serializable format
+            const serializedOrders = serializeForJson(orders);
             return {
                 success: true,
-                orders
+                orders: serializedOrders
             };
         }
         catch (error) {
@@ -54,18 +87,47 @@ function getOrdersByCustomerId(customerId) {
 function getOrderItemsByOrderId(orderId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('🔍 Querying order items for OrderID:', orderId);
+            console.log('🔍 [getOrderItemsByOrderId] START - OrderID:', orderId);
             const orderItems = yield prisma.orderItems.findMany({
                 where: { OrderID: orderId }
             });
-            console.log('📊 Found order items count:', orderItems.length);
+            console.log('📊 [getOrderItemsByOrderId] Found order items count:', orderItems.length);
+            console.log('📊 [getOrderItemsByOrderId] Raw order items:', JSON.stringify(orderItems, (key, value) => typeof value === 'bigint' ? value.toString() : value));
+            // Get product names from ProductMaster table
+            const productIds = orderItems.map(item => item.ProductID).filter((id) => id !== null);
+            console.log('🆔 [getOrderItemsByOrderId] Product IDs to lookup:', productIds);
+            let productNameMap = new Map();
+            if (productIds.length > 0) {
+                const products = yield prisma.productMaster.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ProductName: true, DisplayName: true }
+                });
+                console.log('📦 [getOrderItemsByOrderId] Products found from ProductMaster:', JSON.stringify(products));
+                products.forEach(p => {
+                    const name = p.DisplayName || p.ProductName || `Product #${p.ProductID}`;
+                    console.log(`📝 [getOrderItemsByOrderId] Mapping ProductID ${p.ProductID} -> "${name}"`);
+                    productNameMap.set(p.ProductID, name);
+                });
+            }
+            else {
+                console.log('⚠️ [getOrderItemsByOrderId] No valid ProductIDs found in order items');
+            }
+            // Enrich order items with product names
+            const orderItemsWithNames = orderItems.map(item => {
+                const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
+                console.log(`🏷️ [getOrderItemsByOrderId] OrderItemID ${item.OrderItemID}: ProductID=${item.ProductID} -> ProductName="${productName}"`);
+                return Object.assign(Object.assign({}, item), { ProductName: productName });
+            });
+            // Convert BigInt and Date values to serializable format
+            const serializedOrderItems = serializeForJson(orderItemsWithNames);
+            console.log('✅ [getOrderItemsByOrderId] Final serialized order items:', JSON.stringify(serializedOrderItems));
             return {
                 success: true,
-                orderItems
+                orderItems: serializedOrderItems
             };
         }
         catch (error) {
-            console.error('Error in getOrderItemsByOrderId service:', error);
+            console.error('❌ [getOrderItemsByOrderId] Error:', error);
             return {
                 success: false,
                 orderItems: [],
@@ -83,13 +145,11 @@ function getInvoicesByCustomerId(customerId) {
                 orderBy: { InvoiceDate: 'desc' }
             });
             console.log('📊 Found invoices count:', invoices.length);
-            // Convert any BigInt fields (Prisma may return BigInt for large integer DB cols)
-            const serializable = invoices.map(inv => (Object.assign(Object.assign({}, inv), { 
-                // OrderID in your schema is BigInt - convert to number if safe, otherwise to string
-                OrderID: typeof inv.OrderID === 'bigint' ? (Number(inv.OrderID) <= Number.MAX_SAFE_INTEGER ? Number(inv.OrderID) : String(inv.OrderID)) : inv.OrderID })));
+            // Convert BigInt and Date values to serializable format
+            const serializedInvoices = serializeForJson(invoices);
             return {
                 success: true,
-                invoices: serializable
+                invoices: serializedInvoices
             };
         }
         catch (error) {
@@ -110,9 +170,11 @@ function getInvoiceItemsByInvoiceId(invoiceId) {
                 where: { InvoiceID: invoiceId }
             });
             console.log('📊 Found invoice items count:', invoiceItems.length);
+            // Convert BigInt and Date values to serializable format
+            const serializedInvoiceItems = serializeForJson(invoiceItems);
             return {
                 success: true,
-                invoiceItems
+                invoiceItems: serializedInvoiceItems
             };
         }
         catch (error) {
