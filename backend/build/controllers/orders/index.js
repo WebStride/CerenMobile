@@ -45,23 +45,24 @@ function getInvoicesByCustomer(req, res) {
 }
 function getOrdersByCustomer(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
+        var _a, _b;
         try {
-            // Allow customerid query parameter for testing, otherwise use JWT
+            // Allow customerid and status query parameter for testing/filters, otherwise use JWT
             const queryCustomerId = req.query.customerid;
+            const status = (_a = req.query.status) !== null && _a !== void 0 ? _a : undefined;
             let customerId;
             if (queryCustomerId) {
                 customerId = parseInt(queryCustomerId);
                 console.log('🔍 Using query customerId:', customerId);
             }
             else {
-                if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                if (!((_b = req.user) === null || _b === void 0 ? void 0 : _b.userId)) {
                     return res.status(401).json({ error: 'User not authenticated' });
                 }
                 customerId = parseInt(req.user.userId);
                 console.log('🔍 Using JWT customerId:', customerId);
             }
-            const result = yield (0, orders_1.getOrdersByCustomerId)(customerId);
+            const result = yield (0, orders_1.getOrdersByCustomerId)(customerId, status);
             console.log('📊 Orders result:', result);
             if (!result.success) {
                 return res.status(500).json({

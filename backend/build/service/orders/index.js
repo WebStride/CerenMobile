@@ -41,12 +41,17 @@ const serializeForJson = (value) => {
     }
     return value;
 };
-function getOrdersByCustomerId(customerId) {
+function getOrdersByCustomerId(customerId, status) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('🔍 Querying orders for CustomerID:', customerId);
+            console.log('🔍 Querying orders for CustomerID:', customerId, 'status:', status || 'all');
+            const whereClause = { CustomerID: customerId };
+            if (status) {
+                // Use case-insensitive equality where supported to tolerate case differences
+                whereClause.OrderStatus = { equals: status, mode: 'insensitive' };
+            }
             const orders = yield prisma.orders.findMany({
-                where: { CustomerID: customerId },
+                where: whereClause,
                 orderBy: { OrderDate: 'desc' },
                 select: {
                     OrderID: true,
