@@ -286,3 +286,4 @@ function similarProductsList(req, res) {
         }
     });
 }
+//# sourceMappingURL=index.js.map

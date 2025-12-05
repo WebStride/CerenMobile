@@ -24,6 +24,7 @@ exports.sendOtpController = sendOtpController;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const auth_1 = require("../../service/auth");
 const auth_2 = require("../../service/auth");
+const msg91_1 = require("../../service/sms/msg91");
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
 function testOTP(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -32,12 +33,9 @@ function testOTP(req, res) {
             return res.status(400).json({ error: "Missing phoneNumber" });
         }
         try {
-            console.log('=== TEST OTP DEBUG ===');
+            console.log('=== TEST OTP DEBUG (MSG91) ===');
             console.log('Original phone number:', phoneNumber);
-            // Test phone number formatting
-            const twilio = require('twilio');
-            const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-            // Format phone number the same way as in the service
+            // Format phone number
             const formatPhoneNumber = (phone) => {
                 const cleaned = phone.replace(/\D/g, '');
                 if (cleaned.startsWith('91') && cleaned.length === 12) {
@@ -53,28 +51,32 @@ function testOTP(req, res) {
             };
             const formattedPhone = formatPhoneNumber(phoneNumber);
             console.log('Formatted phone number:', formattedPhone);
-            // Test verification creation
-            const verification = yield client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
-                .verifications
-                .create({
-                to: formattedPhone,
-                channel: 'sms',
-            });
-            console.log('Verification created:', {
-                sid: verification.sid,
-                status: verification.status,
-                to: verification.to
-            });
-            res.json({
-                success: true,
-                message: "Test OTP sent successfully",
-                debug: {
-                    originalPhone: phoneNumber,
-                    formattedPhone: formattedPhone,
-                    verificationSid: verification.sid,
-                    status: verification.status
-                }
-            });
+            // Send OTP via MSG91
+            const result = yield (0, msg91_1.sendOtpToPhone)(formattedPhone);
+            console.log('OTP send result:', result);
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: "Test OTP sent successfully via MSG91",
+                    debug: {
+                        originalPhone: phoneNumber,
+                        formattedPhone: formattedPhone,
+                        requestId: result.requestId,
+                        provider: 'MSG91'
+                    }
+                });
+            }
+            else {
+                res.status(500).json({
+                    error: "Test OTP failed",
+                    details: result.message,
+                    debug: {
+                        originalPhone: phoneNumber,
+                        formattedPhone: formattedPhone,
+                        provider: 'MSG91'
+                    }
+                });
+            }
         }
         catch (error) {
             console.error('Test OTP error:', error);
@@ -83,7 +85,8 @@ function testOTP(req, res) {
                 details: error.message,
                 debug: {
                     originalPhone: phoneNumber,
-                    errorCode: error.code
+                    errorCode: error.code,
+                    provider: 'MSG91'
                 }
             });
         }
@@ -260,3 +263,4 @@ function sendOtpController(req, res) {
         }
     });
 }
+//# sourceMappingURL=index.js.map

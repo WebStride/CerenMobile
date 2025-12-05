@@ -61,3 +61,4 @@ function removeUserFavourite(customerId, productId) {
         });
     });
 }
+//# sourceMappingURL=index.js.map

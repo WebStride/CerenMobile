@@ -85,3 +85,4 @@ function deleteFavourite(req, res) {
         }
     });
 }
+//# sourceMappingURL=index.js.map

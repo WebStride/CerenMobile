@@ -46,3 +46,4 @@ app.listen(port, host, () => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, routes_1.default)(app);
 }));
 exports.default = app;
+//# sourceMappingURL=app.js.map

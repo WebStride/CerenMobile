@@ -56,3 +56,4 @@ function getStoresForUser(userId) {
         }
     });
 }
+//# sourceMappingURL=customer.js.map
