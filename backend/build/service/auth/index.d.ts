@@ -2,7 +2,11 @@ interface TokenPayload {
     userId: number;
     phoneNumber: string;
 }
-export declare function sendOTP(phoneNumber: string): Promise<import("twilio/lib/rest/verify/v2/service/verification").VerificationInstance>;
+export declare function sendOTP(phoneNumber: string): Promise<{
+    status: string;
+    to: string;
+    requestId: string | undefined;
+}>;
 export declare function generateTokens(payload: TokenPayload): {
     accessToken: string;
     refreshToken: string;

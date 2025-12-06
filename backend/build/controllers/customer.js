@@ -64,3 +64,4 @@ function getStores(req, res) {
         }
     });
 }
+//# sourceMappingURL=customer.js.map

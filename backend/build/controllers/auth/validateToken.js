@@ -97,3 +97,4 @@ const validateToken = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
 });
 exports.validateToken = validateToken;
+//# sourceMappingURL=validateToken.js.map

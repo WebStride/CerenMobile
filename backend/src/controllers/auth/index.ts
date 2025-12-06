@@ -3,7 +3,10 @@ import jwt from 'jsonwebtoken';
 import { sendOTP, verifyOTP, saveUserAndGenerateTokens, generateTokens } from "../../service/auth";
 import { RequestWithUser } from '../../types/express';
 import {checkCustomerExists} from "../../service/auth"
+import { sendOtpToPhone, verifyOtp } from "../../service/sms/msg91";
+
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
+
 export async function testOTP(req: Request, res: Response) {
     const { phoneNumber } = req.body;
 
@@ -12,14 +15,10 @@ export async function testOTP(req: Request, res: Response) {
     }
 
     try {
-        console.log('=== TEST OTP DEBUG ===');
+        console.log('=== TEST OTP DEBUG (MSG91) ===');
         console.log('Original phone number:', phoneNumber);
 
-        // Test phone number formatting
-        const twilio = require('twilio');
-        const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-        // Format phone number the same way as in the service
+        // Format phone number
         const formatPhoneNumber = (phone: string) => {
             const cleaned = phone.replace(/\D/g, '');
             if (cleaned.startsWith('91') && cleaned.length === 12) {
@@ -37,30 +36,33 @@ export async function testOTP(req: Request, res: Response) {
         const formattedPhone = formatPhoneNumber(phoneNumber);
         console.log('Formatted phone number:', formattedPhone);
 
-        // Test verification creation
-        const verification = await client.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
-            .verifications
-            .create({
-                to: formattedPhone,
-                channel: 'sms',
+        // Send OTP via MSG91
+        const result = await sendOtpToPhone(formattedPhone);
+
+        console.log('OTP send result:', result);
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: "Test OTP sent successfully via MSG91",
+                debug: {
+                    originalPhone: phoneNumber,
+                    formattedPhone: formattedPhone,
+                    requestId: result.requestId,
+                    provider: 'MSG91'
+                }
             });
-
-        console.log('Verification created:', {
-            sid: verification.sid,
-            status: verification.status,
-            to: verification.to
-        });
-
-        res.json({
-            success: true,
-            message: "Test OTP sent successfully",
-            debug: {
-                originalPhone: phoneNumber,
-                formattedPhone: formattedPhone,
-                verificationSid: verification.sid,
-                status: verification.status
-            }
-        });
+        } else {
+            res.status(500).json({
+                error: "Test OTP failed",
+                details: result.message,
+                debug: {
+                    originalPhone: phoneNumber,
+                    formattedPhone: formattedPhone,
+                    provider: 'MSG91'
+                }
+            });
+        }
     } catch (error: any) {
         console.error('Test OTP error:', error);
         res.status(500).json({
@@ -68,7 +70,8 @@ export async function testOTP(req: Request, res: Response) {
             details: error.message,
             debug: {
                 originalPhone: phoneNumber,
-                errorCode: error.code
+                errorCode: error.code,
+                provider: 'MSG91'
             }
         });
     }

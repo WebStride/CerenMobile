@@ -3,10 +3,8 @@ const prisma = new PrismaClient();
 import dotenv from 'dotenv';
 
 dotenv.config();
-import twilio from 'twilio';
 import jwt from 'jsonwebtoken';
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+import { sendOtpToPhone, verifyOtp as verifyOtpMsg91 } from '../sms/msg91';
 
 
 
@@ -58,41 +56,30 @@ function formatPhoneNumber(phoneNumber: string): string {
 // }
 
 export async function sendOTP(phoneNumber: string) {
-  if (!verifyServiceSid) {
-    console.log("verifyServiceSID", verifyServiceSid)
-    throw new Error('TWILIO_VERIFY_SERVICE_SID is not defined in environment variables');
-  }
-
   console.log('=== SEND OTP DEBUG ===');
   console.log('Input phone number:', phoneNumber);
-  console.log('Service SID:', verifyServiceSid);
 
   try {
     const formattedPhone = formatPhoneNumber(phoneNumber);
     console.log('📱 Formatted phone number:', formattedPhone);
     console.log('📱 Original phone number:', phoneNumber);
 
-    console.log('📤 Sending verification...');
-    const verification = await client.verify.v2.services(verifyServiceSid)
-      .verifications
-      .create({
-        to: formattedPhone,
-        channel: 'sms',
+    console.log('📤 Sending verification via MSG91...');
+    const result = await sendOtpToPhone(formattedPhone);
+
+    if (result.success) {
+      console.log('✅ Verification sent successfully');
+      console.log('📊 Verification details:', {
+        requestId: result.requestId,
+        message: result.message
       });
-
-    console.log('✅ Verification sent successfully');
-    console.log('📊 Verification details:', {
-      sid: verification.sid,
-      status: verification.status,
-      to: verification.to,
-      channel: verification.channel
-    });
-
-    return verification;
+      return { status: 'pending', to: formattedPhone, requestId: result.requestId };
+    } else {
+      throw new Error(result.message || 'Failed to send OTP');
+    }
   } catch (error: any) {
     console.error('❌ Error in sendOTP:', error);
     console.error('❌ Error message:', error.message);
-    console.error('❌ Error code:', error.code);
     throw new Error(`Failed to send OTP: ${error.message}`);
   }
 }
@@ -108,57 +95,30 @@ export function generateTokens(payload: TokenPayload) {
 }
 
 export async function verifyOTP(phoneNumber: string, code: string) {
-    // For testing purposes, bypass Twilio verification with OTP 123456
-    if (code === '123456') {
-        console.log('🎯 Test OTP 123456 accepted - bypassing Twilio verification');
-        return true;
-    }
-
-    if (!verifyServiceSid) {
-        throw new Error('Twilio service SID not configured');
-    }
-
     console.log('=== VERIFY OTP DEBUG ===');
     console.log('Input phone number:', phoneNumber);
     console.log('Input code:', code);
-    console.log('Service SID:', verifyServiceSid);
 
     try {
         const formattedPhone = formatPhoneNumber(phoneNumber);
         console.log('📱 Formatted phone number:', formattedPhone);
         console.log('📱 Original phone number:', phoneNumber);
 
-        console.log('🔍 Attempting verification check...');
-        const verificationCheck = await client.verify.v2.services(verifyServiceSid)
-            .verificationChecks
-            .create({
-                to: formattedPhone,
-                code: code
-            });
+        console.log('🔍 Attempting verification via MSG91...');
+        const result = await verifyOtpMsg91(formattedPhone, code);
 
         console.log('✅ Verification check completed');
         console.log('📊 Verification result:', {
-            sid: verificationCheck.sid,
-            status: verificationCheck.status,
-            valid: verificationCheck.valid,
-            to: verificationCheck.to
+            success: result.success,
+            message: result.message
         });
 
-        const isApproved = verificationCheck.status === 'approved';
-        console.log('🎯 Final result - Approved:', isApproved);
+        console.log('🎯 Final result - Approved:', result.success);
 
-        return isApproved;
+        return result.success;
     } catch (error: any) {
         console.error('❌ Error in verifyOTP:', error);
         console.error('❌ Error message:', error.message);
-        console.error('❌ Error code:', error.code);
-        console.error('❌ Error status:', error.status);
-
-        // Log more details about the error
-        if (error.moreInfo) {
-            console.error('❌ More info:', error.moreInfo);
-        }
-
         throw new Error(`Verification failed: ${error.message}`);
     }
 }

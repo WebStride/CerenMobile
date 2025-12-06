@@ -71,3 +71,4 @@ function clearCart(customerId) {
         return prisma_1.default.cart.deleteMany({ where: { customerId } });
     });
 }
+//# sourceMappingURL=index.js.map

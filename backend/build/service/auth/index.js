@@ -21,10 +21,8 @@ const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-const twilio_1 = __importDefault(require("twilio"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const client = (0, twilio_1.default)(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+const msg91_1 = require("../sms/msg91");
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'your-access-token-secret';
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-token-secret';
 const ACCESS_TOKEN_EXPIRY = '15m';
@@ -62,37 +60,29 @@ function formatPhoneNumber(phoneNumber) {
 // }
 function sendOTP(phoneNumber) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (!verifyServiceSid) {
-            console.log("verifyServiceSID", verifyServiceSid);
-            throw new Error('TWILIO_VERIFY_SERVICE_SID is not defined in environment variables');
-        }
         console.log('=== SEND OTP DEBUG ===');
         console.log('Input phone number:', phoneNumber);
-        console.log('Service SID:', verifyServiceSid);
         try {
             const formattedPhone = formatPhoneNumber(phoneNumber);
             console.log('📱 Formatted phone number:', formattedPhone);
             console.log('📱 Original phone number:', phoneNumber);
-            console.log('📤 Sending verification...');
-            const verification = yield client.verify.v2.services(verifyServiceSid)
-                .verifications
-                .create({
-                to: formattedPhone,
-                channel: 'sms',
-            });
-            console.log('✅ Verification sent successfully');
-            console.log('📊 Verification details:', {
-                sid: verification.sid,
-                status: verification.status,
-                to: verification.to,
-                channel: verification.channel
-            });
-            return verification;
+            console.log('📤 Sending verification via MSG91...');
+            const result = yield (0, msg91_1.sendOtpToPhone)(formattedPhone);
+            if (result.success) {
+                console.log('✅ Verification sent successfully');
+                console.log('📊 Verification details:', {
+                    requestId: result.requestId,
+                    message: result.message
+                });
+                return { status: 'pending', to: formattedPhone, requestId: result.requestId };
+            }
+            else {
+                throw new Error(result.message || 'Failed to send OTP');
+            }
         }
         catch (error) {
             console.error('❌ Error in sendOTP:', error);
             console.error('❌ Error message:', error.message);
-            console.error('❌ Error code:', error.code);
             throw new Error(`Failed to send OTP: ${error.message}`);
         }
     });
@@ -108,49 +98,26 @@ function generateTokens(payload) {
 }
 function verifyOTP(phoneNumber, code) {
     return __awaiter(this, void 0, void 0, function* () {
-        // For testing purposes, bypass Twilio verification with OTP 123456
-        if (code === '123456') {
-            console.log('🎯 Test OTP 123456 accepted - bypassing Twilio verification');
-            return true;
-        }
-        if (!verifyServiceSid) {
-            throw new Error('Twilio service SID not configured');
-        }
         console.log('=== VERIFY OTP DEBUG ===');
         console.log('Input phone number:', phoneNumber);
         console.log('Input code:', code);
-        console.log('Service SID:', verifyServiceSid);
         try {
             const formattedPhone = formatPhoneNumber(phoneNumber);
             console.log('📱 Formatted phone number:', formattedPhone);
             console.log('📱 Original phone number:', phoneNumber);
-            console.log('🔍 Attempting verification check...');
-            const verificationCheck = yield client.verify.v2.services(verifyServiceSid)
-                .verificationChecks
-                .create({
-                to: formattedPhone,
-                code: code
-            });
+            console.log('🔍 Attempting verification via MSG91...');
+            const result = yield (0, msg91_1.verifyOtp)(formattedPhone, code);
             console.log('✅ Verification check completed');
             console.log('📊 Verification result:', {
-                sid: verificationCheck.sid,
-                status: verificationCheck.status,
-                valid: verificationCheck.valid,
-                to: verificationCheck.to
+                success: result.success,
+                message: result.message
             });
-            const isApproved = verificationCheck.status === 'approved';
-            console.log('🎯 Final result - Approved:', isApproved);
-            return isApproved;
+            console.log('🎯 Final result - Approved:', result.success);
+            return result.success;
         }
         catch (error) {
             console.error('❌ Error in verifyOTP:', error);
             console.error('❌ Error message:', error.message);
-            console.error('❌ Error code:', error.code);
-            console.error('❌ Error status:', error.status);
-            // Log more details about the error
-            if (error.moreInfo) {
-                console.error('❌ More info:', error.moreInfo);
-            }
             throw new Error(`Verification failed: ${error.message}`);
         }
     });
@@ -227,3 +194,4 @@ function checkCustomerExists(phoneNumber) {
         }
     });
 }
+//# sourceMappingURL=index.js.map

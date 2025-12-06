@@ -5,3 +5,4 @@ const client_1 = require("@prisma/client");
 // Reuse the same instance across the application
 const prisma = new client_1.PrismaClient();
 exports.default = prisma;
+//# sourceMappingURL=prisma.js.map

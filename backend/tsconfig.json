@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "build",
+    "sourceMap": true,
     "jsx": "react",
     "declaration": true,
     "target": "es2016",

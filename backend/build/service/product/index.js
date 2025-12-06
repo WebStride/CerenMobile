@@ -439,3 +439,4 @@ function getSimilarProducts(productId, priceColumn) {
         return productsWithImages;
     });
 }
+//# sourceMappingURL=index.js.map
