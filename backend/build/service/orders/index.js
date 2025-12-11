@@ -8,13 +8,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOrdersByCustomerId = getOrdersByCustomerId;
 exports.getOrderItemsByOrderId = getOrderItemsByOrderId;
 exports.getInvoicesByCustomerId = getInvoicesByCustomerId;
 exports.getInvoiceItemsByInvoiceId = getInvoiceItemsByInvoiceId;
+exports.getInvoicesByCustomerAndDateRange = getInvoicesByCustomerAndDateRange;
 const client_1 = require("@prisma/client");
+const axios_1 = __importDefault(require("axios"));
 const prisma = new client_1.PrismaClient();
+// External API URL for invoices
+const EXTERNAL_API_URL = process.env.EXTERNAL_API_URL || 'http://3.109.147.219/test/api';
+const EXTERNAL_INVOICE_API_URL = process.env.EXTERNAL_INVOICE_API_URL || 'http://3.109.147.219/test/api/Invoice/GetInvoicesForCustomer';
+const EXTERNAL_API_USERNAME = process.env.EXTERNAL_API_USERNAME || 'testuser';
+const EXTERNAL_API_PASSWORD = process.env.EXTERNAL_API_PASSWORD || 'testpassword';
 // Helper function to safely convert BigInt and Date to serializable format for JSON
 const serializeForJson = (value) => {
     if (value === null || value === undefined)
@@ -210,6 +220,96 @@ function getInvoiceItemsByInvoiceId(invoiceId) {
                 success: false,
                 invoiceItems: [],
                 message: 'Error fetching invoice items'
+            };
+        }
+    });
+}
+/**
+ * Authenticate with external API and get token
+ */
+function getExternalApiToken() {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d;
+        try {
+            console.log('🔐 Authenticating with external API for invoices...');
+            console.log('🔗 API URL:', `${EXTERNAL_API_URL}/accounts/login`);
+            console.log('👤 Username:', EXTERNAL_API_USERNAME);
+            const response = yield axios_1.default.post(`${EXTERNAL_API_URL}/accounts/login`, {
+                username: EXTERNAL_API_USERNAME,
+                password: EXTERNAL_API_PASSWORD,
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                timeout: 15000
+            });
+            console.log('📡 Login response status:', response.status);
+            console.log('📥 Login response data:', response.data);
+            if ((_a = response.data) === null || _a === void 0 ? void 0 : _a.token) {
+                console.log('✅ External API authentication successful');
+                return response.data.token;
+            }
+            console.error('❌ No token received from external API');
+            return null;
+        }
+        catch (error) {
+            console.error('❌ Error authenticating with external API:', (_d = (_c = (_b = error === null || error === void 0 ? void 0 : error.response) === null || _b === void 0 ? void 0 : _b.data) !== null && _c !== void 0 ? _c : error.message) !== null && _d !== void 0 ? _d : error);
+            return null;
+        }
+    });
+}
+/**
+ * Get invoices for a customer within a date range by calling external API
+ * @param customerId - The customer ID
+ * @param fromDateTime - Start date/time as Unix milliseconds string
+ * @param toDateTime - End date/time as Unix milliseconds string
+ */
+function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e, _f, _g;
+        try {
+            // Step 1: Get authentication token from external API
+            const token = yield getExternalApiToken();
+            if (!token) {
+                return {
+                    success: false,
+                    invoices: [],
+                    message: 'Failed to authenticate with external invoice API'
+                };
+            }
+            console.log('🔍 Calling external invoice API for CustomerID:', customerId, 'from:', fromDateTime, 'to:', toDateTime);
+            // Build request body for external API
+            const requestBody = {
+                FromDateTime: fromDateTime,
+                ToDateTime: toDateTime,
+                CustomerID: customerId
+            };
+            console.log('➡️ GET to external API:', EXTERNAL_INVOICE_API_URL);
+            console.log('📤 Request body:', JSON.stringify(requestBody));
+            // Step 2: Call invoice API with the token (using GET with data in body)
+            const response = yield (0, axios_1.default)({
+                method: 'GET',
+                url: EXTERNAL_INVOICE_API_URL,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                data: requestBody,
+                timeout: 15000
+            });
+            const invoices = response.data;
+            console.log('📊 Received invoices count:', Array.isArray(invoices) ? invoices.length : 'non-array response');
+            return {
+                success: true,
+                invoices: invoices
+            };
+        }
+        catch (error) {
+            console.error('Error calling external invoice API:', (_c = (_b = (_a = error === null || error === void 0 ? void 0 : error.response) === null || _a === void 0 ? void 0 : _a.data) !== null && _b !== void 0 ? _b : error.message) !== null && _c !== void 0 ? _c : error);
+            return {
+                success: false,
+                invoices: [],
+                message: (_g = (_f = (_e = (_d = error === null || error === void 0 ? void 0 : error.response) === null || _d === void 0 ? void 0 : _d.data) === null || _e === void 0 ? void 0 : _e.message) !== null && _f !== void 0 ? _f : error.message) !== null && _g !== void 0 ? _g : 'Error fetching invoices from external API'
             };
         }
     });

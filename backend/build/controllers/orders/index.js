@@ -13,6 +13,7 @@ exports.getInvoicesByCustomer = getInvoicesByCustomer;
 exports.getOrdersByCustomer = getOrdersByCustomer;
 exports.getOrderItemsByOrder = getOrderItemsByOrder;
 exports.getInvoiceItemsByInvoice = getInvoiceItemsByInvoice;
+exports.getInvoicesForCustomer = getInvoicesForCustomer;
 const orders_1 = require("../../service/orders");
 function getInvoicesByCustomer(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -136,6 +137,52 @@ function getInvoiceItemsByInvoice(req, res) {
             console.error('Error fetching invoice items:', error);
             res.status(500).json({
                 error: 'Failed to fetch invoice items',
+                details: error.message
+            });
+        }
+    });
+}
+/**
+ * Get invoices for a customer within a date range
+ * POST /invoices/by-customer
+ * Body: { FromDateTime: string (Unix ms), ToDateTime: string (Unix ms), CustomerID: number }
+ * Calls external API: http://3.109.147.219/test/api/Invoice/GetInvoicesForCustomer
+ */
+function getInvoicesForCustomer(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'User not authenticated'
+                });
+            }
+            const { FromDateTime, ToDateTime, CustomerID } = req.body;
+            // Validate required fields
+            if (!FromDateTime || !ToDateTime || !CustomerID) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Missing required fields: FromDateTime, ToDateTime, CustomerID'
+                });
+            }
+            console.log('🔍 Fetching invoices for CustomerID:', CustomerID, 'from:', FromDateTime, 'to:', ToDateTime);
+            const result = yield (0, orders_1.getInvoicesByCustomerAndDateRange)(parseInt(CustomerID), FromDateTime.toString(), ToDateTime.toString());
+            if (!result.success) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to fetch invoices',
+                    details: result.message
+                });
+            }
+            // Return the invoices array directly (matching external API response format)
+            res.json(result.invoices);
+        }
+        catch (error) {
+            console.error('Error fetching invoices for customer:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Failed to fetch invoices',
                 details: error.message
             });
         }

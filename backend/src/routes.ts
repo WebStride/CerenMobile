@@ -9,7 +9,6 @@ import {
     newProductsList,
     buyAgainProductsList,
     allProductsList,
-    
     getSubCategories,
     productsBySubCategory,
     similarProductsList,
@@ -20,7 +19,7 @@ import { getCartList, postCart, putCartItem, deleteCartItem, postClearCart } fro
 import { authenticateToken } from "./middleware/auth";
 import { checkCustomer } from "./controllers/auth";
 import { getStores } from "./controllers/customer";
-import { getOrdersByCustomer, getOrderItemsByOrder, getInvoicesByCustomer, getInvoiceItemsByInvoice } from "./controllers/orders";
+import { getOrdersByCustomer, getOrderItemsByOrder, getInvoicesByCustomer, getInvoiceItemsByInvoice, getInvoicesForCustomer } from "./controllers/orders";
 import { placeOrder } from "./controllers/orders/placeOrder";
 const prisma = new PrismaClient();
 
@@ -117,6 +116,7 @@ function routes(app: Express) {
     // Invoices routes
     app.get('/invoices', authenticateToken, getInvoicesByCustomer);
     app.get('/invoices/:invoiceId/items', authenticateToken, getInvoiceItemsByInvoice);
+    app.post('/invoices/by-customer', authenticateToken, getInvoicesForCustomer);
     
     // Maps proxy endpoints removed — using client-side keys / native SDKs instead
     

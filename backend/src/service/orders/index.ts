@@ -1,6 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
+
+// External API URL for invoices
+const EXTERNAL_API_URL = process.env.EXTERNAL_API_URL || 'http://3.109.147.219/test/api';
+const EXTERNAL_INVOICE_API_URL = process.env.EXTERNAL_INVOICE_API_URL || 'http://3.109.147.219/test/api/Invoice/GetInvoicesForCustomer';
+const EXTERNAL_API_USERNAME = process.env.EXTERNAL_API_USERNAME || 'testuser';
+const EXTERNAL_API_PASSWORD = process.env.EXTERNAL_API_PASSWORD || 'testpassword';
 
 // Helper function to safely convert BigInt and Date to serializable format for JSON
 const serializeForJson = (value: any): any => {
@@ -225,6 +232,106 @@ export async function getInvoiceItemsByInvoiceId(invoiceId: number) {
             success: false,
             invoiceItems: [],
             message: 'Error fetching invoice items'
+        };
+    }
+}
+
+/**
+ * Authenticate with external API and get token
+ */
+async function getExternalApiToken(): Promise<string | null> {
+    try {
+        console.log('🔐 Authenticating with external API for invoices...');
+        console.log('🔗 API URL:', `${EXTERNAL_API_URL}/accounts/login`);
+        console.log('👤 Username:', EXTERNAL_API_USERNAME);
+        
+        const response = await axios.post(`${EXTERNAL_API_URL}/accounts/login`, {
+            username: EXTERNAL_API_USERNAME,
+            password: EXTERNAL_API_PASSWORD,
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            timeout: 15000
+        });
+
+        console.log('📡 Login response status:', response.status);
+        console.log('📥 Login response data:', response.data);
+        
+        if (response.data?.token) {
+            console.log('✅ External API authentication successful');
+            return response.data.token;
+        }
+
+        console.error('❌ No token received from external API');
+        return null;
+    } catch (error: any) {
+        console.error('❌ Error authenticating with external API:', error?.response?.data ?? error.message ?? error);
+        return null;
+    }
+}
+
+/**
+ * Get invoices for a customer within a date range by calling external API
+ * @param customerId - The customer ID
+ * @param fromDateTime - Start date/time as Unix milliseconds string
+ * @param toDateTime - End date/time as Unix milliseconds string
+ */
+export async function getInvoicesByCustomerAndDateRange(
+    customerId: number,
+    fromDateTime: string,
+    toDateTime: string
+) {
+    try {
+        // Step 1: Get authentication token from external API
+        const token = await getExternalApiToken();
+        
+        if (!token) {
+            return {
+                success: false,
+                invoices: [],
+                message: 'Failed to authenticate with external invoice API'
+            };
+        }
+
+        console.log('🔍 Calling external invoice API for CustomerID:', customerId, 'from:', fromDateTime, 'to:', toDateTime);
+
+        // Build request body for external API
+        const requestBody = {
+            FromDateTime: fromDateTime,
+            ToDateTime: toDateTime,
+            CustomerID: customerId
+        };
+
+        console.log('➡️ GET to external API:', EXTERNAL_INVOICE_API_URL);
+        console.log('📤 Request body:', JSON.stringify(requestBody));
+
+        // Step 2: Call invoice API with the token (using GET with data in body)
+        const response = await axios({
+            method: 'GET',
+            url: EXTERNAL_INVOICE_API_URL,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            data: requestBody,
+            timeout: 15000
+        });
+
+        const invoices = response.data;
+
+        console.log('📊 Received invoices count:', Array.isArray(invoices) ? invoices.length : 'non-array response');
+
+        return {
+            success: true,
+            invoices: invoices
+        };
+    } catch (error: any) {
+        console.error('Error calling external invoice API:', error?.response?.data ?? error.message ?? error);
+        return {
+            success: false,
+            invoices: [],
+            message: error?.response?.data?.message ?? error.message ?? 'Error fetching invoices from external API'
         };
     }
 }

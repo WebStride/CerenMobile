@@ -34,3 +34,18 @@ export declare function getInvoiceItemsByInvoiceId(invoiceId: number): Promise<{
     invoiceItems: never[];
     message: string;
 }>;
+/**
+ * Get invoices for a customer within a date range by calling external API
+ * @param customerId - The customer ID
+ * @param fromDateTime - Start date/time as Unix milliseconds string
+ * @param toDateTime - End date/time as Unix milliseconds string
+ */
+export declare function getInvoicesByCustomerAndDateRange(customerId: number, fromDateTime: string, toDateTime: string): Promise<{
+    success: boolean;
+    invoices: any;
+    message?: undefined;
+} | {
+    success: boolean;
+    invoices: never[];
+    message: any;
+}>;
