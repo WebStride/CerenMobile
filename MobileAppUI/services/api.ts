@@ -805,6 +805,57 @@ export const getInvoiceItems = async (invoiceId: number) => {
   }
 };
 
+// Fetch invoices by customer and date range
+export const getInvoicesByCustomerAndDateRange = async (
+  fromDateTime: string,
+  toDateTime: string,
+  customerId?: number
+) => {
+  try {
+    const id = customerId || await getSelectedStoreId() || await getCustomerId();
+    
+    if (!id) {
+      console.error('No customer ID available');
+      return { success: false, invoices: [], message: 'Customer ID required' };
+    }
+
+    const endpoint = `${apiUrl}/invoices/by-customer`;
+    console.log('📡 Get Invoices By Date Range API:', endpoint);
+    console.log('📅 Parameters:', { FromDateTime: fromDateTime, ToDateTime: toDateTime, CustomerID: id });
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        FromDateTime: fromDateTime,
+        ToDateTime: toDateTime,
+        CustomerID: id
+      })
+    });
+
+    console.log('Response status:', response.status);
+    
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.error('Error fetching invoices:', err);
+      return { success: false, invoices: [], message: err.message || err.error || 'Failed to fetch invoices' };
+    }
+
+    const data = await response.json();
+    console.log('📊 Invoices fetched:', Array.isArray(data) ? data.length : 'non-array');
+    
+    // API returns array directly
+    return { success: true, invoices: Array.isArray(data) ? data : [] };
+  } catch (error: any) {
+    console.error('Error in getInvoicesByCustomerAndDateRange:', error);
+    return { success: false, invoices: [], message: error.message || 'Network error' };
+  }
+};
+
 // Fetch order items for a specific order
 export const getOrderItems = async (orderId: number) => {
   try {
