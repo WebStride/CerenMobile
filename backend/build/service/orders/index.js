@@ -41,17 +41,12 @@ const serializeForJson = (value) => {
     }
     return value;
 };
-function getOrdersByCustomerId(customerId, status) {
+function getOrdersByCustomerId(customerId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('🔍 Querying orders for CustomerID:', customerId, 'status:', status || 'all');
-            const whereClause = { CustomerID: customerId };
-            if (status) {
-                // Use case-insensitive equality where supported to tolerate case differences
-                whereClause.OrderStatus = { equals: status, mode: 'insensitive' };
-            }
+            console.log('🔍 Querying orders for CustomerID:', customerId);
             const orders = yield prisma.orders.findMany({
-                where: whereClause,
+                where: { CustomerID: customerId },
                 orderBy: { OrderDate: 'desc' },
                 select: {
                     OrderID: true,
@@ -97,6 +92,7 @@ function getOrderItemsByOrderId(orderId) {
             const productIds = orderItems.map(item => item.ProductID).filter((id) => id !== null);
             console.log('🆔 [getOrderItemsByOrderId] Product IDs to lookup:', productIds);
             let productNameMap = new Map();
+            let productImageMap = new Map();
             if (productIds.length > 0) {
                 const products = yield prisma.productMaster.findMany({
                     where: { ProductID: { in: productIds } },
@@ -108,15 +104,46 @@ function getOrderItemsByOrderId(orderId) {
                     console.log(`📝 [getOrderItemsByOrderId] Mapping ProductID ${p.ProductID} -> "${name}"`);
                     productNameMap.set(p.ProductID, name);
                 });
+                // Fetch product images from ProductImages and ImageMaster tables
+                const productImages = yield prisma.productImages.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ImageID: true }
+                });
+                console.log('🖼️ [getOrderItemsByOrderId] Product images found:', JSON.stringify(productImages));
+                if (productImages.length > 0) {
+                    const imageIds = productImages.map(pi => pi.ImageID);
+                    const images = yield prisma.imageMaster.findMany({
+                        where: { ImageID: { in: imageIds } },
+                        select: { ImageID: true, Url: true }
+                    });
+                    console.log('🎨 [getOrderItemsByOrderId] Images found from ImageMaster:', JSON.stringify(images));
+                    const imageIdToUrlMap = new Map();
+                    const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+                    images.forEach(img => {
+                        if (img.Url) {
+                            // Check if URL is already absolute
+                            const imageUrl = img.Url.startsWith('http://') || img.Url.startsWith('https://')
+                                ? img.Url
+                                : `${imageBaseUrl}${img.Url}`;
+                            imageIdToUrlMap.set(img.ImageID, imageUrl);
+                        }
+                    });
+                    productImages.forEach(pi => {
+                        const imageUrl = imageIdToUrlMap.get(pi.ImageID) || null;
+                        productImageMap.set(pi.ProductID, imageUrl);
+                        console.log(`🖼️ [getOrderItemsByOrderId] ProductID ${pi.ProductID} -> Image: ${imageUrl}`);
+                    });
+                }
             }
             else {
                 console.log('⚠️ [getOrderItemsByOrderId] No valid ProductIDs found in order items');
             }
-            // Enrich order items with product names
+            // Enrich order items with product names and images
             const orderItemsWithNames = orderItems.map(item => {
                 const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
-                console.log(`🏷️ [getOrderItemsByOrderId] OrderItemID ${item.OrderItemID}: ProductID=${item.ProductID} -> ProductName="${productName}"`);
-                return Object.assign(Object.assign({}, item), { ProductName: productName });
+                const productImage = item.ProductID ? (productImageMap.get(item.ProductID) || null) : null;
+                console.log(`🏷️ [getOrderItemsByOrderId] OrderItemID ${item.OrderItemID}: ProductID=${item.ProductID} -> ProductName="${productName}", ProductImage="${productImage}"`);
+                return Object.assign(Object.assign({}, item), { ProductName: productName, ProductImage: productImage });
             });
             // Convert BigInt and Date values to serializable format
             const serializedOrderItems = serializeForJson(orderItemsWithNames);

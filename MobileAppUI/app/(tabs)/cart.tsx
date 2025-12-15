@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, TouchableOpacity, ScrollView, Alert, SafeAreaView, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, SafeAreaView, TextInput } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "../context/CartContext";
@@ -8,6 +9,9 @@ import { checkCustomerExists, placeOrder } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const defaultImage = require("../../assets/images/Banana.png");
+
+// Blurhash for smooth placeholder (light gray)
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -139,15 +143,19 @@ export default function CartScreen() {
       >
         {/* Cart Items */}
         <View className="px-4">
-          {cart.map((item, index) => (
+          {cart.map((item, index) => {
+            return (
             <View key={item.productId}>
               <View className="flex-row items-center py-4">
                 {/* Product Image */}
                 <View className="mr-3">
                   <Image 
-                    source={item.image || defaultImage} 
-                    className="w-16 h-16" 
-                    resizeMode="contain" 
+                    source={item.image ? (typeof item.image === 'string' ? { uri: item.image } : item.image) : defaultImage}
+                    placeholder={blurhash}
+                    contentFit="contain"
+                    transition={200}
+                    cachePolicy="memory-disk"
+                    style={{ width: 64, height: 64, backgroundColor: '#f3f4f6' }}
                   />
                 </View>
 
@@ -215,7 +223,7 @@ export default function CartScreen() {
                 <View className="h-px bg-gray-200" />
               )}
             </View>
-          ))}
+          )})}
         </View>
 
         {/* Add More Items Button */}

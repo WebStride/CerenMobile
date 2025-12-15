@@ -4,15 +4,21 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   Platform,
   Linking,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getOrderItems } from '../../services/api';
+
+// Placeholder image for loading state
+const placeholderImage = require('../../assets/images/Banana.png');
+
+// Blurhash for smooth placeholder (light gray)
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 // Types
 // Types from API
@@ -154,11 +160,14 @@ const OrderDetailScreen = () => {
     <View className="py-3 border-b border-gray-100">
       <View className="flex-row justify-between items-center">
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {item.productImage ? (
-            <Image source={{ uri: item.productImage }} style={{ width: 64, height: 64, borderRadius: 8, marginRight: 12 }} />
-          ) : (
-            <Image source={require('../../assets/images/Banana.png')} style={{ width: 64, height: 64, borderRadius: 8, marginRight: 12 }} />
-          )}
+          <Image 
+            source={item.productImage ? { uri: item.productImage } : placeholderImage}
+            placeholder={blurhash}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+            style={{ width: 64, height: 64, borderRadius: 8, marginRight: 12, backgroundColor: '#f3f4f6' }} 
+          />
           <View>
             <Text className="text-base font-semibold text-gray-900">{item.productName ?? 'Unknown Product'}</Text>
             <Text className="text-sm text-gray-500">Qty: {item.quantity}</Text>

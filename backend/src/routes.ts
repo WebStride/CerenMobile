@@ -1,7 +1,7 @@
 import { Express, Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
 import { register, verifyPhoneNumber, refreshToken, logout, validateToken, testOTP, checkCustomerPublic, sendOtpController } from "./controllers/auth";
-import { submitUserAddress, getUserAddresses, setDefaultAddress, getDefaultAddress, updateUserAddress, deleteUserAddress } from "./controllers/user";
+import { submitUserAddress, getUserAddresses, setDefaultAddress, getDefaultAddress, updateUserAddress, deleteUserAddress, getUserMasterAddress } from "./controllers/user";
 import {
     getExclusiveProductsList,
     getBestSelling,
@@ -65,6 +65,7 @@ function routes(app: Express) {
     app.get("/user/addresses", authenticateToken, getUserAddresses);
     app.put("/user/addresses/:addressId/default", authenticateToken, setDefaultAddress);
     app.get("/user/default-address", authenticateToken, getDefaultAddress);
+    app.get("/user/master-address", authenticateToken, getUserMasterAddress);
     app.put("/user/addresses/:addressId", authenticateToken, updateUserAddress);
     app.delete("/user/addresses/:addressId", authenticateToken, deleteUserAddress);
 

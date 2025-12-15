@@ -3,18 +3,21 @@ import {
   View, 
   Text, 
   TextInput, 
-  Image, 
   TouchableOpacity, 
   FlatList, 
   ActivityIndicator, 
   Alert,
   SafeAreaView
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { getExclusiveOffers, getBestSelling, getNewProducts, getBuyAgainProducts, checkCustomerExists } from "@/services/api";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
+
+// Blurhash for smooth placeholder (light gray)
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 // Product interface definition
 interface Product {
@@ -265,8 +268,11 @@ const ProductCard = React.memo(({
       >
         <Image 
           source={getImageSource()} 
-          className="w-20 h-20 mb-2" 
-          resizeMode="contain" 
+          placeholder={blurhash}
+          contentFit="contain"
+          transition={200}
+          cachePolicy="memory-disk"
+          style={{ width: 80, height: 80, marginBottom: 8, backgroundColor: '#f3f4f6' }}
         />
         {/* Favourite Heart Icon */}
         <TouchableOpacity

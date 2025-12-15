@@ -1,4 +1,4 @@
-export declare function getOrdersByCustomerId(customerId: number, status?: string): Promise<{
+export declare function getOrdersByCustomerId(customerId: number): Promise<{
     success: boolean;
     orders: any;
     message?: undefined;

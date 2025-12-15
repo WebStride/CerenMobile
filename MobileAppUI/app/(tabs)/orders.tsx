@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router"; // Import useRouter
+import { useFocusEffect } from "@react-navigation/native";
 import { getOrders } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -211,61 +213,72 @@ export default function OrdersScreen() {
     }, {} as Record<string, number>);
 
   const filteredOrders = selectedFilter === 'all' ? orders : orders.filter(order => order.status === selectedFilter);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
+  // Extracted load function as a reusable callback
+  const loadOrders = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
-      setError(null);
-      try {
-        // Get the selected store's customerId from AsyncStorage
-        const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
-        const customerId = selectedStoreId ? Number(selectedStoreId) : undefined;
-        
-        console.log('📦 Fetching orders for customerId:', customerId);
-        
-        if (!customerId) {
-          setError('No store selected. Please select a store first.');
-          setOrders([]);
-          setLoading(false);
-          return;
-        }
-        
-        const res = await getOrders(customerId);
-        if (!mounted) return;
-        if (res && Array.isArray(res.orders)) {
-          const mapped = res.orders.map((o: any) => {
-            // try common fields for status and normalize
-            const rawStatus = (o.OrderStatus ?? o.orderStatus ?? o.Status ?? o.status ?? o.OrderStatusText ?? '').toString();
-            const normalized = normalizeStatus(rawStatus);
-
-            return {
-              id: String(o.OrderID),
-              orderNumber: o.OrderNumber ?? `Order ${o.OrderID}`,
-              itemCount: Number(o.OrderItemCount ?? 0),
-              status: normalized,
-              amount: Number(o.EstimateOrderAmount ?? 0),
-              orderDate: o.OrderDate ? new Date(o.OrderDate).toLocaleDateString() : undefined,
-              deliveryDate: o.DateDelivered ?? null,
-              rawOrderDate: o.OrderDate,
-              rawDeliveryDate: o.DateDelivered,
-            } as UiOrder;
-          });
-          setOrders(mapped);
-        } else {
-          setOrders([]);
-        }
-      } catch (err:any) {
-        setError(err?.message || 'Failed to load orders');
+    }
+    setError(null);
+    try {
+      // Get the selected store's customerId from AsyncStorage
+      const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
+      const customerId = selectedStoreId ? Number(selectedStoreId) : undefined;
+      
+      console.log('📦 Fetching orders for customerId:', customerId);
+      
+      if (!customerId) {
+        setError('No store selected. Please select a store first.');
         setOrders([]);
-      } finally {
-        if (mounted) setLoading(false);
+        return;
       }
-    };
+      
+      const res = await getOrders(customerId);
+      if (res && Array.isArray(res.orders)) {
+        const mapped = res.orders.map((o: any) => {
+          // try common fields for status and normalize
+          const rawStatus = (o.OrderStatus ?? o.orderStatus ?? o.Status ?? o.status ?? o.OrderStatusText ?? '').toString();
+          const normalized = normalizeStatus(rawStatus);
 
-    load();
-    return () => { mounted = false };
+          return {
+            id: String(o.OrderID),
+            orderNumber: o.OrderNumber ?? `Order ${o.OrderID}`,
+            itemCount: Number(o.OrderItemCount ?? 0),
+            status: normalized,
+            amount: Number(o.EstimateOrderAmount ?? 0),
+            orderDate: o.OrderDate ? new Date(o.OrderDate).toLocaleDateString() : undefined,
+            deliveryDate: o.DateDelivered ?? null,
+            rawOrderDate: o.OrderDate,
+            rawDeliveryDate: o.DateDelivered,
+          } as UiOrder;
+        });
+        setOrders(mapped);
+      } else {
+        setOrders([]);
+      }
+    } catch (err:any) {
+      setError(err?.message || 'Failed to load orders');
+      setOrders([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  // Use useFocusEffect to reload orders whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [loadOrders])
+  );
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(() => {
+    loadOrders(true);
+  }, [loadOrders]);
 
   const handleOrderAgain = (orderId: string) => {
     console.log("Order again for:", orderId);
@@ -320,6 +333,14 @@ export default function OrdersScreen() {
         className="flex-1" 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 16 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#10B981']}
+            tintColor="#10B981"
+          />
+        }
       >
         {loading ? (
           <View className="py-20 items-center">

@@ -3,16 +3,19 @@ import {
     View,
     Text,
     TextInput,
-    Image,
     TouchableOpacity,
     FlatList,
     ActivityIndicator,
     Alert,
     SafeAreaView,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { getCategories } from "@/services/api";
+
+// Blurhash for smooth placeholder (light gray)
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 // Types
 interface Category {
@@ -56,7 +59,14 @@ const CategoryCard = ({ item, onPress }: { item: Category; onPress: () => void }
                 className={`rounded-xl flex-col items-center justify-start m-2 px-4 py-3 flex-1 ${getRandomColor()} min-h-[120px]`}
                 activeOpacity={0.8}
             >
-                <Image source={imageSource} className="w-16 h-16 mb-2" resizeMode="cover" />
+                <Image 
+                    source={imageSource} 
+                    placeholder={blurhash}
+                    contentFit="cover"
+                    transition={200}
+                    cachePolicy="memory-disk"
+                    style={{ width: 64, height: 64, marginBottom: 8, backgroundColor: 'transparent' }}
+                />
                 <Text className="font-semibold text-sm text-gray-800 flex-1" numberOfLines={2} ellipsizeMode="tail">
                     {item.categoryName}
                 </Text>

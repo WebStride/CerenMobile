@@ -1015,6 +1015,29 @@ export const getDefaultAddress = async () => {
   }
 };
 
+export const getUserMasterAddress = async () => {
+  try {
+    const response = await fetch(`${apiUrl}/user/master-address`, {
+      method: 'GET',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, address: null, message: err.message };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching user master address:', error);
+    return { success: false, address: null };
+  }
+};
+
 export const updateUserAddress = async (addressId: number, addressData: any) => {
   try {
     const response = await fetch(`${apiUrl}/user/addresses/${addressId}`, {
