@@ -15,6 +15,7 @@ exports.setDefaultAddress = setDefaultAddress;
 exports.getDefaultAddress = getDefaultAddress;
 exports.updateUserAddress = updateUserAddress;
 exports.deleteUserAddress = deleteUserAddress;
+exports.getUserMasterAddress = getUserMasterAddress;
 const client_1 = require("@prisma/client");
 // import { sendUserDetailsToAdmin } from '../../service/notification'; // Disabled for now
 const prisma = new client_1.PrismaClient();
@@ -39,17 +40,6 @@ function submitUserAddress(req, res) {
             const existingUser = yield prisma.cUSTOMERMASTER.findFirst({
                 where: { PHONENO: phoneNumber }
             });
-            // If user doesn't exist, return success for verification flow
-            // Admin notification is disabled - frontend will show popup to user
-            if (!existingUser) {
-                console.log(`New user detected: ${phoneNumber} - returning verification message`);
-                // Return success so the frontend can show a popup/alert to the user
-                return res.json({
-                    success: true,
-                    message: 'User details sent to admin for verification',
-                    requiresVerification: true
-                });
-            }
             // If setting as default, unset all other defaults first
             if (isDefault) {
                 yield prisma.deliveryAddress.updateMany({
@@ -57,48 +47,48 @@ function submitUserAddress(req, res) {
                     data: { IsDefault: false }
                 });
             }
-            // Check if address with same SaveAs already exists
-            const existingAddress = yield prisma.deliveryAddress.findFirst({
-                where: {
+            // Always create a new address
+            const deliveryAddress = yield prisma.deliveryAddress.create({
+                data: {
                     UserID: parseInt(authenticatedUserId),
+                    HouseNumber: houseNumber,
+                    BuildingBlock: buildingBlock,
+                    PinCode: pinCode,
+                    Landmark: landmark,
+                    City: city,
+                    District: district,
                     SaveAs: saveAs || 'home',
-                    Active: true
+                    IsDefault: isDefault,
+                    Active: true,
+                    UpdatedAt: new Date()
                 }
             });
-            let deliveryAddress;
-            if (existingAddress) {
-                // Update existing address
-                deliveryAddress = yield prisma.deliveryAddress.update({
-                    where: { DeliveryAddressID: existingAddress.DeliveryAddressID },
-                    data: {
-                        HouseNumber: houseNumber,
-                        BuildingBlock: buildingBlock,
-                        PinCode: pinCode,
-                        Landmark: landmark,
-                        City: city,
-                        District: district,
-                        IsDefault: isDefault,
-                        UpdatedAt: new Date()
-                    }
+            // Combine address components and save to UserCustomerMaster
+            const addressParts = [
+                houseNumber,
+                buildingBlock,
+                landmark || null,
+                city,
+                district,
+                pinCode
+            ].filter(part => part); // Remove null/undefined values
+            const combinedAddress = addressParts.join(', ');
+            // Update USERCUSTOMERMASTER with combined address (max 255 chars)
+            try {
+                const truncatedAddress = combinedAddress.length > 255
+                    ? combinedAddress.substring(0, 252) + '...'
+                    : combinedAddress;
+                yield prisma.uSERCUSTOMERMASTER.update({
+                    where: { id: parseInt(authenticatedUserId) },
+                    data: { address: truncatedAddress }
                 });
+                if (combinedAddress.length > 255) {
+                    console.warn(`Address truncated for user ${authenticatedUserId}: ${combinedAddress.length} chars`);
+                }
             }
-            else {
-                // Create new address
-                deliveryAddress = yield prisma.deliveryAddress.create({
-                    data: {
-                        UserID: parseInt(authenticatedUserId),
-                        HouseNumber: houseNumber,
-                        BuildingBlock: buildingBlock,
-                        PinCode: pinCode,
-                        Landmark: landmark,
-                        City: city,
-                        District: district,
-                        SaveAs: saveAs || 'home',
-                        IsDefault: isDefault,
-                        Active: true,
-                        UpdatedAt: new Date()
-                    }
-                });
+            catch (addressUpdateError) {
+                // Log error but don't fail the request since DeliveryAddress save succeeded
+                console.error('Failed to update UserCustomerMaster address:', addressUpdateError);
             }
             return res.json({
                 success: true,
@@ -278,6 +268,33 @@ function updateUserAddress(req, res) {
                     UpdatedAt: new Date()
                 }
             });
+            // Combine address components and save to UserCustomerMaster
+            const addressParts = [
+                houseNumber,
+                buildingBlock,
+                landmark || null,
+                city,
+                district,
+                pinCode
+            ].filter(part => part); // Remove null/undefined values
+            const combinedAddress = addressParts.join(', ');
+            // Update USERCUSTOMERMASTER with combined address (max 255 chars)
+            try {
+                const truncatedAddress = combinedAddress.length > 255
+                    ? combinedAddress.substring(0, 252) + '...'
+                    : combinedAddress;
+                yield prisma.uSERCUSTOMERMASTER.update({
+                    where: { id: parseInt(authenticatedUserId) },
+                    data: { address: truncatedAddress }
+                });
+                if (combinedAddress.length > 255) {
+                    console.warn(`Address truncated for user ${authenticatedUserId}: ${combinedAddress.length} chars`);
+                }
+            }
+            catch (addressUpdateError) {
+                // Log error but don't fail the request since DeliveryAddress update succeeded
+                console.error('Failed to update UserCustomerMaster address:', addressUpdateError);
+            }
             res.json({
                 success: true,
                 address: updatedAddress,
@@ -332,6 +349,45 @@ function deleteUserAddress(req, res) {
             console.error('Error deleting address:', error);
             res.status(500).json({
                 error: 'Failed to delete address',
+                details: error.message
+            });
+        }
+    });
+}
+// Get USERCUSTOMERMASTER address for authenticated user
+function getUserMasterAddress(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            const authenticatedUserId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+            if (!authenticatedUserId) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const userMaster = yield prisma.uSERCUSTOMERMASTER.findUnique({
+                where: { id: parseInt(authenticatedUserId) },
+                select: {
+                    address: true,
+                    name: true,
+                    phoneNumber: true
+                }
+            });
+            if (!userMaster) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'User not found'
+                });
+            }
+            res.json({
+                success: true,
+                address: userMaster.address || null,
+                name: userMaster.name,
+                phoneNumber: userMaster.phoneNumber
+            });
+        }
+        catch (error) {
+            console.error('Error fetching user master address:', error);
+            res.status(500).json({
+                error: 'Failed to fetch user master address',
                 details: error.message
             });
         }

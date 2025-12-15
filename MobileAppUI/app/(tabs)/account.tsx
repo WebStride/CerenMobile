@@ -20,7 +20,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getUserAddresses,
   deleteUserAddress,
-  updateUserAddress
+  updateUserAddress,
+  setDefaultAddress as setDefaultAddressAPI,
+  getDefaultAddress,
+  getUserMasterAddress
 } from "@/services/api";
 
 const { height, width } = Dimensions.get('window');
@@ -50,12 +53,14 @@ const LocationModal = ({
   visible,
   onClose,
   onSelectAddress,
-  onAddNewAddress
+  onAddNewAddress,
+  onAddressSetAsDefault
 }: {
   visible: boolean;
   onClose: () => void;
   onSelectAddress: (address: any) => void;
   onAddNewAddress?: () => void;
+  onAddressSetAsDefault?: () => void;
 }) => {
   const [searchText, setSearchText] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
@@ -549,9 +554,31 @@ const LocationModal = ({
                   }}>
                     <TouchableOpacity
                       style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start' }}
-                      onPress={() => {
-                        onSelectAddress(address);
-                        onClose();
+                      onPress={async () => {
+                        if (address.IsDefault) {
+                          // Already default, just close modal
+                          onSelectAddress(address);
+                          onClose();
+                          return;
+                        }
+                        
+                        try {
+                          const result = await setDefaultAddressAPI(address.DeliveryAddressID);
+                          if (result.success) {
+                            await fetchUserAddresses();
+                            if (onAddressSetAsDefault) {
+                              onAddressSetAsDefault();
+                            }
+                            Alert.alert('Success', 'Default address updated successfully');
+                            onSelectAddress(address);
+                            onClose();
+                          } else {
+                            Alert.alert('Error', result.message || 'Failed to set default address');
+                          }
+                        } catch (error) {
+                          console.error('Error setting default address:', error);
+                          Alert.alert('Error', 'Failed to set default address');
+                        }
                       }}
                       activeOpacity={0.7}
                     >
@@ -704,6 +731,39 @@ export default function AccountScreen() {
   // Modal states
   const [modalVisible, setModalVisible] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [defaultAddress, setDefaultAddress] = useState<Address | null>(null);
+  const [userMasterAddress, setUserMasterAddress] = useState<string | null>(null);
+  const [addressLoading, setAddressLoading] = useState(false);
+
+  // Fetch default address (similar to shop.tsx)
+  const fetchDefaultAddress = async () => {
+    try {
+      setAddressLoading(true);
+      
+      // Fetch default delivery address
+      const response = await getDefaultAddress();
+      if (response.success && response.address) {
+        setDefaultAddress(response.address);
+      } else {
+        setDefaultAddress(null);
+        
+        // Fallback to USERCUSTOMERMASTER address
+        const masterAddressResponse = await getUserMasterAddress();
+        if (masterAddressResponse.success && masterAddressResponse.address) {
+          setUserMasterAddress(masterAddressResponse.address);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching default address:', error);
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
+  // Fetch address on component mount
+  React.useEffect(() => {
+    fetchDefaultAddress();
+  }, []);
 
   // Mock user data - replace with actual user data from your auth context
   const userData = {
@@ -882,36 +942,23 @@ export default function AccountScreen() {
         }
       }
     },
-   
     {
       id: 'details',
       title: 'My Details',
       icon: 'card-outline',
-      onPress: () => setModalVisible(true) // ONLY CHANGE: Open modal instead of alert
+      onPress: () => setModalVisible(true)
     },
     {
       id: 'address',
       title: 'Delivery Address',
       icon: 'location-outline',
-      onPress: () => setAddressModalVisible(true) // Open address modal
+      onPress: () => setAddressModalVisible(true)
     },
     {
-      id: 'accounts',
-      title: 'Accounts',
-      icon: 'wallet-outline',
-      onPress: () =>  router.push('/invoices')
-    },
-     {
       id: 'invoices',
       title: 'Invoices',
       icon: 'document-text-outline',
       onPress: () => router.push('/invoices')
-    },
-    {
-      id: 'promo',
-      title: 'Promo Card',
-      icon: 'card-outline',
-      onPress: () => Alert.alert("Coming Soon", "Promo Card feature is under development.")
     },
     {
       id: 'notifications',
@@ -920,16 +967,10 @@ export default function AccountScreen() {
       onPress: () => Alert.alert("Coming Soon", "Notifications feature is under development.")
     },
     {
-      id: 'help',
-      title: 'Help',
-      icon: 'help-circle-outline',
-      onPress: () => Alert.alert("Coming Soon", "Help feature is under development.")
-    },
-    {
       id: 'about',
       title: 'About',
       icon: 'information-circle-outline',
-      onPress: () => Alert.alert("Coming Soon", "About feature is under development.")
+      onPress: () => router.push('/account/about')
     }
   ];
 
@@ -961,16 +1002,14 @@ export default function AccountScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* Profile Header - UNCHANGED */}
+        {/* Profile Header */}
         <View className="bg-white px-4 py-6 border-b border-gray-100">
           <View className="flex-row items-center">
-            {/* Profile Image */}
+            {/* Profile Icon */}
             <View className="relative">
-              <Image
-                source={userData.profileImage}
-                className="w-20 h-20 rounded-full"
-                resizeMode="cover"
-              />
+              <View className="w-20 h-20 rounded-full bg-green-100 items-center justify-center">
+                <Ionicons name="person" size={40} color="#16a34a" />
+              </View>
               {/* Edit Icon */}
               <TouchableOpacity 
                 className="absolute -top-1 -right-1 bg-green-600 rounded-full p-1.5"
@@ -1122,6 +1161,7 @@ export default function AccountScreen() {
         onClose={handleCloseAddressModal}
         onSelectAddress={handleSelectAddress}
         onAddNewAddress={handleAddNewAddress}
+        onAddressSetAsDefault={fetchDefaultAddress}
       />
     </SafeAreaView>
   );

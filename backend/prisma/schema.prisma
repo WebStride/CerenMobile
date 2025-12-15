@@ -85,6 +85,7 @@ model UserFavourites {
 model DeliveryAddress {
   DeliveryAddressID Int      @id @default(autoincrement())
   UserID            Int?
+  CustomerID        Int?
   Name              String?  @db.VarChar(100)
   PhoneNumber       String?  @db.VarChar(20)
   City              String?  @db.VarChar(100)

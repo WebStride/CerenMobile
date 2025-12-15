@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
@@ -11,6 +10,7 @@ import {
   Dimensions,
   FlatList
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "../context/CartContext";
@@ -19,6 +19,9 @@ import { getProductsByCatalog, getSimilarProductsApi, checkCustomerExists } from
 
 const { width } = Dimensions.get('window');
 const defaultImage = require("../../assets/images/Banana.png");
+
+// Blurhash for smooth placeholder (light gray)
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 interface ProductDetailsProps {
   productId: number;
@@ -207,8 +210,11 @@ const ProductCard = React.memo(({
       >
         <Image
           source={getImageSource(item.image)}
-          className="w-28 h-28 mb-2"
-          resizeMode="contain"
+          placeholder={blurhash}
+          contentFit="contain"
+          transition={200}
+          cachePolicy="memory-disk"
+          style={{ width: 112, height: 112, marginBottom: 8, backgroundColor: '#f3f4f6' }}
         />
         <TouchableOpacity
           onPress={handleFavouriteToggle}
@@ -598,8 +604,11 @@ export default function ProductDetailsScreen() {
     <View style={{ width, height: 300, justifyContent: 'center', alignItems: 'center' }}>
       <Image
         source={getImageSource(item)}
-        style={{ width: '80%', height: '80%' }}
-        resizeMode="contain"
+        placeholder={blurhash}
+        contentFit="contain"
+        transition={200}
+        cachePolicy="memory-disk"
+        style={{ width: '80%', height: '80%', backgroundColor: '#f3f4f6' }}
       />
     </View>
   ), [getImageSource]);

@@ -2,18 +2,21 @@ import React from "react";
 import { 
   View, 
   Text, 
-  Image, 
   TouchableOpacity, 
   FlatList, 
   SafeAreaView,
   Alert
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFavourites } from "../context/FavouritesContext";
 import { useCart } from "../context/CartContext";
 
 const defaultImage = require("../../assets/images/Banana.png");
+
+// Blurhash for smooth placeholder (light gray)
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function FavouritesScreen() {
   const router = useRouter();
@@ -44,9 +47,12 @@ export default function FavouritesScreen() {
       <View className="flex-row items-center py-4 px-4 bg-white border-b border-gray-100">
         {/* Product Image */}
         <Image 
-          source={item.image || defaultImage} 
-          className="w-16 h-16 mr-4" 
-          resizeMode="contain" 
+          source={item.image ? (typeof item.image === 'string' ? { uri: item.image } : item.image) : defaultImage}
+          placeholder={blurhash}
+          contentFit="contain"
+          transition={200}
+          cachePolicy="memory-disk"
+          style={{ width: 64, height: 64, marginRight: 16, backgroundColor: '#f3f4f6' }}
         />
         
         {/* Product Details */}

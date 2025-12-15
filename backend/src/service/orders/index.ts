@@ -91,6 +91,8 @@ export async function getOrderItemsByOrderId(orderId: number) {
         console.log('🆔 [getOrderItemsByOrderId] Product IDs to lookup:', productIds);
         
         let productNameMap = new Map<number, string>();
+        let productImageMap = new Map<number, string | null>();
+        
         if (productIds.length > 0) {
             const products = await prisma.productMaster.findMany({
                 where: { ProductID: { in: productIds } },
@@ -103,17 +105,54 @@ export async function getOrderItemsByOrderId(orderId: number) {
                 console.log(`📝 [getOrderItemsByOrderId] Mapping ProductID ${p.ProductID} -> "${name}"`);
                 productNameMap.set(p.ProductID, name);
             });
+
+            // Fetch product images from ProductImages and ImageMaster tables
+            const productImages = await prisma.productImages.findMany({
+                where: { ProductID: { in: productIds } },
+                select: { ProductID: true, ImageID: true }
+            });
+            console.log('🖼️ [getOrderItemsByOrderId] Product images found:', JSON.stringify(productImages));
+
+            if (productImages.length > 0) {
+                const imageIds = productImages.map(pi => pi.ImageID);
+                const images = await prisma.imageMaster.findMany({
+                    where: { ImageID: { in: imageIds } },
+                    select: { ImageID: true, Url: true }
+                });
+                console.log('🎨 [getOrderItemsByOrderId] Images found from ImageMaster:', JSON.stringify(images));
+
+                const imageIdToUrlMap = new Map<number, string>();
+                const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+                
+                images.forEach(img => {
+                    if (img.Url) {
+                        // Check if URL is already absolute
+                        const imageUrl = img.Url.startsWith('http://') || img.Url.startsWith('https://')
+                            ? img.Url
+                            : `${imageBaseUrl}${img.Url}`;
+                        imageIdToUrlMap.set(img.ImageID, imageUrl);
+                    }
+                });
+
+                productImages.forEach(pi => {
+                    const imageUrl = imageIdToUrlMap.get(pi.ImageID) || null;
+                    productImageMap.set(pi.ProductID, imageUrl);
+                    console.log(`🖼️ [getOrderItemsByOrderId] ProductID ${pi.ProductID} -> Image: ${imageUrl}`);
+                });
+            }
         } else {
             console.log('⚠️ [getOrderItemsByOrderId] No valid ProductIDs found in order items');
         }
 
-        // Enrich order items with product names
+        // Enrich order items with product names and images
         const orderItemsWithNames = orderItems.map(item => {
             const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
-            console.log(`🏷️ [getOrderItemsByOrderId] OrderItemID ${item.OrderItemID}: ProductID=${item.ProductID} -> ProductName="${productName}"`);
+            const productImage = item.ProductID ? (productImageMap.get(item.ProductID) || null) : null;
+            console.log(`🏷️ [getOrderItemsByOrderId] OrderItemID ${item.OrderItemID}: ProductID=${item.ProductID} -> ProductName="${productName}", ProductImage="${productImage}"`);
             return {
                 ...item,
-                ProductName: productName
+                ProductName: productName,
+                ProductImage: productImage
             };
         });
 

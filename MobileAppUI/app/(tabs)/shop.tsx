@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { useFavourites } from "../context/FavouritesContext";
 import {
   View,
   Text,
   TextInput,
-  Image,
   ScrollView,
   TouchableOpacity,
   FlatList,
@@ -15,6 +15,7 @@ import {
   Pressable,
   StatusBar,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -30,11 +31,15 @@ import {
   getUserAddresses,
   setDefaultAddress,
   updateUserAddress,
-  deleteUserAddress
+  deleteUserAddress,
+  getUserMasterAddress
 } from "@/services/api";
 import { useCart } from "../context/CartContext";
 
 const { height, width } = Dimensions.get('window');
+
+// Blurhash for smooth placeholder (light gray)
+const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 // Types
 interface Product {
@@ -87,12 +92,14 @@ const LocationModal = ({
   visible,
   onClose,
   onSelectAddress,
-  onAddNewAddress
+  onAddNewAddress,
+  onAddressSetAsDefault
 }: {
   visible: boolean;
   onClose: () => void;
   onSelectAddress: (address: any) => void;
   onAddNewAddress?: () => void;
+  onAddressSetAsDefault?: () => void;
 }) => {
   const [searchText, setSearchText] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
@@ -411,7 +418,7 @@ const LocationModal = ({
                     {/* Edit form content remains the same */}
                   </View>
                 ) : (
-                  // Address Display (keeping existing display code)
+                  // Address Display
                   <View key={address.DeliveryAddressID} style={{
                     flexDirection: 'row',
                     alignItems: 'flex-start',
@@ -420,7 +427,148 @@ const LocationModal = ({
                     borderBottomWidth: 1,
                     borderBottomColor: '#F3F4F6'
                   }}>
-                    {/* Address display content remains the same */}
+                    <TouchableOpacity
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start' }}
+                      onPress={async () => {
+                        if (address.IsDefault) {
+                          // Already default, just select and close
+                          onSelectAddress(address);
+                          onClose();
+                          return;
+                        }
+                        
+                        try {
+                          const result = await setDefaultAddress(address.DeliveryAddressID);
+                          if (result.success) {
+                            await fetchUserAddresses();
+                            if (onAddressSetAsDefault) {
+                              onAddressSetAsDefault();
+                            }
+                            Alert.alert('Success', 'Default address updated successfully');
+                            onSelectAddress(address);
+                            onClose();
+                          } else {
+                            Alert.alert('Error', result.message || 'Failed to set default address');
+                          }
+                        } catch (error) {
+                          console.error('Error setting default address:', error);
+                          Alert.alert('Error', 'Failed to set default address');
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{
+                        backgroundColor: address.IsDefault ? '#DCFCE7' : '#F3F4F6',
+                        padding: 12,
+                        borderRadius: 50,
+                        marginRight: 16,
+                        marginTop: 2
+                      }}>
+                        <Ionicons 
+                          name="location" 
+                          size={20} 
+                          color={address.IsDefault ? "#16a34a" : "#6B7280"} 
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <Text style={{
+                            color: '#111827',
+                            fontSize: 16,
+                            fontWeight: '600',
+                            marginRight: 8
+                          }}>
+                            {address.SaveAs || 'Address'}
+                          </Text>
+                          {address.IsDefault && (
+                            <View style={{
+                              backgroundColor: '#DCFCE7',
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              borderRadius: 12
+                            }}>
+                              <Text style={{
+                                color: '#16a34a',
+                                fontSize: 12,
+                                fontWeight: '600'
+                              }}>
+                                Default
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={{
+                          color: '#6B7280',
+                          fontSize: 14,
+                          lineHeight: 20
+                        }}>
+                          {[
+                            address.HouseNumber,
+                            address.BuildingBlock,
+                            address.Landmark,
+                            `${address.City}, ${address.District}`,
+                            address.PinCode
+                          ].filter(Boolean).join(', ')}
+                        </Text>
+                        {(address.Name || address.PhoneNumber) && (
+                          <Text style={{
+                            color: '#9CA3AF',
+                            fontSize: 12,
+                            marginTop: 4
+                          }}>
+                            {[address.Name, address.PhoneNumber].filter(Boolean).join(' • ')}
+                          </Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Three dots menu */}
+                    <TouchableOpacity
+                      style={{
+                        padding: 8,
+                        marginLeft: 8
+                      }}
+                      onPress={() => handleMenuToggle(address.DeliveryAddressID)}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+
+                    {/* Menu options */}
+                    {menuVisible === address.DeliveryAddressID && (
+                      <View style={{
+                        position: 'absolute',
+                        right: 24,
+                        top: 50,
+                        backgroundColor: 'white',
+                        borderRadius: 8,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 4,
+                        elevation: 5,
+                        minWidth: 120,
+                        zIndex: 1000
+                      }}>
+                        <TouchableOpacity
+                          style={{
+                            padding: 12,
+                            borderBottomWidth: 1,
+                            borderBottomColor: '#F3F4F6'
+                          }}
+                          onPress={() => handleEditAddress(address)}
+                        >
+                          <Text style={{ color: '#374151', fontSize: 14 }}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{
+                            padding: 12
+                          }}
+                          onPress={() => handleDeleteAddress(address.DeliveryAddressID)}
+                        >
+                          <Text style={{ color: '#EF4444', fontSize: 14 }}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
                 )
               ))
@@ -644,8 +792,11 @@ const ProductCard = React.memo(({
       >
         <Image
           source={getImageSource()}
-          className="w-28 h-28 mb-2"
-          resizeMode="contain"
+          placeholder={blurhash}
+          contentFit="contain"
+          transition={200}
+          cachePolicy="memory-disk"
+          style={{ width: 112, height: 112, marginBottom: 8, backgroundColor: '#f3f4f6' }}
         />
         <TouchableOpacity
           onPress={handleFavouriteToggle}
@@ -799,7 +950,14 @@ const GroceryCategoryCard = ({
       activeOpacity={0.8}
       className={`rounded-xl flex-row items-center justify-start mr-3 px-3 py-2 w-48 h-auto ${getRandomColor()} gap-x-3`}
     >
-      <Image source={typeof item.categoryImage === 'string' ? { uri: item.categoryImage } : (item.categoryImage || defaultImage)} className="w-12 h-12 mb-2" resizeMode="contain" />
+      <Image 
+        source={typeof item.categoryImage === 'string' ? { uri: item.categoryImage } : (item.categoryImage || defaultImage)} 
+        placeholder={blurhash}
+        contentFit="contain"
+        transition={200}
+        cachePolicy="memory-disk"
+        style={{ width: 48, height: 48, marginBottom: 8, backgroundColor: 'transparent' }}
+      />
       <Text className="font-semibold text-sm text-gray-800 flex-1">
         {item.categoryName}
       </Text>
@@ -816,6 +974,7 @@ const HomeScreen = () => {
   const { phoneNumber, name, location, city, district, address } = params;
 
   const [defaultAddress, setDefaultAddress] = useState<Address | null>(null);
+  const [userMasterAddress, setUserMasterAddress] = useState<string | null>(null);
   const [addressLoading, setAddressLoading] = useState(false);
   
   // Location modal state
@@ -823,7 +982,7 @@ const HomeScreen = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>("");
 
   const getLocationDisplay = () => {
-    // Always show default address if available
+    // Priority 1: Show default delivery address if available
     if (defaultAddress) {
       if (defaultAddress.CurrentLocation && defaultAddress.CurrentAddress) {
         return `${defaultAddress.CurrentAddress}, ${defaultAddress.CurrentLocation}`;
@@ -837,13 +996,20 @@ const HomeScreen = () => {
       return parts.join(', ');
     }
 
-    // Fallback to selected location or other sources
+    // Priority 2: Show USERCUSTOMERMASTER address if user registered but no delivery address
+    if (userMasterAddress) {
+      return userMasterAddress;
+    }
+
+    // Priority 3: Fallback to selected location or URL params
     if (selectedLocation) {
       return selectedLocation;
     }
     if (address) return address as string;
     if (city && district) return `${city}, ${district}`;
     if (city) return city as string;
+    
+    // Priority 4: Default fallback
     return "Set your location";
   };
 
@@ -1033,16 +1199,34 @@ const HomeScreen = () => {
   const fetchDefaultAddress = useCallback(async () => {
     try {
       setAddressLoading(true);
+      
+      // Fetch default delivery address
       const response = await getDefaultAddress();
       if (response.success && response.address) {
         setDefaultAddress(response.address);
       } else {
         console.log('No default address found or error:', response.message);
         setDefaultAddress(null);
+        
+        // If no default delivery address, fetch USERCUSTOMERMASTER address as fallback
+        try {
+          const masterAddressResponse = await getUserMasterAddress();
+          if (masterAddressResponse.success && masterAddressResponse.address) {
+            console.log('✅ Using USERCUSTOMERMASTER address:', masterAddressResponse.address);
+            setUserMasterAddress(masterAddressResponse.address);
+          } else {
+            console.log('No USERCUSTOMERMASTER address found');
+            setUserMasterAddress(null);
+          }
+        } catch (masterError) {
+          console.error('Error fetching user master address:', masterError);
+          setUserMasterAddress(null);
+        }
       }
     } catch (error) {
       console.error('Error fetching default address:', error);
       setDefaultAddress(null);
+      setUserMasterAddress(null);
     } finally {
       setAddressLoading(false);
     }
@@ -1061,8 +1245,14 @@ const HomeScreen = () => {
     checkCustomer();
     loadUserData();
     fetchData(false); // Initially fetch without Buy Again products
-    fetchDefaultAddress();
-  }, [loadUserData, fetchDefaultAddress]);
+  }, [loadUserData]);
+
+  // Use useFocusEffect to refresh address whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchDefaultAddress();
+    }, [fetchDefaultAddress])
+  );
 
   // Fetch Buy Again products only for registered users
   useEffect(() => {
@@ -1253,12 +1443,8 @@ const HomeScreen = () => {
                 className="ml-3"
                 activeOpacity={0.8}
               >
-                <View className="bg-gradient-to-r from-green-400 to-green-600 w-10 h-10 rounded-full items-center justify-center shadow-lg overflow-hidden">
-                  <Image
-                    source={require("../../assets/images/ProfileImageHomeScreen.png")}
-                    className="w-10 h-10 rounded-full"
-                    resizeMode="cover"
-                  />
+                <View className="bg-green-700 w-10 h-10 rounded-full items-center justify-center shadow-lg">
+                  <Ionicons name="person" size={22} color="white" />
                 </View>
               </TouchableOpacity>
             </View>
@@ -1503,6 +1689,7 @@ const HomeScreen = () => {
             onClose={handleCloseModal}
             onSelectAddress={handleSelectAddress}
             onAddNewAddress={handleAddNewAddress}
+            onAddressSetAsDefault={fetchDefaultAddress}
           />
         </>
       )}

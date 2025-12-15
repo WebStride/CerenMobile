@@ -39,18 +39,7 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
             where: { PHONENO: phoneNumber }
         });
 
-        // If user doesn't exist, return success for verification flow
-        // Admin notification is disabled - frontend will show popup to user
-        if (!existingUser) {
-            console.log(`New user detected: ${phoneNumber} - returning verification message`);
-            
-            // Return success so the frontend can show a popup/alert to the user
-            return res.json({
-                success: true,
-                message: 'User details sent to admin for verification',
-                requiresVerification: true
-            });
-        }
+
 
         // If setting as default, unset all other defaults first
         if (isDefault) {
@@ -60,48 +49,52 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
             });
         }
 
-        // Check if address with same SaveAs already exists
-        const existingAddress = await prisma.deliveryAddress.findFirst({
-            where: {
+        // Always create a new address
+        const deliveryAddress = await prisma.deliveryAddress.create({
+            data: {
                 UserID: parseInt(authenticatedUserId),
+                HouseNumber: houseNumber,
+                BuildingBlock: buildingBlock,
+                PinCode: pinCode,
+                Landmark: landmark,
+                City: city,
+                District: district,
                 SaveAs: saveAs || 'home',
-                Active: true
+                IsDefault: isDefault,
+                Active: true,
+                UpdatedAt: new Date()
             }
         });
 
-        let deliveryAddress;
-        if (existingAddress) {
-            // Update existing address
-            deliveryAddress = await prisma.deliveryAddress.update({
-                where: { DeliveryAddressID: existingAddress.DeliveryAddressID },
-                data: {
-                    HouseNumber: houseNumber,
-                    BuildingBlock: buildingBlock,
-                    PinCode: pinCode,
-                    Landmark: landmark,
-                    City: city,
-                    District: district,
-                    IsDefault: isDefault,
-                    UpdatedAt: new Date()
-                }
+        // Combine address components and save to UserCustomerMaster
+        const addressParts = [
+            houseNumber,
+            buildingBlock,
+            landmark || null,
+            city,
+            district,
+            pinCode
+        ].filter(part => part); // Remove null/undefined values
+        
+        const combinedAddress = addressParts.join(', ');
+        
+        // Update USERCUSTOMERMASTER with combined address (max 255 chars)
+        try {
+            const truncatedAddress = combinedAddress.length > 255 
+                ? combinedAddress.substring(0, 252) + '...' 
+                : combinedAddress;
+                
+            await prisma.uSERCUSTOMERMASTER.update({
+                where: { id: parseInt(authenticatedUserId) },
+                data: { address: truncatedAddress }
             });
-        } else {
-            // Create new address
-            deliveryAddress = await prisma.deliveryAddress.create({
-                data: {
-                    UserID: parseInt(authenticatedUserId),
-                    HouseNumber: houseNumber,
-                    BuildingBlock: buildingBlock,
-                    PinCode: pinCode,
-                    Landmark: landmark,
-                    City: city,
-                    District: district,
-                    SaveAs: saveAs || 'home',
-                    IsDefault: isDefault,
-                    Active: true,
-                    UpdatedAt: new Date()
-                }
-            });
+            
+            if (combinedAddress.length > 255) {
+                console.warn(`Address truncated for user ${authenticatedUserId}: ${combinedAddress.length} chars`);
+            }
+        } catch (addressUpdateError: any) {
+            // Log error but don't fail the request since DeliveryAddress save succeeded
+            console.error('Failed to update UserCustomerMaster address:', addressUpdateError);
         }
 
         return res.json({
@@ -298,6 +291,37 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
             }
         });
 
+        // Combine address components and save to UserCustomerMaster
+        const addressParts = [
+            houseNumber,
+            buildingBlock,
+            landmark || null,
+            city,
+            district,
+            pinCode
+        ].filter(part => part); // Remove null/undefined values
+        
+        const combinedAddress = addressParts.join(', ');
+        
+        // Update USERCUSTOMERMASTER with combined address (max 255 chars)
+        try {
+            const truncatedAddress = combinedAddress.length > 255 
+                ? combinedAddress.substring(0, 252) + '...' 
+                : combinedAddress;
+                
+            await prisma.uSERCUSTOMERMASTER.update({
+                where: { id: parseInt(authenticatedUserId) },
+                data: { address: truncatedAddress }
+            });
+            
+            if (combinedAddress.length > 255) {
+                console.warn(`Address truncated for user ${authenticatedUserId}: ${combinedAddress.length} chars`);
+            }
+        } catch (addressUpdateError: any) {
+            // Log error but don't fail the request since DeliveryAddress update succeeded
+            console.error('Failed to update UserCustomerMaster address:', addressUpdateError);
+        }
+
         res.json({
             success: true,
             address: updatedAddress,
@@ -353,6 +377,45 @@ export async function deleteUserAddress(req: AuthRequest, res: Response) {
         console.error('Error deleting address:', error);
         res.status(500).json({
             error: 'Failed to delete address',
+            details: error.message
+        });
+    }
+}
+
+// Get USERCUSTOMERMASTER address for authenticated user
+export async function getUserMasterAddress(req: AuthRequest, res: Response) {
+    try {
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const userMaster = await prisma.uSERCUSTOMERMASTER.findUnique({
+            where: { id: parseInt(authenticatedUserId) },
+            select: {
+                address: true,
+                name: true,
+                phoneNumber: true
+            }
+        });
+
+        if (!userMaster) {
+            return res.status(404).json({ 
+                success: false,
+                error: 'User not found' 
+            });
+        }
+
+        res.json({
+            success: true,
+            address: userMaster.address || null,
+            name: userMaster.name,
+            phoneNumber: userMaster.phoneNumber
+        });
+    } catch (error: any) {
+        console.error('Error fetching user master address:', error);
+        res.status(500).json({
+            error: 'Failed to fetch user master address',
             details: error.message
         });
     }
