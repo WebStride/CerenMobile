@@ -8,6 +8,8 @@ import {
   Pressable,
   Dimensions,
   Image,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,6 +17,11 @@ import { useRouter } from "expo-router";
 // @ts-ignore
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { getInvoices, getInvoiceItems, getInvoicesByCustomerAndDateRange } from '../../services/api';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { generateInvoicePDF, generatePaymentReceiptPDF } from '../../utils/pdfTemplates';
+import { formatDateForFilename } from '../../utils/dateUtils';
 
 const { height } = Dimensions.get('window');
 
@@ -142,6 +149,7 @@ const InvoiceDetailModal = ({
 }) => {
   const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   console.log("Invoice Modal - visible:", visible, "transaction:", transaction?.id);
 
@@ -181,6 +189,52 @@ const InvoiceDetailModal = ({
       month: 'long',
       year: 'numeric'
     });
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setDownloading(true);
+
+      const customerName = transaction.details?.customerInfo?.name || "Customer";
+      const dateStr = formatDateForFilename(transaction.date);
+      const fileName = `${customerName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
+
+      const html = generateInvoicePDF(
+        transaction,
+        invoiceItems,
+        transaction.details?.customerInfo || {},
+        customerName
+      );
+
+      const { uri } = await Print.printToFileAsync({ html });
+
+      // Persist the generated temp file to app document directory so user sees a persistent file
+      const newUri = (FileSystem as any).documentDirectory + fileName;
+      try {
+        await FileSystem.moveAsync({ from: uri, to: newUri });
+      } catch (moveErr) {
+        // If move fails, fall back to sharing the temp uri
+        console.warn('Failed to move PDF to documentDirectory, sharing temp uri:', moveErr);
+      }
+
+      const shareTarget = (await FileSystem.getInfoAsync(newUri)).exists ? newUri : uri;
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(shareTarget, {
+          UTI: '.pdf',
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share Invoice PDF'
+        });
+      } else {
+        Alert.alert('Success', 'PDF generated successfully!');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Alert.alert('Error', 'Unable to generate PDF. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -545,26 +599,38 @@ const InvoiceDetailModal = ({
             flexDirection: 'row',
             gap: 12
           }}>
-            <TouchableOpacity style={{
-              flex: 1,
-              backgroundColor: '#059669',
-              paddingVertical: 16,
-              borderRadius: 12,
-              alignItems: 'center'
-            }}>
+            <TouchableOpacity 
+              style={{
+                flex: 1,
+                backgroundColor: downloading ? '#9CA3AF' : '#059669',
+                paddingVertical: 16,
+                borderRadius: 12,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center'
+              }}
+              onPress={handleDownloadPDF}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+              ) : null}
               <Text style={{
                 color: 'white',
                 fontWeight: '600',
                 fontSize: 16
-              }}>Download PDF</Text>
+              }}>{downloading ? 'Generating...' : 'Download PDF'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={{
-              flex: 1,
-              backgroundColor: '#F3F4F6',
-              paddingVertical: 16,
-              borderRadius: 12,
-              alignItems: 'center'
-            }}>
+            <TouchableOpacity 
+              style={{
+                flex: 1,
+                backgroundColor: '#F3F4F6',
+                paddingVertical: 16,
+                borderRadius: 12,
+                alignItems: 'center'
+              }}
+              onPress={handleDownloadPDF}
+            >
               <Text style={{
                 color: '#374151',
                 fontWeight: '600',
@@ -588,6 +654,7 @@ const PaymentDetailModal = ({
   onClose: () => void;
   transaction: any;
 }) => {
+  const [downloading, setDownloading] = useState(false);
   console.log("Payment Modal - visible:", visible, "transaction:", transaction?.id);
 
   if (!transaction || !visible) return null;
@@ -600,6 +667,60 @@ const PaymentDetailModal = ({
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleDownloadReceipt = async () => {
+    if (downloading) return;
+
+    setDownloading(true);
+    try {
+      const customerName = transaction.details?.paidBy || 'Customer';
+      const dateStr = formatDateForFilename(transaction.date);
+      const filename = `${customerName.replace(/\s+/g, '')}_Receipt_${dateStr}.pdf`;
+
+      const html = generatePaymentReceiptPDF(
+        transaction.details || {},
+        {
+          name: customerName,
+          address: '',
+          mobile: ''
+        },
+        customerName
+      );
+
+      const { uri } = await Print.printToFileAsync({ html });
+
+      // Persist the generated temp file to app document directory
+      const newUri = (FileSystem as any).documentDirectory + filename;
+      try {
+        await FileSystem.moveAsync({ from: uri, to: newUri });
+      } catch (moveErr) {
+        console.warn('Failed to move receipt PDF to documentDirectory, sharing temp uri:', moveErr);
+      }
+
+      const shareTarget = (await FileSystem.getInfoAsync(newUri)).exists ? newUri : uri;
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(shareTarget, {
+          UTI: '.pdf',
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share Payment Receipt'
+        });
+      } else {
+        Alert.alert('Success', 'Receipt generated successfully!');
+      }
+
+      console.log('✅ Receipt PDF generated successfully');
+    } catch (error) {
+      console.error('❌ Error generating receipt PDF:', error);
+      Alert.alert(
+        'Download Failed',
+        'Unable to generate payment receipt. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -804,26 +925,38 @@ const PaymentDetailModal = ({
             flexDirection: 'row',
             gap: 12
           }}>
-            <TouchableOpacity style={{
-              flex: 1,
-              backgroundColor: '#059669',
-              paddingVertical: 16,
-              borderRadius: 12,
-              alignItems: 'center'
-            }}>
+            <TouchableOpacity 
+              style={{
+                flex: 1,
+                backgroundColor: downloading ? '#9CA3AF' : '#059669',
+                paddingVertical: 16,
+                borderRadius: 12,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center'
+              }}
+              onPress={handleDownloadReceipt}
+              disabled={downloading}
+            >
+              {downloading ? (
+                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+              ) : null}
               <Text style={{
                 color: 'white',
                 fontWeight: '600',
                 fontSize: 16
-              }}>Download Receipt</Text>
+              }}>{downloading ? 'Generating...' : 'Download Receipt'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={{
-              flex: 1,
-              backgroundColor: '#F3F4F6',
-              paddingVertical: 16,
-              borderRadius: 12,
-              alignItems: 'center'
-            }}>
+            <TouchableOpacity 
+              style={{
+                flex: 1,
+                backgroundColor: '#F3F4F6',
+                paddingVertical: 16,
+                borderRadius: 12,
+                alignItems: 'center'
+              }}
+              onPress={handleDownloadReceipt}
+            >
               <Text style={{
                 color: '#374151',
                 fontWeight: '600',
@@ -917,10 +1050,32 @@ const TransactionRow = ({
           <Text className={`text-lg font-bold ${getAmountColor()}`}>
             {transaction.type === "payment" ? "-" : transaction.type === "invoice" ? "+" : ""}₹{transaction.amount.toFixed(2)}
           </Text>
-          <Text className="text-xs text-gray-500 mt-1">
-            {transaction.type === "balance" ? "Opening" : 
-             transaction.type === "invoice" ? "Invoice" : "Payment"}
-          </Text>
+          {transaction.type === "payment" ? (
+            <View className="mt-1" style={{ maxWidth: 200 }}>
+              <View className="flex-row flex-wrap justify-end gap-x-2 gap-y-1">
+                {transaction.details?.upiAmount > 0 && (
+                  <Text className="text-xs font-medium" style={{ color: '#059669' }}>
+                    UPI: ₹{transaction.details.upiAmount.toFixed(2)}
+                  </Text>
+                )}
+                {transaction.details?.cashAmount > 0 && (
+                  <Text className="text-xs font-medium" style={{ color: '#059669' }}>
+                    {transaction.details?.upiAmount > 0 && '• '}Cash: ₹{transaction.details.cashAmount.toFixed(2)}
+                  </Text>
+                )}
+                {transaction.details?.chequeAmount > 0 && (
+                  <Text className="text-xs font-medium" style={{ color: '#059669' }}>
+                    {(transaction.details?.upiAmount > 0 || transaction.details?.cashAmount > 0) && '• '}Cheque: ₹{transaction.details.chequeAmount.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ) : (
+            <Text className="text-xs text-gray-500 mt-1">
+              {transaction.type === "balance" ? "Opening" : 
+               transaction.type === "invoice" ? "Invoice" : "Payment"}
+            </Text>
+          )}
         </View>
       </View>
       
@@ -958,16 +1113,6 @@ const TransactionRow = ({
           </Text>
         </View>
       </View>
-      
-      {/* Click indicator for non-balance transactions */}
-      {transaction.type !== "balance" && (
-        <View className="flex-row items-center justify-center mt-2 pt-2 border-t border-gray-200">
-          <Text className="text-xs text-gray-500 mr-1">
-            Tap for details
-          </Text>
-          <Ionicons name="chevron-forward" size={12} color="#9CA3AF" />
-        </View>
-      )}
     </TouchableOpacity>
   );
 };
@@ -997,17 +1142,29 @@ export default function InvoicesScreen() {
       setLoading(true);
       setError(null);
       try {
-        // MOCK DATA - Using provided JSON for testing calculations
-        console.log('📊 Loading MOCK invoice data for testing...');
+        // Fetch invoices from backend API
+        console.log('📊 Loading invoices from API...');
         
-        const mockInvoices = [{"invoiceID":128511,"invoiceDate":638846260310000000,"invoiceDateString":"2025-06-04 09:27:11","invoiceNo":"M3-INV28232","saleAmount":1925,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":3620.6,"obAmount":3620.6,"invoiceItems":null},{"invoiceID":128700,"invoiceDate":638847985350000000,"invoiceDateString":"2025-06-06 09:22:15","invoiceNo":"M3-INV28382","saleAmount":2733.5,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":5546,"balanceAmount":-2812.5,"obAmount":808.1,"invoiceItems":null},{"invoiceID":128882,"invoiceDate":638850579420000000,"invoiceDateString":"2025-06-09 09:25:42","invoiceNo":"M3-INV28544","saleAmount":2035,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":2733,"balanceAmount":-698,"obAmount":110.1,"invoiceItems":null},{"invoiceID":129135,"invoiceDate":638852317900000000,"invoiceDateString":"2025-06-11 09:43:10","invoiceNo":"M3-INV28777","saleAmount":1045,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":2035,"balanceAmount":-990,"obAmount":-879.9,"invoiceItems":null},{"invoiceID":129323,"invoiceDate":638854042580000000,"invoiceDateString":"2025-06-13 09:37:38","invoiceNo":"M3-INV28851","saleAmount":1567.5,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1045,"balanceAmount":522.5,"obAmount":-357.4,"invoiceItems":null},{"invoiceID":129559,"invoiceDate":638856643920000000,"invoiceDateString":"2025-06-16 09:53:12","invoiceNo":"M3-INV29057","saleAmount":1254,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1567,"balanceAmount":-313,"obAmount":-670.4,"invoiceItems":null},{"invoiceID":129829,"invoiceDate":638858353070000000,"invoiceDateString":"2025-06-18 09:21:47","invoiceNo":"M3-INV29301","saleAmount":1804,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1254,"balanceAmount":550,"obAmount":-120.4,"invoiceItems":null},{"invoiceID":130030,"invoiceDate":638860089050000000,"invoiceDateString":"2025-06-20 09:35:05","invoiceNo":"M3-INV29480","saleAmount":1886.5,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1804,"balanceAmount":82.5,"obAmount":-37.9,"invoiceItems":null},{"invoiceID":130242,"invoiceDate":638862694120000000,"invoiceDateString":"2025-06-23 09:56:52","invoiceNo":"M6-INV10372","saleAmount":1683,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1887,"balanceAmount":-204,"obAmount":-241.9,"invoiceItems":null},{"invoiceID":130485,"invoiceDate":638864444800000000,"invoiceDateString":"2025-06-25 10:34:40","invoiceNo":"M2-INV27020","saleAmount":2651,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1683,"balanceAmount":968,"obAmount":726.1,"invoiceItems":null},{"invoiceID":130638,"invoiceDate":638866140440000000,"invoiceDateString":"2025-06-27 09:40:44","invoiceNo":"M6-INV10577","saleAmount":1870,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":2651,"balanceAmount":-781,"obAmount":-54.9,"invoiceItems":null},{"invoiceID":130839,"invoiceDate":638868724660000000,"invoiceDateString":"2025-06-30 09:27:46","invoiceNo":"M3-INV29640","saleAmount":1111,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1870,"balanceAmount":-759,"obAmount":-813.9,"invoiceItems":null},{"invoiceID":131079,"invoiceDate":638870459200000000,"invoiceDateString":"2025-07-02 09:38:40","invoiceNo":"M3-INV29713","saleAmount":3068,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1111,"balanceAmount":1957,"obAmount":1143.1,"invoiceItems":null},{"invoiceID":131080,"invoiceDate":638870459210000000,"invoiceDateString":"2025-07-02 09:38:41","invoiceNo":"M3-INV29714","saleAmount":0,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":0,"obAmount":1143.1,"invoiceItems":null},{"invoiceID":131504,"invoiceDate":638873058110000000,"invoiceDateString":"2025-07-05 09:50:11","invoiceNo":"M3-INV30090","saleAmount":2372.9,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":2372.9,"obAmount":3516,"invoiceItems":null},{"invoiceID":131536,"invoiceDate":638874772200000000,"invoiceDateString":"2025-07-07 09:27:00","invoiceNo":"M3-INV30111","saleAmount":2354.6,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":5441,"balanceAmount":-3086.4,"obAmount":429.6,"invoiceItems":null},{"invoiceID":131808,"invoiceDate":638876516330000000,"invoiceDateString":"2025-07-09 09:53:53","invoiceNo":"M3-INV30348","saleAmount":2196,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":2354,"balanceAmount":-158,"obAmount":271.6,"invoiceItems":null},{"invoiceID":132054,"invoiceDate":638878280870000000,"invoiceDateString":"2025-07-11 10:54:47","invoiceNo":"M3-INV30566","saleAmount":2684.6,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":2684.6,"obAmount":2956.2,"invoiceItems":null},{"invoiceID":132244,"invoiceDate":638880830950000000,"invoiceDateString":"2025-07-14 09:44:55","invoiceNo":"M3-INV30729","saleAmount":1382.6,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":4881,"balanceAmount":-3498.4,"obAmount":-542.2,"invoiceItems":null},{"invoiceID":132664,"invoiceDate":638884277810000000,"invoiceDateString":"2025-07-18 09:29:41","invoiceNo":"M5-INV03150","saleAmount":2608.2,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":2608.2,"obAmount":2066,"invoiceItems":null},{"invoiceID":132893,"invoiceDate":638886880630000000,"invoiceDateString":"2025-07-21 09:47:43","invoiceNo":"M2-INV27342","saleAmount":2244,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":3990,"balanceAmount":-1746,"obAmount":320,"invoiceItems":null},{"invoiceID":133152,"invoiceDate":638888615880000000,"invoiceDateString":"2025-07-23 09:59:48","invoiceNo":"M2-INV27573","saleAmount":1485,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":1485,"obAmount":1805,"invoiceItems":null},{"invoiceID":133311,"invoiceDate":638890334940000000,"invoiceDateString":"2025-07-25 09:44:54","invoiceNo":"M2-INV27697","saleAmount":1375,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":3729,"balanceAmount":-2354,"obAmount":-549,"invoiceItems":null},{"invoiceID":133781,"invoiceDate":638894655210000000,"invoiceDateString":"2025-07-30 09:45:21","invoiceNo":"M3-INV30833","saleAmount":3469.2,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1375,"balanceAmount":2094.2,"obAmount":1545.2,"invoiceItems":null},{"invoiceID":133990,"invoiceDate":638896381770000000,"invoiceDateString":"2025-08-01 09:42:57","invoiceNo":"M3-INV30992","saleAmount":1616.6,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":3469,"balanceAmount":-1852.4,"obAmount":-307.2,"invoiceItems":null},{"invoiceID":134199,"invoiceDate":638898960710000000,"invoiceDateString":"2025-08-04 09:21:11","invoiceNo":"M3-INV31174","saleAmount":1888,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1616,"balanceAmount":272,"obAmount":-35.2,"invoiceItems":null},{"invoiceID":134495,"invoiceDate":638900717190000000,"invoiceDateString":"2025-08-06 10:08:39","invoiceNo":"M3-INV31439","saleAmount":1947,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1888,"balanceAmount":59,"obAmount":23.8,"invoiceItems":null},{"invoiceID":134738,"invoiceDate":638902415740000000,"invoiceDateString":"2025-08-08 09:19:34","invoiceNo":"M3-INV31639","saleAmount":0,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":0,"obAmount":23.8,"invoiceItems":null},{"invoiceID":134921,"invoiceDate":638905036080000000,"invoiceDateString":"2025-08-11 10:06:48","invoiceNo":"M3-INV31797","saleAmount":3266.4,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":3266.4,"obAmount":3290.2,"invoiceItems":null},{"invoiceID":0,"invoiceDate":638905872220000000,"invoiceDateString":"2025-08-12 09:20:22","invoiceNo":"","saleAmount":0,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":1947,"balanceAmount":-1947,"obAmount":1343.2,"invoiceItems":null},{"invoiceID":135382,"invoiceDate":638908506100000000,"invoiceDateString":"2025-08-15 10:30:10","invoiceNo":"M3-INV32183","saleAmount":3186,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":3186,"obAmount":4529.2,"invoiceItems":null},{"invoiceID":0,"invoiceDate":638909334430000000,"invoiceDateString":"2025-08-16 09:30:43","invoiceNo":"","saleAmount":0,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":3266,"balanceAmount":-3266,"obAmount":1263.2,"invoiceItems":null},{"invoiceID":135628,"invoiceDate":638911066810000000,"invoiceDateString":"2025-08-18 09:38:01","invoiceNo":"M3-INV32398","saleAmount":2690.4,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":3188,"balanceAmount":-497.6,"obAmount":765.6,"invoiceItems":null},{"invoiceID":136102,"invoiceDate":638914522590000000,"invoiceDateString":"2025-08-22 09:37:39","invoiceNo":"M3-INV32803","saleAmount":3469.2,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":2690,"balanceAmount":779.2,"obAmount":1544.8,"invoiceItems":null},{"invoiceID":136340,"invoiceDate":638917122680000000,"invoiceDateString":"2025-08-25 09:51:08","invoiceNo":"M3-INV33002","saleAmount":2006,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":3469,"balanceAmount":-1463,"obAmount":81.8,"invoiceItems":null},{"invoiceID":136627,"invoiceDate":638918888800000000,"invoiceDateString":"2025-08-27 10:54:40","invoiceNo":"M5-INV03463","saleAmount":1705.1,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":1705.1,"obAmount":1786.9,"invoiceItems":null},{"invoiceID":136850,"invoiceDate":638920608980000000,"invoiceDateString":"2025-08-29 10:41:38","invoiceNo":"M3-INV33411","saleAmount":1792,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":1792,"obAmount":3578.9,"invoiceItems":null},{"invoiceID":137501,"invoiceDate":638924903270000000,"invoiceDateString":"2025-09-03 09:58:47","invoiceNo":"M3-INV33954","saleAmount":2632,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":5503,"balanceAmount":-2871,"obAmount":707.9,"invoiceItems":null},{"invoiceID":137829,"invoiceDate":638929231220000000,"invoiceDateString":"2025-09-08 10:12:02","invoiceNo":"M2-INV28136","saleAmount":3057.6,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":3057.6,"obAmount":3765.5,"invoiceItems":null},{"invoiceID":138076,"invoiceDate":638930965790000000,"invoiceDateString":"2025-09-10 10:22:59","invoiceNo":"M3-INV34182","saleAmount":2784,"cancelAmount":0,"returnAmount":0,"discountAmount":0,"cashAmount":0,"chequeAmount":0,"upiAmount":0,"balanceAmount":2784,"obAmount":6549.5,"invoiceItems":null}];
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - 90); // Last 90 days
         
-        console.log('✅ Using', mockInvoices.length, 'mock invoices');
+        const fromDateTime = fromDate.getTime().toString();
+        const toDateTime = toDate.getTime().toString();
+        
+        const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
+        
+        if (!res || !res.success || !Array.isArray(res.invoices)) {
+          throw new Error('Invalid response from API');
+        }
+        
+        const apiInvoices = res.invoices;
+        console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
         
         // Calculate the actual Before Balance (BF)
         // BF = obAmount (opening balance before this invoice) - saleAmount (current invoice)
         // This gives us the balance before any transactions in this list
-        const firstInvoice = mockInvoices[0];
+        const firstInvoice = apiInvoices[0];
         const openingBalance = firstInvoice 
           ? (firstInvoice.obAmount - firstInvoice.saleAmount) 
           : 0;
@@ -1035,7 +1192,7 @@ export default function InvoicesScreen() {
           });
           
           // Process each invoice with transaction index
-          mockInvoices.forEach((inv: any, index: number) => {
+          apiInvoices.forEach((inv: any, index: number) => {
             const transactionIndex = index + 1; // 1-based index for display
             
             // Add invoice (skip if sale amount is 0)
