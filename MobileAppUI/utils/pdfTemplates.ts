@@ -84,6 +84,20 @@ const formatCurrency = (amount: number) => {
 };
 
 /**
+ * Escape HTML special characters to prevent XSS attacks
+ * Replaces: < > & " ' with their HTML entity equivalents
+ */
+const escapeHtml = (text: string | undefined): string => {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+/**
  * Generate Invoice PDF HTML
  */
 export const generateInvoicePDF = (
@@ -98,7 +112,7 @@ export const generateInvoicePDF = (
         <tr>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${index + 1}</td>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb;">
-            ${item.name || `Product #${item.ProductID || 'N/A'}`}
+            ${escapeHtml(item.name || `Product #${item.ProductID || 'N/A'}`)}
           </td>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">
             ${item.SaleQty || item.quantity || '-'}
@@ -292,9 +306,9 @@ export const generateInvoicePDF = (
         <div class="customer-section">
           <div class="customer-title">Bill To:</div>
           <div class="customer-info">
-            <strong>${customerInfo.name || customerName}</strong><br>
-            ${customerInfo.address || 'Address not available'}<br>
-            ${customerInfo.mobile ? `Mobile: ${customerInfo.mobile}` : ''}
+            <strong>${escapeHtml(customerInfo.name || customerName)}</strong><br>
+            ${escapeHtml(customerInfo.address || 'Address not available')}<br>
+            ${escapeHtml(customerInfo.mobile || 'Mobile not available')}
           </div>
         </div>
 
@@ -633,9 +647,9 @@ export const generatePaymentReceiptPDF = (
           <div class="customer-section">
             <div class="customer-title">Received From:</div>
             <div class="customer-info">
-              <strong>${customerInfo.name || payment.details.paidBy || customerName}</strong><br>
-              ${customerInfo.address || ''}<br>
-              ${customerInfo.mobile ? `Mobile: ${customerInfo.mobile}` : ''}
+              <strong>${escapeHtml(customerInfo.name || payment.details.paidBy || customerName)}</strong><br>
+              ${escapeHtml(customerInfo.address || '')}<br>
+              ${customerInfo.mobile ? `Mobile: ${escapeHtml(customerInfo.mobile)}` : ''}
             </div>
           </div>
 

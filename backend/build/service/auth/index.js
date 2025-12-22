@@ -29,22 +29,21 @@ const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY = '7d';
 // Utility function to format phone number to E.164 format
 function formatPhoneNumber(phoneNumber) {
+    if (!phoneNumber)
+        return '';
     // Remove all non-digit characters
     const cleaned = phoneNumber.replace(/\D/g, '');
-    // If it starts with country code, ensure it has + prefix
-    if (cleaned.startsWith('91') && cleaned.length === 12) {
-        return `+${cleaned}`;
-    }
     // If it's a 10-digit Indian number, add +91
     if (cleaned.length === 10) {
         return `+91${cleaned}`;
     }
-    // If it already has + prefix, return as is
-    if (phoneNumber.startsWith('+')) {
-        return phoneNumber;
+    // If it starts with country code 91, ensure it has + prefix
+    if (cleaned.startsWith('91') && cleaned.length === 12) {
+        return `+${cleaned}`;
     }
-    // Default: add + prefix if not present
-    return phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    // If we couldn't parse it, return the cleaned digits with +91 prefix as fallback
+    // This handles cases where input is already formatted or has unexpected format
+    return `+91${cleaned}`;
 }
 // export function generateOTP() {
 //   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -125,9 +124,12 @@ function verifyOTP(phoneNumber, code) {
 function saveUserAndGenerateTokens(name, phoneNumber) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("🔧 Creating/updating user (UserCustomerMaster):", { name, phoneNumber });
+        // Normalize phone number before any DB operations
+        const formattedPhone = formatPhoneNumber(phoneNumber);
+        console.log('📱 saveUserAndGenerateTokens - Input:', phoneNumber, '→ Formatted:', formattedPhone);
         // Check if user already exists in USERCUSTOMERMASTER
         let user = yield prisma.uSERCUSTOMERMASTER.findFirst({
-            where: { phoneNumber: phoneNumber }
+            where: { phoneNumber: formattedPhone }
         });
         if (user) {
             // Update existing user
@@ -138,11 +140,11 @@ function saveUserAndGenerateTokens(name, phoneNumber) {
             console.log("✅ UserCustomer updated:", user);
         }
         else {
-            // Create new user in USERCUSTOMERMASTER
+            // Create new user in USERCUSTOMERMASTER with normalized phone
             user = yield prisma.uSERCUSTOMERMASTER.create({
                 data: {
                     name,
-                    phoneNumber,
+                    phoneNumber: formattedPhone,
                 }
             });
             console.log("✅ UserCustomer created:", user);
@@ -150,7 +152,7 @@ function saveUserAndGenerateTokens(name, phoneNumber) {
         // Generate tokens using the user table id (not the legacy CUSTOMERID)
         const tokens = generateTokens({
             userId: user.id,
-            phoneNumber: user.phoneNumber || phoneNumber
+            phoneNumber: user.phoneNumber || formattedPhone
         });
         console.log("🎫 Tokens generated for user (id):", user.id);
         return { user, tokens };
@@ -159,11 +161,31 @@ function saveUserAndGenerateTokens(name, phoneNumber) {
 function checkCustomerExists(phoneNumber) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            // First, check if a user record exists in USERCUSTOMERMASTER (new auth table)
+            // Normalize phone number format to ensure consistent lookup
+            const formattedPhone = formatPhoneNumber(phoneNumber);
+            // Also prepare unformatted version (without +91) for fallback search
+            const unformattedPhone = formattedPhone.replace(/^\+91/, '');
+            console.log('📱 checkCustomerExists - Input:', phoneNumber);
+            console.log('📱 Searching for:', formattedPhone, 'or', unformattedPhone);
+            // Search for user with either format (handles inconsistent DB data)
             const user = yield prisma.uSERCUSTOMERMASTER.findFirst({
-                where: { phoneNumber: phoneNumber },
+                where: {
+                    OR: [
+                        { phoneNumber: formattedPhone },
+                        { phoneNumber: unformattedPhone }
+                    ]
+                },
             });
             if (user) {
+                // If found with old format, update to normalized format
+                if (user.phoneNumber !== formattedPhone) {
+                    console.log('🔄 Normalizing phone format in DB:', user.phoneNumber, '→', formattedPhone);
+                    yield prisma.uSERCUSTOMERMASTER.update({
+                        where: { id: user.id },
+                        data: { phoneNumber: formattedPhone }
+                    });
+                    user.phoneNumber = formattedPhone;
+                }
                 // If a legacy CUSTOMERMASTER record has been linked to this user (via USERID), return that id too
                 const customer = yield prisma.cUSTOMERMASTER.findFirst({
                     where: { USERID: user.id }

@@ -19,7 +19,8 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { getInvoices, getInvoiceItems, getInvoicesByCustomerAndDateRange } from '../../services/api';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import { fetch } from 'expo/fetch';
+import { File, Paths } from 'expo-file-system/next';
 import { generateInvoicePDF, generatePaymentReceiptPDF } from '../../utils/pdfTemplates';
 import { formatDateForFilename } from '../../utils/dateUtils';
 
@@ -192,12 +193,27 @@ const InvoiceDetailModal = ({
   };
 
   const handleDownloadPDF = async () => {
+    if (downloading) return;
+    
     try {
       setDownloading(true);
+      console.log('📄 Starting PDF download for transaction:', transaction.id);
+
+      // Validate transaction has required data
+      if (!transaction) {
+        throw new Error('Transaction data is missing');
+      }
+
+      if (!transaction.date) {
+        throw new Error('Transaction date is required for PDF generation');
+      }
 
       const customerName = transaction.details?.customerInfo?.name || "Customer";
       const dateStr = formatDateForFilename(transaction.date);
       const fileName = `${customerName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
+
+      console.log('📄 Generating PDF with filename:', fileName);
+      console.log('📄 Invoice items count:', invoiceItems.length);
 
       const html = generateInvoicePDF(
         transaction,
@@ -206,32 +222,46 @@ const InvoiceDetailModal = ({
         customerName
       );
 
+      console.log('📄 HTML generated, creating PDF...');
       const { uri } = await Print.printToFileAsync({ html });
+      console.log('📄 PDF created at temp location:', uri);
 
-      // Persist the generated temp file to app document directory so user sees a persistent file
-      const newUri = (FileSystem as any).documentDirectory + fileName;
+      // Persist using new FileSystem API
+      const file = new File(Paths.document, fileName);
+      let shareTarget = uri;
+      
       try {
-        await FileSystem.moveAsync({ from: uri, to: newUri });
+        const response = await fetch(uri);
+        await file.write(await response.bytes());
+        console.log('📄 PDF persisted to:', file.uri);
+        shareTarget = file.uri;
       } catch (moveErr) {
-        // If move fails, fall back to sharing the temp uri
-        console.warn('Failed to move PDF to documentDirectory, sharing temp uri:', moveErr);
+        // If persist fails, fall back to sharing the temp uri
+        console.warn('⚠️ Failed to persist PDF, using temp uri:', moveErr);
       }
 
-      const shareTarget = (await FileSystem.getInfoAsync(newUri)).exists ? newUri : uri;
-
       const canShare = await Sharing.isAvailableAsync();
+      console.log('📄 Sharing available:', canShare);
+      
       if (canShare) {
         await Sharing.shareAsync(shareTarget, {
           UTI: '.pdf',
           mimeType: 'application/pdf',
           dialogTitle: 'Share Invoice PDF'
         });
+        console.log('✅ PDF shared successfully');
       } else {
-        Alert.alert('Success', 'PDF generated successfully!');
+        Alert.alert('Success', `PDF generated successfully!\nSaved to: ${fileName}`);
       }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      Alert.alert('Error', 'Unable to generate PDF. Please try again.');
+    } catch (error: any) {
+      console.error('❌ Error generating PDF:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      Alert.alert(
+        'Download Failed', 
+        error.message || 'Unable to generate PDF. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setDownloading(false);
     }
@@ -690,15 +720,16 @@ const PaymentDetailModal = ({
 
       const { uri } = await Print.printToFileAsync({ html });
 
-      // Persist the generated temp file to app document directory
-      const newUri = (FileSystem as any).documentDirectory + filename;
+      // Persist using new FileSystem API
+      let shareTarget = uri;
       try {
-        await FileSystem.moveAsync({ from: uri, to: newUri });
+        const file = new File(Paths.document, filename);
+        const response = await fetch(uri);
+        await file.write(await response.bytes());
+        shareTarget = file.uri;
       } catch (moveErr) {
-        console.warn('Failed to move receipt PDF to documentDirectory, sharing temp uri:', moveErr);
+        console.warn('Failed to persist receipt PDF, sharing temp uri:', moveErr);
       }
-
-      const shareTarget = (await FileSystem.getInfoAsync(newUri)).exists ? newUri : uri;
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(shareTarget, {
@@ -1136,6 +1167,7 @@ export default function InvoicesScreen() {
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [downloadingStatement, setDownloadingStatement] = useState(false);
 
   useEffect(() => {
     const loadInvoices = async () => {
@@ -1414,6 +1446,251 @@ export default function InvoicesScreen() {
     ? transactionsWithBalance[transactionsWithBalance.length - 1].runningBalance 
     : 0;
 
+  const handleDownloadStatement = async () => {
+    try {
+      setDownloadingStatement(true);
+      console.log('📄 Starting statement PDF generation...');
+      console.log('📊 Transactions count:', filteredTransactions.length);
+
+      if (filteredTransactions.length === 0) {
+        Alert.alert('No Data', 'No transactions available for the selected period');
+        return;
+      }
+
+      // Calculate summary totals
+      const totalInvoices = filteredTransactions.filter(t => t.type === 'invoice').length;
+      const totalPayments = filteredTransactions.filter(t => t.type === 'payment').length;
+      const totalInvoiceAmount = filteredTransactions
+        .filter(t => t.type === 'invoice')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const totalPaymentAmount = filteredTransactions
+        .filter(t => t.type === 'payment')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      // Format date range for filename and display
+      const formatDateForDisplay = (date: Date) => {
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        });
+      };
+
+      const dateRangeText = `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
+      const filenameDate = formatDateForFilename(endDate.toISOString());
+
+      // Generate HTML content
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+              line-height: 1.6;
+              color: #111827;
+              padding: 40px;
+              background: white;
+            }
+            .container { max-width: 900px; margin: 0 auto; }
+            .header {
+              border-bottom: 3px solid #15803D;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .company-name {
+              font-size: 28px;
+              font-weight: bold;
+              color: #15803D;
+              margin-bottom: 8px;
+            }
+            .statement-title {
+              text-align: center;
+              font-size: 24px;
+              font-weight: bold;
+              color: #111827;
+              margin: 20px 0;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .date-range {
+              text-align: center;
+              font-size: 14px;
+              color: #6b7280;
+              margin-bottom: 30px;
+            }
+            .summary-boxes {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+              margin-bottom: 30px;
+            }
+            .summary-box {
+              padding: 20px;
+              background: #f9fafb;
+              border-radius: 8px;
+              border-left: 4px solid #15803D;
+            }
+            .summary-label {
+              font-size: 12px;
+              color: #6b7280;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 8px;
+            }
+            .summary-value {
+              font-size: 24px;
+              font-weight: bold;
+              color: #111827;
+            }
+            .table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+              background: white;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .table th {
+              background: #15803D;
+              color: white;
+              padding: 12px;
+              text-align: left;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .table td {
+              padding: 12px;
+              border-bottom: 1px solid #e5e7eb;
+              font-size: 13px;
+            }
+            .table tr:last-child td { border-bottom: none; }
+            .invoice-row { background: #fef3c7; }
+            .payment-row { background: #d1fae5; }
+            .amount-debit { color: #dc2626; font-weight: 600; }
+            .amount-credit { color: #15803D; font-weight: 600; }
+            .balance-col { font-weight: bold; }
+            .footer {
+              padding: 20px;
+              background: #f3f4f6;
+              text-align: center;
+              font-size: 11px;
+              color: #6b7280;
+              border-radius: 8px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="company-name">Ceren Production Company</div>
+              <div style="font-size: 12px; color: #6b7280;">Industrial Area, Phase 2, Bengaluru, Karnataka 560001</div>
+            </div>
+
+            <div class="statement-title">Account Statement</div>
+            <div class="date-range">${dateRangeText}</div>
+
+            <div class="summary-boxes">
+              <div class="summary-box">
+                <div class="summary-label">Total Invoices</div>
+                <div class="summary-value">${totalInvoices}</div>
+                <div style="font-size: 14px; color: #6b7280; margin-top: 5px;">₹${totalInvoiceAmount.toFixed(2)}</div>
+              </div>
+              <div class="summary-box">
+                <div class="summary-label">Total Payments</div>
+                <div class="summary-value">${totalPayments}</div>
+                <div style="font-size: 14px; color: #6b7280; margin-top: 5px;">₹${totalPaymentAmount.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 100px;">Date</th>
+                  <th style="width: 150px;">Reference</th>
+                  <th>Description</th>
+                  <th style="width: 100px; text-align: right;">Debit</th>
+                  <th style="width: 100px; text-align: right;">Credit</th>
+                  <th style="width: 120px; text-align: right;">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${transactionsWithBalance.map(transaction => {
+                  const isInvoice = transaction.type === 'invoice';
+                  const date = new Date(transaction.date || new Date()).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                  });
+                  return `
+                    <tr class="${isInvoice ? 'invoice-row' : 'payment-row'}">
+                      <td>${date}</td>
+                      <td>${transaction.id}</td>
+                      <td>${isInvoice ? 'Invoice' : 'Payment Received'}</td>
+                      <td class="amount-debit" style="text-align: right;">${isInvoice ? '₹' + transaction.amount.toFixed(2) : '-'}</td>
+                      <td class="amount-credit" style="text-align: right;">${!isInvoice ? '₹' + transaction.amount.toFixed(2) : '-'}</td>
+                      <td class="balance-col" style="text-align: right;">₹${transaction.runningBalance.toFixed(2)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+
+            <div class="footer">
+              <p>This is a computer-generated statement and does not require a signature.</p>
+              <p style="margin-top: 10px;">Generated on ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      console.log('📄 HTML generated, creating PDF...');
+
+      // Generate PDF
+      const { uri } = await Print.printToFileAsync({ html });
+      console.log('✅ PDF created at:', uri);
+
+      // Persist using new FileSystem API
+      const filename = `Statement_${filenameDate}.pdf`;
+      console.log('💾 Creating file:', filename);
+
+      // Create file in document directory using new API
+      const file = new File(Paths.document, filename);
+      
+      // Read the temp PDF content and write to permanent location
+      const response = await fetch(uri);
+      await file.write(await response.bytes());
+
+      console.log('✅ File persisted successfully:', file.uri);
+
+      // Share the PDF
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share Statement',
+          UTI: 'com.adobe.pdf'
+        });
+        console.log('✅ Statement shared successfully');
+        Alert.alert('Success', 'Statement PDF downloaded successfully!');
+      } else {
+        console.log('❌ Sharing not available');
+        Alert.alert('Success', `Statement saved to: ${filename}`);
+      }
+    } catch (error) {
+      console.error('❌ Error generating statement:', error);
+      Alert.alert(
+        'Error',
+        'Failed to generate statement PDF. Please try again.'
+      );
+    } finally {
+      setDownloadingStatement(false);
+    }
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       {/* Header */}
@@ -1431,8 +1708,16 @@ export default function InvoicesScreen() {
           <Text className="text-xl font-bold text-gray-900 flex-1 text-center">
             Invoice Statement
           </Text>
-          <TouchableOpacity className="p-2">
-            <Ionicons name="download-outline" size={24} color="#6B7280" />
+          <TouchableOpacity 
+            className="p-2"
+            onPress={handleDownloadStatement}
+            disabled={downloadingStatement}
+          >
+            {downloadingStatement ? (
+              <ActivityIndicator size="small" color="#15803D" />
+            ) : (
+              <Ionicons name="download-outline" size={24} color="#6B7280" />
+            )}
           </TouchableOpacity>
         </View>
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   View, 
   Text, 
@@ -760,21 +760,54 @@ export default function AccountScreen() {
     }
   };
 
+  // State for store and user data
+  const [storeName, setStoreName] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
+
+  // Phone formatter utility: "+917077404655" -> "+91 70774 04655"
+  const formatPhoneNumber = (phone: string): string => {
+    if (!phone) return "Phone not available";
+    // Remove all spaces first
+    const cleaned = phone.replace(/\s/g, '');
+    // Check if it starts with +91
+    if (cleaned.startsWith('+91')) {
+      const number = cleaned.substring(3);
+      // Format as +91 XXXXX XXXXX
+      if (number.length === 10) {
+        return `+91 ${number.substring(0, 5)} ${number.substring(5)}`;
+      }
+    }
+    return phone; // Return as-is if format doesn't match
+  };
+
+  // Fetch store name and phone number from AsyncStorage
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const selectedStore = await AsyncStorage.getItem('selectedStoreName');
+        const userDataStr = await AsyncStorage.getItem('userData');
+        
+        setStoreName(selectedStore || null);
+        
+        if (userDataStr) {
+          const userData = JSON.parse(userDataStr);
+          setPhoneNumber(userData.phoneNumber || null);
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
+    loadUserData();
+  }, []);
+
   // Fetch address on component mount
   React.useEffect(() => {
     fetchDefaultAddress();
   }, []);
 
-  // Mock user data - replace with actual user data from your auth context
-  const userData = {
-    name: "Amitav Panda",
-    email: "pandaamitav01@gmail.com",
-    mobile: "+917077404655",
-    gender: "Male",
-    customerType: "General",
-    address: "121221, asdf, asdfasdf, Marathahalli, Bengaluru, Karnataka, India",
-    profileImage: require("../../assets/images/ProfileImageHomeScreen.png")
-  };
+  // Keep profile image reference
+  const profileImage = require("../../assets/images/ProfileImageHomeScreen.png");
 
   const handleSelectAddress = (address: any) => {
     console.log("Selected address:", address);
@@ -783,19 +816,16 @@ export default function AccountScreen() {
 
   const handleAddNewAddress = async () => {
     console.log("🖱️ Add new address button clicked from account");
-    console.log("👤 Current userData state:", userData);
 
-    let currentUserData = userData;
+    let currentUserData = null;
 
-    // If userData is not available, try to load it from AsyncStorage
-    if (!currentUserData || !currentUserData.name || !currentUserData.mobile) {
-      console.log("🔄 User data not available or incomplete, trying to load from AsyncStorage...");
-      try {
-        const storedUserData = await AsyncStorage.getItem('userData');
-        if (storedUserData) {
-          currentUserData = JSON.parse(storedUserData);
-          console.log("✅ Loaded user data from AsyncStorage:", currentUserData);
-        } else {
+    // Load userData from AsyncStorage
+    try {
+      const storedUserData = await AsyncStorage.getItem('userData');
+      if (storedUserData) {
+        currentUserData = JSON.parse(storedUserData);
+        console.log("✅ Loaded user data from AsyncStorage:", currentUserData);
+      } else {
           // Check if user is logged in at all
           const accessToken = await AsyncStorage.getItem('accessToken');
           if (!accessToken) {
@@ -813,9 +843,8 @@ export default function AccountScreen() {
             return;
           }
         }
-      } catch (error) {
-        console.error("❌ Failed to load user data from AsyncStorage:", error);
-      }
+    } catch (error) {
+      console.error("❌ Failed to load user data from AsyncStorage:", error);
     }
 
     if (!currentUserData || !currentUserData.name || !currentUserData.mobile) {
@@ -1023,17 +1052,17 @@ export default function AccountScreen() {
             <View className="flex-1 ml-4">
               <View className="flex-row items-center">
                 <Text className="text-xl font-bold text-gray-900 flex-1">
-                  {userData.name}
+                  {storeName || "No store selected"}
                 </Text>
                 <TouchableOpacity 
-                  onPress={() => Alert.alert("Coming Soon", "Edit name feature is under development.")}
+                  onPress={() => Alert.alert("Coming Soon", "Edit store feature is under development.")}
                   className="ml-2"
                 >
                   <Ionicons name="create-outline" size={20} color="#10B981" />
                 </TouchableOpacity>
               </View>
               <Text className="text-gray-500 text-base mt-1">
-                {userData.email}
+                {phoneNumber ? formatPhoneNumber(phoneNumber) : "Phone not available"}
               </Text>
             </View>
           </View>
@@ -1130,15 +1159,15 @@ export default function AccountScreen() {
             {/* User Details Card */}
             <View className="bg-green-100 rounded-2xl p-4 mb-6">
               <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-xl font-bold text-gray-900">{userData.name}</Text>
+                <Text className="text-xl font-bold text-gray-900">{storeName || "No store selected"}</Text>
                 <TouchableOpacity>
                   <Ionicons name="create-outline" size={24} color="#16a34a" />
                 </TouchableOpacity>
               </View>
-              <Text className="text-gray-700 mb-1">Customer Type : {userData.customerType}</Text>
-              <Text className="text-gray-700 mb-1">Mobile Number : {userData.mobile}</Text>
-              <Text className="text-gray-700 mb-1">Email : {userData.email}</Text>
-              <Text className="text-gray-700">Gender : {userData.gender}</Text>
+              <Text className="text-gray-700 mb-1">Customer Type : General</Text>
+              <Text className="text-gray-700 mb-1">Mobile Number : {phoneNumber ? formatPhoneNumber(phoneNumber) : "Not available"}</Text>
+              <Text className="text-gray-700 mb-1">Email : Not available</Text>
+              <Text className="text-gray-700">Gender : Not specified</Text>
             </View>
 
             {/* Address Section */}
@@ -1147,7 +1176,9 @@ export default function AccountScreen() {
               <View className="bg-green-100 rounded-2xl p-4 flex-row items-start">
                 <Ionicons name="location" size={24} color="#16a34a" className="mr-3 mt-1" />
                 <Text className="text-gray-700 flex-1 leading-5">
-                  {userData.address}
+                  {defaultAddress
+                    ? `${defaultAddress.HouseNumber || ''} ${defaultAddress.BuildingBlock || ''}, ${defaultAddress.Landmark || ''}, ${defaultAddress.City}, ${defaultAddress.District} - ${defaultAddress.PinCode || ''}`.trim()
+                    : userMasterAddress || "No address available"}
                 </Text>
               </View>
             </View>
