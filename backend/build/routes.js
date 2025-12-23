@@ -94,6 +94,7 @@ function routes(app) {
     // Invoices routes
     app.get('/invoices', auth_2.authenticateToken, orders_1.getInvoicesByCustomer);
     app.get('/invoices/:invoiceId/items', auth_2.authenticateToken, orders_1.getInvoiceItemsByInvoice);
+    app.post('/invoices/by-customer', auth_2.authenticateToken, orders_1.getInvoicesForCustomer);
     // Maps proxy endpoints removed — using client-side keys / native SDKs instead
 }
 exports.default = routes;
