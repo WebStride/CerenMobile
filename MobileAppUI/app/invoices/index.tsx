@@ -903,15 +903,8 @@ const TransactionRow = ({
 
   const transactionIndex = transaction.details?.transactionIndex;
 
-  return (
-    <TouchableOpacity
-      onPress={() => {
-        console.log("Transaction row pressed:", transaction.id, transaction.type);
-        onPress();
-      }}
-      activeOpacity={0.7}
-      className={`${getRowStyle()} p-4 mb-2 mx-4 rounded-lg shadow-sm`}
-    >
+  const content = (
+    <>
       {/* Header with Index */}
       <View className="flex-row justify-between items-center mb-2">
         <View className="flex-1">
@@ -988,7 +981,30 @@ const TransactionRow = ({
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </>
+  );
+
+  // Only payment rows should be clickable
+  if (transaction.type === "payment") {
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          console.log("Payment row pressed:", transaction.id);
+          onPress();
+        }}
+        activeOpacity={0.7}
+        className={`${getRowStyle()} p-4 mb-2 mx-4 rounded-lg shadow-sm`}
+      >
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  // Invoice and balance rows are not clickable
+  return (
+    <View className={`${getRowStyle()} p-4 mb-2 mx-4 rounded-lg shadow-sm`}>
+      {content}
+    </View>
   );
 };
 
