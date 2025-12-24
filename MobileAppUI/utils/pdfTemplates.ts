@@ -107,7 +107,10 @@ export const generateInvoicePDF = (
   customerName: string = "Customer"
 ): string => {
 
-  const invoiceItems = items.length > 0 
+  // For BF invoices, don't show date or description in items table - just show totals
+  const isBFInvoice = invoice.id === 'BF' || invoice.details.invoiceNo === 'BF';
+  
+  const invoiceItems = !isBFInvoice && items.length > 0 
     ? items.map((item, index) => `
         <tr>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${index + 1}</td>
@@ -128,7 +131,7 @@ export const generateInvoicePDF = (
     : `
         <tr>
           <td colspan="5" style="padding: 24px; text-align: center; color: #6b7280;">
-            No items available
+            ${isBFInvoice ? 'Opening Balance' : 'No items available'}
           </td>
         </tr>
       `;
@@ -300,7 +303,7 @@ export const generateInvoicePDF = (
         </div>
 
         <!-- Invoice Title -->
-        <div class="invoice-title">Tax Invoice</div>
+        <div class="invoice-title">Tax Invoice - ${escapeHtml(customerInfo.name || customerName)}</div>
 
         <!-- Customer Information -->
         <div class="customer-section">
@@ -318,10 +321,17 @@ export const generateInvoicePDF = (
             <div class="info-label">Invoice Number</div>
             <div class="info-value">${invoice.details.invoiceNo || invoice.id}</div>
           </div>
+          ${!isBFInvoice ? `
           <div class="info-box">
             <div class="info-label">Invoice Date</div>
             <div class="info-value">${formatDate(invoice.date)}</div>
           </div>
+          ` : `
+          <div class="info-box">
+            <div class="info-label">Type</div>
+            <div class="info-value">Opening Balance</div>
+          </div>
+          `}
           <div class="info-box">
             <div class="info-label">Balance Due</div>
             <div class="info-value">${formatCurrency(invoice.details.balanceAmount || 0)}</div>
@@ -386,6 +396,10 @@ export const generateInvoicePDF = (
               <span>${formatCurrency(invoice.details.balanceAmount || 0)}</span>
             </div>
           ` : ''}
+          <div class="total-row" style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #15803D; font-size: 16px; font-weight: bold; color: #15803D;">
+            <span>Total Amount =</span>
+            <span>${formatCurrency(invoice.details.total || invoice.details.saleAmount || 0)}</span>
+          </div>
         </div>
 
         <!-- Footer -->
@@ -623,6 +637,7 @@ export const generatePaymentReceiptPDF = (
         <div class="header">
           <div class="receipt-title">Payment Receipt</div>
           <div class="receipt-subtitle">Receipt ID: ${payment.id}</div>
+          <div class="receipt-subtitle" style="margin-top: 8px;">Customer: ${escapeHtml(customerInfo.name || payment.details.paidBy || customerName)}</div>
         </div>
 
         <!-- Company Info -->
@@ -670,12 +685,25 @@ export const generatePaymentReceiptPDF = (
               <div class="detail-value">${formatDate(payment.details.paymentDate || payment.date)}</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Bank Reference</div>
-              <div class="detail-value">${payment.details.bankReference || 'N/A'}</div>
+              <div class="detail-label">Payment Mode</div>
+              <div class="detail-value">${
+                (payment.details?.upiAmount && payment.details.upiAmount > 0) ? 'UPI' :
+                (payment.details?.cashAmount && payment.details.cashAmount > 0) ? 'Cash' :
+                (payment.details?.chequeAmount && payment.details.chequeAmount > 0) ? 'Cheque' :
+                payment.details?.paymentMethod || 'N/A'
+              }</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Paid By</div>
               <div class="detail-value">${payment.details.paidBy || customerName}</div>
+            </div>
+          </div>
+
+          <!-- Total Amount Summary -->
+          <div style="margin-top: 30px; padding: 20px; background: #f0fdf4; border-radius: 8px; border: 2px solid #15803D;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 18px; font-weight: bold; color: #15803D;">Total Amount =</span>
+              <span style="font-size: 24px; font-weight: bold; color: #15803D;">${formatCurrency(payment.amount)}</span>
             </div>
           </div>
         </div>

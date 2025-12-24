@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -314,62 +315,6 @@ const InvoiceDetailModal = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ padding: 24 }}
           >
-            {/* Invoice Header Info */}
-            <View style={{
-              backgroundColor: '#F0FDF4',
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 24
-            }}>
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: 12
-              }}>
-                <View>
-                  <Text style={{
-                    fontSize: 24,
-                    fontWeight: 'bold',
-                    color: '#15803D',
-                    marginBottom: 4
-                  }}>
-                    {transaction.id}
-                  </Text>
-                  <Text style={{
-                    fontSize: 14,
-                    color: '#16A34A'
-                  }}>
-                    {formatDate(transaction.date)}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{
-                    fontSize: 24,
-                    fontWeight: 'bold',
-                    color: '#15803D',
-                    marginBottom: 4
-                  }}>
-                    ₹{transaction.amount.toFixed(2)}
-                  </Text>
-                  <View style={{
-                    backgroundColor: '#BBF7D0',
-                    paddingHorizontal: 12,
-                    paddingVertical: 4,
-                    borderRadius: 20
-                  }}>
-                    <Text style={{
-                      color: '#15803D',
-                      fontSize: 12,
-                      fontWeight: '600'
-                    }}>
-                      INVOICE
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
             {/* Items List (fetched from API) */}
             <View style={{ marginBottom: 24 }}>
               <Text style={{
@@ -709,7 +654,7 @@ const PaymentDetailModal = ({
       const filename = `${customerName.replace(/\s+/g, '')}_Receipt_${dateStr}.pdf`;
 
       const html = generatePaymentReceiptPDF(
-        transaction.details || {},
+        transaction,
         {
           name: customerName,
           address: '',
@@ -856,96 +801,6 @@ const PaymentDetailModal = ({
                 </View>
               </View>
             </View>
-
-            {/* Payment Information */}
-            <View>
-              <View style={{
-                backgroundColor: '#F9FAFB',
-                borderRadius: 16,
-                padding: 16
-              }}>
-                <Text style={{
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  color: '#111827',
-                  marginBottom: 16
-                }}>
-                  Payment Information
-                </Text>
-                
-                <View style={{ gap: 12 }}>
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between'
-                  }}>
-                    <Text style={{ color: '#6B7280', fontSize: 14 }}>Payment Method:</Text>
-                    <Text style={{ 
-                      fontWeight: '600', 
-                      color: '#111827',
-                      fontSize: 14
-                    }}>
-                      {transaction.details.paymentMethod}
-                    </Text>
-                  </View>
-                  
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between'
-                  }}>
-                    <Text style={{ color: '#6B7280', fontSize: 14 }}>Transaction ID:</Text>
-                    <Text style={{ 
-                      fontWeight: '600', 
-                      color: '#111827',
-                      fontSize: 14
-                    }}>
-                      {transaction.details.transactionId}
-                    </Text>
-                  </View>
-                  
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between'
-                  }}>
-                    <Text style={{ color: '#6B7280', fontSize: 14 }}>Paid By:</Text>
-                    <Text style={{ 
-                      fontWeight: '600', 
-                      color: '#111827',
-                      fontSize: 14
-                    }}>
-                      {transaction.details.paidBy}
-                    </Text>
-                  </View>
-                  
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between'
-                  }}>
-                    <Text style={{ color: '#6B7280', fontSize: 14 }}>Bank Reference:</Text>
-                    <Text style={{ 
-                      fontWeight: '600', 
-                      color: '#111827',
-                      fontSize: 14
-                    }}>
-                      {transaction.details.bankReference}
-                    </Text>
-                  </View>
-                  
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between'
-                  }}>
-                    <Text style={{ color: '#6B7280', fontSize: 14 }}>Status:</Text>
-                    <Text style={{ 
-                      fontWeight: '600', 
-                      color: transaction.details.status === 'Success' ? '#059669' : '#DC2626',
-                      fontSize: 14
-                    }}>
-                      {transaction.details.status}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
           </ScrollView>
 
           {/* Action Buttons */}
@@ -1082,24 +937,13 @@ const TransactionRow = ({
             {transaction.type === "payment" ? "-" : transaction.type === "invoice" ? "+" : ""}₹{transaction.amount.toFixed(2)}
           </Text>
           {transaction.type === "payment" ? (
-            <View className="mt-1" style={{ maxWidth: 200 }}>
-              <View className="flex-row flex-wrap justify-end gap-x-2 gap-y-1">
-                {transaction.details?.upiAmount > 0 && (
-                  <Text className="text-xs font-medium" style={{ color: '#059669' }}>
-                    UPI: ₹{transaction.details.upiAmount.toFixed(2)}
-                  </Text>
-                )}
-                {transaction.details?.cashAmount > 0 && (
-                  <Text className="text-xs font-medium" style={{ color: '#059669' }}>
-                    {transaction.details?.upiAmount > 0 && '• '}Cash: ₹{transaction.details.cashAmount.toFixed(2)}
-                  </Text>
-                )}
-                {transaction.details?.chequeAmount > 0 && (
-                  <Text className="text-xs font-medium" style={{ color: '#059669' }}>
-                    {(transaction.details?.upiAmount > 0 || transaction.details?.cashAmount > 0) && '• '}Cheque: ₹{transaction.details.chequeAmount.toFixed(2)}
-                  </Text>
-                )}
-              </View>
+            <View className="mt-1">
+              <Text className="text-xs font-medium" style={{ color: '#059669' }}>
+                {transaction.details?.upiAmount > 0 && 'UPI'}
+                {transaction.details?.cashAmount > 0 && 'Cash'}
+                {transaction.details?.chequeAmount > 0 && 'Cheque'}
+                {!transaction.details?.upiAmount && !transaction.details?.cashAmount && !transaction.details?.chequeAmount && 'Payment'}
+              </Text>
             </View>
           ) : (
             <Text className="text-xs text-gray-500 mt-1">
@@ -1479,6 +1323,15 @@ export default function InvoicesScreen() {
       const dateRangeText = `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
       const filenameDate = formatDateForFilename(endDate.toISOString());
 
+      // Get customer name from AsyncStorage (store name)
+      console.log('📝 DEBUG: Retrieving store name from AsyncStorage...');
+      const selectedStoreName = await AsyncStorage.getItem('selectedStoreName');
+      console.log('🏪 Store name from AsyncStorage:', selectedStoreName);
+      
+      const statementCustomerName = selectedStoreName || 'Customer';
+      
+      console.log('✅ Customer name for statement:', statementCustomerName);
+
       // Generate HTML content
       const html = `
         <!DOCTYPE html>
@@ -1570,6 +1423,7 @@ export default function InvoicesScreen() {
             .table tr:last-child td { border-bottom: none; }
             .invoice-row { background: #fef3c7; }
             .payment-row { background: #d1fae5; }
+            .balance-row { background: #e0e7ff; }
             .amount-debit { color: #dc2626; font-weight: 600; }
             .amount-credit { color: #15803D; font-weight: 600; }
             .balance-col { font-weight: bold; }
@@ -1590,7 +1444,7 @@ export default function InvoicesScreen() {
               <div style="font-size: 12px; color: #6b7280;">Industrial Area, Phase 2, Bengaluru, Karnataka 560001</div>
             </div>
 
-            <div class="statement-title">Account Statement</div>
+            <div class="statement-title">Account Statement - ${statementCustomerName}</div>
             <div class="date-range">${dateRangeText}</div>
 
             <div class="summary-boxes">
@@ -1620,27 +1474,56 @@ export default function InvoicesScreen() {
               <tbody>
                 ${transactionsWithBalance.map(transaction => {
                   const isInvoice = transaction.type === 'invoice';
-                  const date = new Date(transaction.date || new Date()).toLocaleDateString('en-GB', {
+                  const isBalance = transaction.type === 'balance';
+                  const isPayment = transaction.type === 'payment';
+                  
+                  // For BF (balance) - blank date and description
+                  const date = isBalance ? '' : new Date(transaction.date || new Date()).toLocaleDateString('en-GB', {
                     day: '2-digit',
                     month: 'short',
                     year: 'numeric'
                   });
-                  return `
-                    <tr class="${isInvoice ? 'invoice-row' : 'payment-row'}">
-                      <td>${date}</td>
-                      <td>${transaction.id}</td>
-                      <td>${isInvoice ? 'Invoice' : 'Payment Received'}</td>
-                      <td class="amount-debit" style="text-align: right;">${isInvoice ? '₹' + transaction.amount.toFixed(2) : '-'}</td>
-                      <td class="amount-credit" style="text-align: right;">${!isInvoice ? '₹' + transaction.amount.toFixed(2) : '-'}</td>
-                      <td class="balance-col" style="text-align: right;">₹${transaction.runningBalance.toFixed(2)}</td>
-                    </tr>
-                  `;
+                  
+                  // For payments - show payment mode instead of payment ID
+                  let reference = transaction.id;
+                  if (isPayment) {
+                    const upi = transaction.details?.upiAmount > 0;
+                    const cash = transaction.details?.cashAmount > 0;
+                    const cheque = transaction.details?.chequeAmount > 0;
+                    reference = upi ? 'UPI' : cash ? 'Cash' : cheque ? 'Cheque' : 'Payment';
+                  }
+                  
+                  // Description - blank for BF
+                  const description = isBalance ? '' : (isInvoice ? 'Invoice' : 'Payment Received');
+                  
+                  // Row styling
+                  const rowClass = isBalance ? 'balance-row' : (isInvoice ? 'invoice-row' : 'payment-row');
+                  
+                  const debitAmount = isInvoice || isBalance ? '₹' + transaction.amount.toFixed(2) : '-';
+                  const creditAmount = isPayment ? '₹' + transaction.amount.toFixed(2) : '-';
+                  const balanceAmount = '₹' + transaction.runningBalance.toFixed(2);
+                  
+                  return '<tr class="' + rowClass + '">' +
+                    '<td>' + date + '</td>' +
+                    '<td>' + reference + '</td>' +
+                    '<td>' + description + '</td>' +
+                    '<td class="amount-debit" style="text-align: right;">' + debitAmount + '</td>' +
+                    '<td class="amount-credit" style="text-align: right;">' + creditAmount + '</td>' +
+                    '<td class="balance-col" style="text-align: right;">' + balanceAmount + '</td>' +
+                  '</tr>';
                 }).join('')}
               </tbody>
             </table>
 
+            <!-- Total Amount Summary -->
+            <div style="margin-top: 20px; padding: 20px; background: #f0fdf4; border-radius: 8px; border: 2px solid #15803D;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 18px; font-weight: bold; color: #15803D;">Total Amount =</span>
+                <span style="font-size: 24px; font-weight: bold; color: #15803D;">₹${currentBalance.toFixed(2)}</span>
+              </div>
+            </div>
+
             <div class="footer">
-              <p>This is a computer-generated statement and does not require a signature.</p>
               <p style="margin-top: 10px;">Generated on ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
             </div>
           </div>
