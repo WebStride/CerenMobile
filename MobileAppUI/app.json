@@ -10,6 +10,7 @@
     "scheme": "mobileappui",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "projectId": "34cbcac0-891d-4910-b667-1d0762dfa52b",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.amitavpanda.MobileAppUI",
@@ -54,8 +55,12 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ceac7e11-b4e3-444d-82c4-745b1788c257"
-      }
+        "projectId": "34cbcac0-891d-4910-b667-1d0762dfa52b"
+      },
+      "GOOGLE_MAPS_API_KEY_ANDROID": "AIzaSyCLugNuaKypDiHsK8_aWubkwFUO893_SQc",
+      "GOOGLE_MAPS_API_KEY_IOS": "AIzaSyCWsxdSVg2E95OJOJNELLhrs9pyGFWwZ2o",
+      "GOOGLE_MAPS_API_KEY": "AIzaSyCWsxdSVg2E95OJOJNELLhrs9pyGFWwZ2o",
+      "EXPO_PUBLIC_API_URL": "http://10.107.56.114:3002"
     }
   }
 }
