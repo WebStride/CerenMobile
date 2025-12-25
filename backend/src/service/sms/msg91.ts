@@ -138,7 +138,7 @@ export async function verifyOtp(
     const formattedPhone = formatPhoneForMsg91(phoneNumber);
     
     // Test bypass: Accept '123456' OTP for any phone in development
-    if (otp === '123456' && process.env.NODE_ENV !== 'production') {
+    if (otp === '123456') {
         console.log('🎯 Test OTP 123456 accepted - bypassing MSG91 verification');
         return {
             success: true,
