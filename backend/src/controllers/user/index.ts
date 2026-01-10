@@ -16,6 +16,8 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
         pinCode,
         landmark,
         saveAs,
+        latitude,
+        longitude,
         isDefault = false
     } = req.body;
 
@@ -53,6 +55,8 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
         const deliveryAddress = await prisma.deliveryAddress.create({
             data: {
                 UserID: parseInt(authenticatedUserId),
+                Name: name,
+                PhoneNumber: phoneNumber,
                 HouseNumber: houseNumber,
                 BuildingBlock: buildingBlock,
                 PinCode: pinCode,
@@ -60,6 +64,8 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
                 City: city,
                 District: district,
                 SaveAs: saveAs || 'home',
+                Latitude: latitude,
+                Longitude: longitude,
                 IsDefault: isDefault,
                 Active: true,
                 UpdatedAt: new Date()
@@ -236,6 +242,8 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
         pinCode,
         landmark,
         saveAs,
+        latitude,
+        longitude,
         isDefault = false
     } = req.body;
 
@@ -279,6 +287,8 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
         const updatedAddress = await prisma.deliveryAddress.update({
             where: { DeliveryAddressID: parseInt(addressId) },
             data: {
+                Name: name,
+                PhoneNumber: phoneNumber,
                 HouseNumber: houseNumber,
                 BuildingBlock: buildingBlock,
                 PinCode: pinCode,
@@ -286,6 +296,8 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
                 City: city,
                 District: district,
                 SaveAs: saveAs,
+                Latitude: latitude,
+                Longitude: longitude,
                 IsDefault: isDefault,
                 UpdatedAt: new Date()
             }

@@ -87,6 +87,8 @@ export default function AddAddressDetailsScreen() {
         buildingBlock,
         pinCode,
         landmark,
+        latitude,
+        longitude,
         saveAs: saveAs || "home", // Default to "home" if not selected
         isDefault: false // New addresses are not default by default
       };
@@ -186,11 +188,170 @@ export default function AddAddressDetailsScreen() {
                 fontWeight: "700",
                 fontSize: 24,
                 color: "#181725",
-                marginBottom: 24,
+                marginBottom: 16,
               }}
             >
               Add Address Details
             </Text>
+
+            {/* Display Received Information */}
+            <View style={{
+              backgroundColor: "#F9FBEF",
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 24,
+              borderWidth: 1,
+              borderColor: "#BCD042"
+            }}>
+              <Text style={{
+                fontFamily: "Open Sans",
+                fontWeight: "700",
+                fontSize: 16,
+                color: "#030303",
+                marginBottom: 12
+              }}>
+                Delivery Information
+              </Text>
+              
+              {name && (
+                <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#7C7C7C",
+                    width: 100
+                  }}>
+                    Name:
+                  </Text>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#181725",
+                    flex: 1
+                  }}>
+                    {name}
+                  </Text>
+                </View>
+              )}
+
+              {phoneNumber && (
+                <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#7C7C7C",
+                    width: 100
+                  }}>
+                    Phone:
+                  </Text>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#181725",
+                    flex: 1
+                  }}>
+                    {phoneNumber}
+                  </Text>
+                </View>
+              )}
+
+              {location && (
+                <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#7C7C7C",
+                    width: 100
+                  }}>
+                    Location:
+                  </Text>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#181725",
+                    flex: 1
+                  }}>
+                    {location}
+                  </Text>
+                </View>
+              )}
+
+              {address && (
+                <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#7C7C7C",
+                    width: 100
+                  }}>
+                    Address:
+                  </Text>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#181725",
+                    flex: 1
+                  }}>
+                    {address}
+                  </Text>
+                </View>
+              )}
+
+              {district && (
+                <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#7C7C7C",
+                    width: 100
+                  }}>
+                    District:
+                  </Text>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#181725",
+                    flex: 1
+                  }}>
+                    {district}
+                  </Text>
+                </View>
+              )}
+
+              {city && (
+                <View style={{ flexDirection: "row" }}>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#7C7C7C",
+                    width: 100
+                  }}>
+                    City:
+                  </Text>
+                  <Text style={{
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 14,
+                    color: "#181725",
+                    flex: 1
+                  }}>
+                    {city}
+                  </Text>
+                </View>
+              )}
+            </View>
+
             {/* Save Address As */}
             <Text
               style={{

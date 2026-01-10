@@ -46,6 +46,8 @@ interface Address {
   CurrentAddress?: string;
   Name?: string;
   PhoneNumber?: string;
+  Latitude?: string;
+  Longitude?: string;
 }
 
 // ---------- Location Selection Modal ----------
@@ -76,6 +78,8 @@ const LocationModal = ({
     city: '',
     district: '',
     pinCode: '',
+    latitude: '',
+    longitude: '',
     saveAs: 'home'
   });
   const insets = useSafeAreaInsets();
@@ -91,6 +95,8 @@ const LocationModal = ({
     try {
       setAddressesLoading(true);
       const addresses = await getUserAddresses();
+      console.log('📍 Fetched addresses:', addresses);
+      console.log('📋 First address details:', addresses.addresses?.[0]);
       setSavedAddresses(addresses.addresses || []);
     } catch (error) {
       console.error('Error fetching addresses:', error);
@@ -124,6 +130,8 @@ const LocationModal = ({
       city: address.City,
       district: address.District,
       pinCode: address.PinCode || '',
+      latitude: address.Latitude || '',
+      longitude: address.Longitude || '',
       saveAs: address.SaveAs || 'home'
     });
     setMenuVisible(null);
@@ -160,16 +168,22 @@ const LocationModal = ({
   const handleSaveEdit = async () => {
     if (!editingAddress) return;
 
+    console.log('💾 Saving address edit:', editForm);
+    console.log('📍 Address ID:', editingAddress.DeliveryAddressID);
+
     try {
       const result = await updateUserAddress(editingAddress.DeliveryAddressID, editForm);
+      console.log('✅ Update result:', result);
       if (result.success) {
         await fetchUserAddresses();
         setEditingAddress(null);
         Alert.alert('Success', 'Address updated successfully');
       } else {
+        console.error('❌ Update failed:', result.message);
         Alert.alert('Error', result.message || 'Failed to update address');
       }
     } catch (error) {
+      console.error('❌ Update error:', error);
       Alert.alert('Error', 'Failed to update address');
     }
   };
@@ -482,6 +496,7 @@ const LocationModal = ({
 
                     <View style={{ flexDirection: 'row', marginBottom: 12 }}>
                       <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={{ fontSize: 14, color: '#374151', marginBottom: 4 }}>City</Text>
                         <TextInput
                           style={{
                             borderWidth: 1,
@@ -495,9 +510,25 @@ const LocationModal = ({
                           placeholder="City"
                         />
                       </View>
+                      <View style={{ flex: 1, marginLeft: 8 }}>
+                        <Text style={{ fontSize: 14, color: '#374151', marginBottom: 4 }}>District</Text>
+                        <TextInput
+                          style={{
+                            borderWidth: 1,
+                            borderColor: '#D1D5DB',
+                            borderRadius: 8,
+                            padding: 12,
+                            fontSize: 16
+                          }}
+                          value={editForm.district}
+                          onChangeText={(text) => setEditForm(prev => ({ ...prev, district: text }))}
+                          placeholder="District"
+                        />
+                      </View>
                     </View>
 
                     <View style={{ marginBottom: 16 }}>
+                      <Text style={{ fontSize: 14, color: '#374151', marginBottom: 4 }}>Pin Code</Text>
                       <TextInput
                         style={{
                           borderWidth: 1,
@@ -622,6 +653,45 @@ const LocationModal = ({
                             </View>
                           )}
                         </View>
+                        
+                        {/* Name and Phone */}
+                        {(address.Name || address.PhoneNumber) && (
+                          <View style={{ marginBottom: 6 }}>
+                            {address.Name && (
+                              <Text style={{
+                                color: '#374151',
+                                fontSize: 14,
+                                fontWeight: '500',
+                                marginBottom: 2
+                              }}>
+                                {address.Name}
+                              </Text>
+                            )}
+                            {address.PhoneNumber && (
+                              <Text style={{
+                                color: '#6B7280',
+                                fontSize: 13,
+                                marginBottom: 2
+                              }}>
+                                {address.PhoneNumber}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Location/Address */}
+                        {address.CurrentLocation && (
+                          <Text style={{
+                            color: '#6B7280',
+                            fontSize: 13,
+                            marginBottom: 4,
+                            fontStyle: 'italic'
+                          }}>
+                            📍 {address.CurrentLocation}
+                          </Text>
+                        )}
+
+                        {/* Full Address */}
                         <Text style={{
                           color: '#6B7280',
                           fontSize: 14,
@@ -631,19 +701,11 @@ const LocationModal = ({
                             address.HouseNumber,
                             address.BuildingBlock,
                             address.Landmark,
+                            address.CurrentAddress,
                             `${address.City}, ${address.District}`,
                             address.PinCode
                           ].filter(Boolean).join(', ')}
                         </Text>
-                        {(address.Name || address.PhoneNumber) && (
-                          <Text style={{
-                            color: '#9CA3AF',
-                            fontSize: 12,
-                            marginTop: 4
-                          }}>
-                            {[address.Name, address.PhoneNumber].filter(Boolean).join(' • ')}
-                          </Text>
-                        )}
                       </View>
                     </TouchableOpacity>
 
@@ -847,7 +909,7 @@ export default function AccountScreen() {
       console.error("❌ Failed to load user data from AsyncStorage:", error);
     }
 
-    if (!currentUserData || !currentUserData.name || !currentUserData.mobile) {
+    if (!currentUserData || !currentUserData.name || !currentUserData.phoneNumber) {
       console.log("❌ User data still not available, cannot add address");
       Alert.alert(
         "Session Error",
@@ -892,7 +954,7 @@ export default function AccountScreen() {
     console.log("✅ User data available, navigating to select location...");
     console.log("📋 Navigation params:", {
       name: currentUserData.name || "",
-      phoneNumber: currentUserData.mobile || "",
+      phoneNumber: currentUserData.phoneNumber || "",
       fromLocationModal: "true"
     });
 
@@ -901,7 +963,7 @@ export default function AccountScreen() {
       pathname: "/login/SelectLocation",
       params: {
         name: currentUserData.name || "",
-        phoneNumber: currentUserData.mobile || "",
+        phoneNumber: currentUserData.phoneNumber || "",
         fromLocationModal: "true" // Flag to indicate navigation from location modal
       },
     });

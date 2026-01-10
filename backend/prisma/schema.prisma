@@ -95,6 +95,8 @@ model DeliveryAddress {
   PinCode           String?  @db.VarChar(10)
   Landmark          String?  @db.VarChar(200)
   SaveAs            String?  @db.VarChar(20)
+  Latitude          String?  @db.VarChar(50)
+  Longitude         String?  @db.VarChar(50)
   CreatedAt         DateTime @default(now()) @db.Timestamp(0)
   UpdatedAt         DateTime @db.Timestamp(0)
   Active            Boolean  @default(dbgenerated("b'1'")) @db.Bit(1)
