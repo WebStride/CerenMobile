@@ -9,76 +9,49 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
-import { checkCustomer, sendOtp } from "@/services/api";
+import { register } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
-
-const countryData = {
-  code: "+91",
-  flag: images.IndianFlag,
-};
-
-export default function LoginNumberScreen() {
+export default function LoginNameScreen() {
   const router = useRouter();
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
+  const params = useLocalSearchParams();
+  const phoneNumber = params.phoneNumber as string;
+  
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const isButtonDisabled = phoneNumber.length < 10;
-
+  const isButtonDisabled = name.trim().length === 0;
 
   const handleNext = async () => {
     try {
       setLoading(true);
-      const fullPhoneNumber = `${countryData.code}${phoneNumber}`;
+      const response = await register(phoneNumber, name);
       
-      if (isExistingUser) {
-        // Existing user: send OTP and go directly to OTP screen
-        const resp = await sendOtp(fullPhoneNumber);
-        if (resp.success) {
-          Alert.alert("Success", "OTP has been sent successfully to your phone number.", [
-            { text: "OK", onPress: () => router.push({ pathname: "/login/otp", params: { phoneNumber: fullPhoneNumber } }) }
-          ]);
-        } else {
-          Alert.alert("Error", resp.message || "Failed to send OTP. Please try again.");
-        }
+      if (response.success) {
+        Alert.alert("Success", "OTP has been sent successfully to your phone number.", [
+          { 
+            text: "OK", 
+            onPress: () => router.push({ 
+              pathname: "/login/otp", 
+              params: { phoneNumber, name } 
+            }) 
+          }
+        ]);
       } else {
-        // New user: go to name screen
-        router.push({ pathname: "/login/name", params: { phoneNumber: fullPhoneNumber } });
+        Alert.alert("Error", response.message || "Failed to send OTP. Please try again.");
       }
     } catch (error) {
-      console.error("Error in handleNext:", error);
+      console.error("Error in registration:", error);
       Alert.alert("Error", "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePhoneBlur = async () => {
-    try {
-      if (phoneNumber.length < 10) return;
-      const fullPhoneNumber = `${countryData.code}${phoneNumber}`;
-      console.log('[LoginNumberScreen] Starting checkCustomer for:', fullPhoneNumber);
-      const resp = await checkCustomer(fullPhoneNumber);
-      console.log('[LoginNumberScreen] checkCustomer response:', resp);
-      
-      if (resp.success && resp.exists) {
-        console.log('[LoginNumberScreen] User exists - will skip name screen');
-        setIsExistingUser(true);
-      } else {
-        console.log('[LoginNumberScreen] New user - will show name screen');
-        setIsExistingUser(false);
-      }
-    } catch (err) {
-      console.warn('check customer failed', err);
-    }
-  };
-
   return (
-    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor : "#FFFFFF" }} behavior="padding">
-
+    <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor: "#FFFFFF" }} behavior="padding">
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View className="flex-1">
           {/* Top background and back arrow */}
@@ -99,7 +72,7 @@ export default function LoginNumberScreen() {
                 alignItems: "center",
                 zIndex: 10,
               }}
-              onPress={() => router.push("/OnboardingScreen")}
+              onPress={() => router.back()}
               accessibilityLabel="Back"
             >
               <Image
@@ -109,6 +82,7 @@ export default function LoginNumberScreen() {
               />
             </TouchableOpacity>
           </View>
+
           {/* Form Section */}
           <View className="flex-1 px-6 pt-6">
             <Text
@@ -122,10 +96,11 @@ export default function LoginNumberScreen() {
               }}
               className="mb-8"
             >
-              Enter your mobile number
+              Enter your name
             </Text>
-            {/* Mobile Number Field */}
-            <View className="mb-6">
+
+            {/* Name Field */}
+            <View className="mb-10">
               <Text
                 style={{
                   fontFamily: "Open Sans",
@@ -137,26 +112,23 @@ export default function LoginNumberScreen() {
                 }}
                 className="mb-2"
               >
-                Mobile Number
+                Name
               </Text>
-              <View className="flex-row items-center border-b border-[#EAEAEA] pb-2">
-                <Image source={countryData.flag} className="w-6 h-6 mr-2" resizeMode="contain" />
-                <Text className="text-base text-[#24262B] tracking-widest mr-2">{countryData.code}</Text>
+              <View className="border-b border-[#EAEAEA] pb-2">
                 <TextInput
-                  className="flex-1 text-base text-[#24262B] tracking-widest"
-                  placeholder="Enter number"
+                  className="text-base text-[#24262B]"
+                  placeholder="Enter your name"
                   placeholderTextColor="#8F959E"
-                  keyboardType="number-pad"
-                  maxLength={10}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  onBlur={handlePhoneBlur}
+                  value={name}
+                  onChangeText={setName}
                   returnKeyType="done"
+                  autoFocus
                 />
               </View>
             </View>
           </View>
-          {/* Next Button (at the bottom, not inside inputs) */}
+
+          {/* Next Button */}
           <View className="items-end pb-10 px-6">
             <TouchableOpacity
               className={`w-14 h-14 rounded-full bg-[#BCD042] items-center justify-center shadow-md ${isButtonDisabled || loading ? "opacity-50" : ""}`}
