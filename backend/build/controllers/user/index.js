@@ -22,7 +22,7 @@ const prisma = new client_1.PrismaClient();
 function submitUserAddress(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
-        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, isDefault = false } = req.body;
+        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, latitude, longitude, isDefault = false } = req.body;
         // Validate required fields
         if (!phoneNumber || !houseNumber || !buildingBlock || !pinCode) {
             return res.status(400).json({
@@ -51,6 +51,8 @@ function submitUserAddress(req, res) {
             const deliveryAddress = yield prisma.deliveryAddress.create({
                 data: {
                     UserID: parseInt(authenticatedUserId),
+                    Name: name,
+                    PhoneNumber: phoneNumber,
                     HouseNumber: houseNumber,
                     BuildingBlock: buildingBlock,
                     PinCode: pinCode,
@@ -58,6 +60,8 @@ function submitUserAddress(req, res) {
                     City: city,
                     District: district,
                     SaveAs: saveAs || 'home',
+                    Latitude: latitude,
+                    Longitude: longitude,
                     IsDefault: isDefault,
                     Active: true,
                     UpdatedAt: new Date()
@@ -221,7 +225,7 @@ function updateUserAddress(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
         const { addressId } = req.params;
-        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, isDefault = false } = req.body;
+        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, latitude, longitude, isDefault = false } = req.body;
         // Validate required fields
         if (!phoneNumber || !city || !district || !houseNumber || !buildingBlock || !pinCode) {
             return res.status(400).json({
@@ -257,6 +261,8 @@ function updateUserAddress(req, res) {
             const updatedAddress = yield prisma.deliveryAddress.update({
                 where: { DeliveryAddressID: parseInt(addressId) },
                 data: {
+                    Name: name,
+                    PhoneNumber: phoneNumber,
                     HouseNumber: houseNumber,
                     BuildingBlock: buildingBlock,
                     PinCode: pinCode,
@@ -264,6 +270,8 @@ function updateUserAddress(req, res) {
                     City: city,
                     District: district,
                     SaveAs: saveAs,
+                    Latitude: latitude,
+                    Longitude: longitude,
                     IsDefault: isDefault,
                     UpdatedAt: new Date()
                 }

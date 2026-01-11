@@ -1,0 +1,3 @@
+ALTER TABLE DeliveryAddress 
+ADD COLUMN Latitude VARCHAR(50) NULL AFTER SaveAs,
+ADD COLUMN Longitude VARCHAR(50) NULL AFTER Latitude;
