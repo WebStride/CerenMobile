@@ -40,6 +40,57 @@
                 "NODE_ENV": "development"
             },
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Attach to Expo",
+            "type": "reactnative",
+            "request": "attach",
+            "cwd": "${workspaceFolder}/MobileAppUI",
+            "port": 8081
+        },
+        {
+            "name": "Debug Android",
+            "type": "reactnative",
+            "request": "launch",
+            "platform": "android",
+            "cwd": "${workspaceFolder}/MobileAppUI",
+            "enableDebug": true,
+            "sourceMaps": true,
+            "outDir": "${workspaceFolder}/MobileAppUI/.expo"
+        },
+        {
+            "name": "Debug iOS",
+            "type": "reactnative",
+            "request": "launch",
+            "platform": "ios",
+            "cwd": "${workspaceFolder}/MobileAppUI",
+            "enableDebug": true,
+            "sourceMaps": true,
+            "outDir": "${workspaceFolder}/MobileAppUI/.expo"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "🚀 Full Stack Debug (Backend + Android)",
+            "configurations": [
+                "Debug Backend (ts-node)",
+                "Debug Android"
+            ],
+            "presentation": {
+                "order": 1
+            },
+            "stopAll": true
+        },
+        {
+            "name": "🔗 Attach to Running Services",
+            "configurations": [
+                "Debug Backend (ts-node)",
+                "Attach to Expo"
+            ],
+            "presentation": {
+                "order": 2
+            },
+            "stopAll": true
         }
     ]
 }
