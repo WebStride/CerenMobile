@@ -16,7 +16,7 @@ import { images } from "@/constants/images";
 import { useLocalSearchParams,  } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { verify } from "@/services/api";
+import { verify, sendOtp, register } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 
 
@@ -25,6 +25,7 @@ export default function VerificationScreen() {
   const [code, setCode] = useState("");
   const params = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const { confirmation } = useAuth();
 
 
@@ -98,6 +99,37 @@ export default function VerificationScreen() {
         setLoading(false);
       }
     };
+
+  const handleResendOTP = async () => {
+    try {
+      setResending(true);
+      const fullPhoneNumber = params.phoneNumber as string;
+      const name = params.name as string;
+      
+      // If name param exists, this was a new user registration flow
+      // Otherwise it's an existing user login
+      let response;
+      if (name) {
+        // New user - call register again
+        response = await register(fullPhoneNumber, name);
+      } else {
+        // Existing user - call sendOtp
+        response = await sendOtp(fullPhoneNumber);
+      }
+      
+      if (response.success) {
+        Alert.alert("Success", "OTP has been resent successfully to your phone number.");
+        setCode(""); // Clear the OTP input field
+      } else {
+        Alert.alert("Error", response.message || "Failed to resend OTP. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error resending OTP:", error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor : "#FFFFFF" }} behavior="padding">
@@ -185,10 +217,10 @@ export default function VerificationScreen() {
                 justifyContent: "center",
                 alignItems: "flex-start",
                 marginBottom: 20,
+                opacity: resending ? 0.5 : 1,
               }}
-              onPress={() => {
-                // Add resend logic here
-              }}
+              onPress={handleResendOTP}
+              disabled={resending}
               accessibilityLabel="Resend Code"
             >
               <Text
@@ -199,7 +231,7 @@ export default function VerificationScreen() {
                   fontSize: 16,
                 }}
               >
-                Resend Code
+                {resending ? "Sending..." : "Resend Code"}
               </Text>
             </TouchableOpacity>
           </View>
