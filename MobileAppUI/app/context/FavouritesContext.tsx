@@ -9,6 +9,7 @@ interface Product {
   unitsOfMeasurement: string;
   price: number;
   image: string | null;
+  minQuantity?: number;
 }
 
 interface FavouritesContextType {
@@ -38,7 +39,8 @@ export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             productUnits: f.productUnits || 0,
             unitsOfMeasurement: f.unitsOfMeasurement || '',
             price: f.price || 0,
-            image: f.image || null
+            image: f.image || null,
+            minQuantity: f.minQuantity || f.minOrderQuantity || 1
           }));
           setFavourites(mapped);
           await AsyncStorage.setItem('favourites', JSON.stringify(mapped));
