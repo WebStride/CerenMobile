@@ -669,10 +669,11 @@ const ProductCard = React.memo(({
     } else {
       addToFavourites({
         ...item,
+        minQuantity: minOrder,
         image: typeof (item as any).image === 'number' ? '' : (item.image as string | null)
       } as any);
     }
-  }, [isProductFavourite, item, addToFavourites, removeFromFavourites]);
+  }, [isProductFavourite, item, minOrder, addToFavourites, removeFromFavourites]);
 
   const handleAddToCartPress = useCallback(() => {
     // Check if user is registered before allowing cart access

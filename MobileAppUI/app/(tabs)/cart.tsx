@@ -15,7 +15,7 @@ const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function CartScreen() {
   const router = useRouter();
-  const { cart, increase, decrease, removeFromCart, cartTotal, clearCart } = useCart();
+  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal, clearCart } = useCart();
   const insets = useSafeAreaInsets();
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -72,9 +72,9 @@ export default function CartScreen() {
     
     const diff = numVal - currentItem.quantity;
     if (diff > 0) {
-      for (let i = 0; i < diff; i++) increase(productId);
+      for (let i = 0; i < diff; i++) increaseQuantity(productId);
     } else if (diff < 0) {
-      for (let i = 0; i < Math.abs(diff); i++) decrease(productId);
+      for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(productId);
     }
   };
 
@@ -171,7 +171,7 @@ export default function CartScreen() {
                   {/* Quantity Controls */}
                   <View className="flex-row items-center mt-3 rounded-full bg-green-700 px-1 py-1 self-start">
                     <TouchableOpacity
-                      onPress={() => decrease(item.productId)}
+                      onPress={() => decreaseQuantity(item.productId)}
                       className="w-8 h-8 rounded-full items-center justify-center"
                     >
                       <Ionicons name="remove" size={20} color="#fff" />
@@ -196,7 +196,7 @@ export default function CartScreen() {
                       />
                     </View>
                     <TouchableOpacity
-                      onPress={() => increase(item.productId)}
+                      onPress={() => increaseQuantity(item.productId)}
                       className="w-8 h-8 rounded-full items-center justify-center"
                     >
                       <Ionicons name="add" size={20} color="#fff" />

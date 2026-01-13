@@ -70,7 +70,7 @@ const ProductCard = React.memo(({
   sectionKey: string;
   index: number;
 }) => {
-  const { cart, addToCart, increase, decrease, removeFromCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const router = useRouter();
   
@@ -124,9 +124,9 @@ const ProductCard = React.memo(({
     if (isProductFavourite) {
       removeFromFavourites(item.productId);
     } else {
-      addToFavourites(item);
+      addToFavourites({...item, minQuantity: minOrder});
     }
-  }, [isProductFavourite, item, addToFavourites, removeFromFavourites]);
+  }, [isProductFavourite, item, minOrder, addToFavourites, removeFromFavourites]);
 
   const handleAddToCartPress = useCallback(() => {
     const qty = Math.max(Number(qtyInput), minOrder);
@@ -174,16 +174,16 @@ const ProductCard = React.memo(({
     } else if (cartItem) {
       const diff = numVal - cartItem.quantity;
       if (diff > 0) {
-        for (let i = 0; i < diff; i++) increase(item.productId);
+        for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
       } else if (diff < 0) {
-        for (let i = 0; i < Math.abs(diff); i++) decrease(item.productId);
+        for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
       }
     }
-  }, [item, cartItem, addToCart, increase, decrease, removeFromCart, minOrder]);
+  }, [item, cartItem, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, minOrder]);
 
   const handleDecrease = useCallback(() => {
     if (cartItem && cartItem.quantity > minOrder) {
-      decrease(item.productId);
+      decreaseQuantity(item.productId);
     } else if (cartItem && cartItem.quantity === minOrder) {
       removeFromCart(item.productId);
     } else {
@@ -192,11 +192,11 @@ const ProductCard = React.memo(({
         `Cannot decrease below minimum order quantity of ${minOrder}`
       );
     }
-  }, [cartItem, decrease, removeFromCart, item.productId, minOrder]);
+  }, [cartItem, decreaseQuantity, removeFromCart, item.productId, minOrder]);
 
   const handleIncrease = useCallback(() => {
-    increase(item.productId);
-  }, [increase, item.productId]);
+    increaseQuantity(item.productId);
+  }, [increaseQuantity, item.productId]);
 
   return (
     <View 
@@ -522,7 +522,7 @@ export default function ProductDetailsScreen() {
     if (isProductFavourite) {
       removeFromFavourites(currentProduct.productId);
     } else {
-      addToFavourites(currentProduct);
+      addToFavourites({...currentProduct, minQuantity: currentProduct.minOrderQuantity});
     }
   }, [isProductFavourite, currentProduct, addToFavourites, removeFromFavourites]);
 
