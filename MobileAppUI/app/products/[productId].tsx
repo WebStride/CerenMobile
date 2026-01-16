@@ -81,16 +81,19 @@ const ProductCard = React.memo(({
   
   const [showControls, setShowControls] = useState(!!cartItem);
   const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
+  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
 
   useEffect(() => {
     if (cartItem) {
       setQtyInput(String(cartItem.quantity));
+      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
       setQtyInput(String(minOrder));
+      setTempInput(String(minOrder));
     }
   }, [cartItem, showControls, minOrder]);
 
@@ -151,14 +154,41 @@ const ProductCard = React.memo(({
 
   const handleInputChange = useCallback((val: string) => {
     const onlyDigits = val.replace(/[^0-9]/g, "");
-    setQtyInput(onlyDigits);
+    setTempInput(onlyDigits);
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
 
     if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      removeFromCart(item.productId);
+      const snapQty = minOrder;
+      setTempInput(String(snapQty));
+      setQtyInput(String(snapQty));
+      
+      if (cartItem) {
+        const diff = snapQty - cartItem.quantity;
+        if (diff > 0) {
+          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
+        } else if (diff < 0) {
+          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
+        }
+      } else {
+        for (let i = 0; i < snapQty; i++) {
+          addToCart({
+            productId: item.productId,
+            productName: item.productName,
+            price: item.price,
+            image: item.image,
+            productUnits: item.productUnits,
+            unitsOfMeasurement: item.unitsOfMeasurement,
+          });
+        }
+      }
       return;
     }
 
     const numVal = Number(onlyDigits);
+    setQtyInput(String(numVal));
     
     if (!cartItem && numVal >= minOrder) {
       for (let i = 0; i < numVal; i++) {
@@ -179,7 +209,7 @@ const ProductCard = React.memo(({
         for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
       }
     }
-  }, [item, cartItem, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, minOrder]);
+  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder]);
 
   const handleDecrease = useCallback(() => {
     if (cartItem && cartItem.quantity > minOrder) {
@@ -281,8 +311,9 @@ const ProductCard = React.memo(({
               height: 32,
             }}>
               <TextInput
-                value={qtyInput}
+                value={tempInput}
                 onChangeText={handleInputChange}
+                onBlur={handleBlur}
                 keyboardType="number-pad"
                 maxLength={3}
                 style={{
@@ -356,7 +387,7 @@ const ProductCard = React.memo(({
 export default function ProductDetailsScreen() {
   const router = useRouter();
   const rawParams = useLocalSearchParams();
-  const { addToCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   
   // Memoize params to prevent infinite loop
@@ -427,6 +458,7 @@ export default function ProductDetailsScreen() {
   }), [baseProduct, selectedVariant]);
 
   const [quantity, setQuantity] = useState<number>(selectedVariant.minOrderQuantity);
+  const [tempQuantity, setTempQuantity] = useState<string>(String(selectedVariant.minOrderQuantity));
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
@@ -434,6 +466,11 @@ export default function ProductDetailsScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   const isProductFavourite = isFavourite(currentProduct.productId);
+  
+  // Get cart item for current product to sync quantity
+  const cartItem = useMemo(() => {
+    return cart.find(item => item.productId === currentProduct.productId);
+  }, [cart, currentProduct.productId]);
 
   // Check customer existence
   useEffect(() => {
@@ -449,10 +486,18 @@ export default function ProductDetailsScreen() {
     checkCustomer();
   }, []);
 
-  // Update quantity when variant changes
+  // Update quantity when variant changes or cart changes
   useEffect(() => {
-    setQuantity(selectedVariant.minOrderQuantity);
-  }, [selectedVariant.minOrderQuantity]);
+    if (cartItem) {
+      // Sync with cart quantity
+      setQuantity(cartItem.quantity);
+      setTempQuantity(String(cartItem.quantity));
+    } else {
+      // Reset to minimum when not in cart
+      setQuantity(selectedVariant.minOrderQuantity);
+      setTempQuantity(String(selectedVariant.minOrderQuantity));
+    }
+  }, [selectedVariant.minOrderQuantity, cartItem]);
 
   const handleVariantSelect = useCallback((variant: ProductVariant) => {
     if (variant.isAvailable) {
@@ -526,37 +571,25 @@ export default function ProductDetailsScreen() {
     }
   }, [isProductFavourite, currentProduct, addToFavourites, removeFromFavourites]);
 
-  // FIXED: Proper MOQ validation for main quantity input
+  // FIXED: Proper MOQ validation with smooth editing using tempInput
   const handleTextInputChange = useCallback((text: string) => {
-    if (text === '') {
-      return;
-    }
-
-    const numValue = parseInt(text, 10);
-    
-    if (isNaN(numValue)) {
-      setQuantity(currentProduct.minOrderQuantity);
-      Alert.alert("Invalid Input", "Please enter a valid number");
-      return;
-    }
-    
-    if (numValue < currentProduct.minOrderQuantity) {
-      setQuantity(currentProduct.minOrderQuantity);
-      Alert.alert(
-        "Below Minimum Quantity", 
-        `Minimum order quantity is ${currentProduct.minOrderQuantity}. Quantity adjusted to minimum.`
-      );
-      return;
-    }
-    
-    setQuantity(numValue);
-  }, [currentProduct.minOrderQuantity]);
+    const onlyDigits = text.replace(/[^0-9]/g, "");
+    setTempQuantity(onlyDigits);
+  }, []);
 
   const handleTextInputBlur = useCallback(() => {
-    if (quantity < currentProduct.minOrderQuantity) {
-      setQuantity(currentProduct.minOrderQuantity);
+    const onlyDigits = tempQuantity.replace(/[^0-9]/g, "");
+    
+    if (onlyDigits === "" || Number(onlyDigits) < currentProduct.minOrderQuantity) {
+      const snapQty = currentProduct.minOrderQuantity;
+      setTempQuantity(String(snapQty));
+      setQuantity(snapQty);
+      return;
     }
-  }, [quantity, currentProduct.minOrderQuantity]);
+    
+    const numValue = Number(onlyDigits);
+    setQuantity(numValue);
+  }, [tempQuantity, currentProduct.minOrderQuantity]);
 
   const handleDecrease = useCallback(() => {
     const newQuantity = quantity - 1;
@@ -570,31 +603,51 @@ export default function ProductDetailsScreen() {
     }
     
     setQuantity(newQuantity);
+    setTempQuantity(String(newQuantity));
   }, [quantity, currentProduct.minOrderQuantity]);
 
   const handleIncrease = useCallback(() => {
-    setQuantity(quantity + 1);
+    const newQuantity = quantity + 1;
+    setQuantity(newQuantity);
+    setTempQuantity(String(newQuantity));
   }, [quantity]);
 
   const handleAddToBasket = useCallback(() => {
     if (quantity < currentProduct.minOrderQuantity) {
       Alert.alert("Error", `Minimum order quantity is ${currentProduct.minOrderQuantity}`);
       setQuantity(currentProduct.minOrderQuantity);
+      setTempQuantity(String(currentProduct.minOrderQuantity));
       return;
     }
 
-    for (let i = 0; i < quantity; i++) {
-      addToCart({
-        productId: currentProduct.productId,
-        productName: `${currentProduct.productName} (${currentProduct.productUnits}${currentProduct.unitsOfMeasurement})`,
-        price: currentProduct.price,
-        image: currentProduct.image,
-        productUnits: currentProduct.productUnits,
-        unitsOfMeasurement: currentProduct.unitsOfMeasurement,
-      });
+    if (cartItem) {
+      // Update existing cart item
+      const diff = quantity - cartItem.quantity;
+      if (diff > 0) {
+        for (let i = 0; i < diff; i++) {
+          increaseQuantity(currentProduct.productId);
+        }
+      } else if (diff < 0) {
+        for (let i = 0; i < Math.abs(diff); i++) {
+          decreaseQuantity(currentProduct.productId);
+        }
+      }
+      Alert.alert("Success", `Cart updated! ${quantity} items in cart.`);
+    } else {
+      // Add new items to cart
+      for (let i = 0; i < quantity; i++) {
+        addToCart({
+          productId: currentProduct.productId,
+          productName: `${currentProduct.productName} (${currentProduct.productUnits}${currentProduct.unitsOfMeasurement})`,
+          price: currentProduct.price,
+          image: currentProduct.image,
+          productUnits: currentProduct.productUnits,
+          unitsOfMeasurement: currentProduct.unitsOfMeasurement,
+        });
+      }
+      Alert.alert("Success", `${quantity} ${currentProduct.productName} added to cart!`);
     }
-    Alert.alert("Success", `${quantity} ${currentProduct.productName} (${currentProduct.productUnits}${currentProduct.unitsOfMeasurement}) added to cart!`);
-  }, [quantity, currentProduct, addToCart]);
+  }, [quantity, currentProduct, addToCart, increaseQuantity, decreaseQuantity, cartItem]);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -831,7 +884,7 @@ export default function ProductDetailsScreen() {
               </TouchableOpacity>
               
               <TextInput
-                value={String(quantity)}
+                value={tempQuantity}
                 onChangeText={handleTextInputChange}
                 onBlur={handleTextInputBlur}
                 style={{

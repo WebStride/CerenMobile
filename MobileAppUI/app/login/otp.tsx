@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -26,9 +26,55 @@ export default function VerificationScreen() {
   const params = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [timer, setTimer] = useState(60); // 60 seconds countdown
+  const [canResend, setCanResend] = useState(false);
   const { confirmation } = useAuth();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Start timer when component mounts
+  useEffect(() => {
+    startTimer();
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
 
+  // Timer countdown effect
+  useEffect(() => {
+    if (timer > 0 && !canResend) {
+      timerRef.current = setInterval(() => {
+        setTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [timer, canResend]);
+
+  const startTimer = () => {
+    setTimer(60);
+    setCanResend(false);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const isButtonDisabled = code.length < 4;
 
@@ -101,6 +147,8 @@ export default function VerificationScreen() {
     };
 
   const handleResendOTP = async () => {
+    if (!canResend || resending) return;
+    
     try {
       setResending(true);
       const fullPhoneNumber = params.phoneNumber as string;
@@ -120,6 +168,7 @@ export default function VerificationScreen() {
       if (response.success) {
         Alert.alert("Success", "OTP has been resent successfully to your phone number.");
         setCode(""); // Clear the OTP input field
+        startTimer(); // Restart the timer
       } else {
         Alert.alert("Error", response.message || "Failed to resend OTP. Please try again.");
       }
@@ -209,37 +258,49 @@ export default function VerificationScreen() {
                 />
               </View>
             </View>
-            {/* Resend Code */}
-            <TouchableOpacity
-              style={{
-                width: 113,
-                height: 29,
-                justifyContent: "center",
-                alignItems: "flex-start",
-                marginBottom: 20,
-                opacity: resending ? 0.5 : 1,
-              }}
-              onPress={handleResendOTP}
-              disabled={resending}
-              accessibilityLabel="Resend Code"
-            >
-              <Text
+            {/* Resend Code with Timer */}
+            <View className="mb-5">
+              <TouchableOpacity
                 style={{
-                  color: "#53B175",
-                  fontFamily: "Open Sans",
-                  fontWeight: "600",
-                  fontSize: 16,
+                  justifyContent: "center",
+                  alignItems: "flex-start",
+                  opacity: (!canResend || resending) ? 0.5 : 1,
                 }}
+                onPress={handleResendOTP}
+                disabled={!canResend || resending}
+                accessibilityLabel="Resend Code"
               >
-                {resending ? "Sending..." : "Resend Code"}
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={{
+                    color: "#53B175",
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 16,
+                  }}
+                >
+                  {resending ? "Sending..." : canResend ? "Resend Code" : `Resend Code in ${formatTime(timer)}`}
+                </Text>
+              </TouchableOpacity>
+              {!canResend && !resending && (
+                <Text
+                  style={{
+                    color: "#7C7C7C",
+                    fontFamily: "Open Sans",
+                    fontWeight: "400",
+                    fontSize: 14,
+                    marginTop: 4,
+                  }}
+                >
+                  Please wait {formatTime(timer)} to resend OTP
+                </Text>
+              )}
+            </View>
           </View>
           {/* Next Button (at the bottom, not inside inputs) */}
           <View className="items-end pb-10 px-6">
             <TouchableOpacity
-              className={`w-14 h-14 rounded-full bg-[#BCD042] items-center justify-center shadow-md ${isButtonDisabled ? "opacity-50" : ""}`}
-              disabled={isButtonDisabled}
+              className={`w-14 h-14 rounded-full bg-[#BCD042] items-center justify-center shadow-md ${isButtonDisabled || loading ? "opacity-50" : ""}`}
+              disabled={isButtonDisabled || loading}
               onPress={handleVerifyOTP} 
               accessibilityLabel="Next"
             >
