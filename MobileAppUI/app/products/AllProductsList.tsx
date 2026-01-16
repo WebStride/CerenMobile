@@ -125,16 +125,19 @@ const ProductCard = React.memo(({
   
   const [showControls, setShowControls] = useState(!!cartItem);
   const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
+  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
 
   useEffect(() => {
     if (cartItem) {
       setQtyInput(String(cartItem.quantity));
+      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
       setQtyInput(String(minOrder));
+      setTempInput(String(minOrder));
     }
   }, [cartItem, showControls, minOrder]);
 
@@ -199,16 +202,46 @@ const ProductCard = React.memo(({
 
   // Enhanced input validation with MOQ
   const handleInputChange = useCallback((val: string) => {
+    // Just update temporary display without validation
     const onlyDigits = val.replace(/[^0-9]/g, "");
-    setQtyInput(onlyDigits);
+    setTempInput(onlyDigits);
+  }, []);
 
-    // If empty or below MOQ, remove from cart
+  // Validate and apply changes when user finishes editing
+  const handleBlur = useCallback(() => {
+    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
+
+    // If empty or below MOQ, snap to minimum quantity
     if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      removeFromCart(item.productId);
+      const snapQty = minOrder;
+      setTempInput(String(snapQty));
+      setQtyInput(String(snapQty));
+      
+      // Update cart to minimum quantity
+      if (cartItem) {
+        const diff = snapQty - cartItem.quantity;
+        if (diff > 0) {
+          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
+        } else if (diff < 0) {
+          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
+        }
+      } else {
+        for (let i = 0; i < snapQty; i++) {
+          addToCart({
+            productId: item.productId,
+            productName: item.productName,
+            price: item.price,
+            image: item.image,
+            productUnits: item.productUnits,
+            unitsOfMeasurement: item.unitsOfMeasurement,
+          });
+        }
+      }
       return;
     }
 
     const numVal = Number(onlyDigits);
+    setQtyInput(String(numVal));
     
     if (!cartItem && numVal >= minOrder) {
       // Add MOQ-compliant quantity to cart
@@ -230,7 +263,7 @@ const ProductCard = React.memo(({
         for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
       }
     }
-  }, [item, cartItem, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, minOrder]);
+  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder]);
 
   // Enhanced decrease with MOQ validation
   const handleDecrease = useCallback(() => {
@@ -329,8 +362,9 @@ const ProductCard = React.memo(({
             <View className="flex-1 mx-1 items-center justify-center">
               <TextInput
                 className="w-full h-7 text-center text-white font-bold"
-                value={qtyInput}
+                value={tempInput}
                 onChangeText={handleInputChange}
+                onBlur={handleBlur}
                 keyboardType="number-pad"
                 maxLength={3}
                 style={{
@@ -635,21 +669,59 @@ const AllProductsList = () => {
 
       {/* Floating "Go to Cart" bar */}
       {cartCount > 0 && (
-        <View className="absolute left-0 right-0 bottom-36 px-8 z-50">
+        <View 
+          style={{
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 24,
+            zIndex: 50,
+          }}
+        >
           <TouchableOpacity
-            className="bg-green-700 rounded-full flex-row items-center justify-between px-4 py-4 shadow-lg mx-6"
+            style={{
+              backgroundColor: '#15803d',
+              borderRadius: 25,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 20,
+              paddingVertical: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              marginHorizontal: 16,
+            }}
             activeOpacity={0.95}
             onPress={() => router.push("/cart")}
           >
-            <View className="flex-row items-center space-x-1">
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="cart-outline" size={20} color="#fff" />
-              <Text className="text-white font-semibold text-sm">
+              <Text style={{
+                color: 'white',
+                fontWeight: '600',
+                fontSize: 16,
+                marginLeft: 8
+              }}>
                 Go to Cart
               </Text>
             </View>
-            <View className="px-2 py-1 rounded-full bg-white/10 items-center flex-row" style={{ minWidth: 36 }}>
-              <Text className="text-white font-bold text-sm">
-                {cartCount} {cartCount === 1 ? "item" : "items"}
+            <View style={{
+              paddingHorizontal: 12,
+              paddingVertical: 4,
+              borderRadius: 20,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              alignItems: 'center',
+              minWidth: 40,
+            }}>
+              <Text style={{
+                color: 'white',
+                fontWeight: '700',
+                fontSize: 16
+              }}>
+                {cartCount}
               </Text>
             </View>
           </TouchableOpacity>

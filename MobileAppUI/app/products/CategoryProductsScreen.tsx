@@ -153,16 +153,19 @@ const ProductCard = React.memo(({
   
   const [showControls, setShowControls] = useState(!!cartItem);
   const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
+  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
 
   useEffect(() => {
     if (cartItem) {
       setQtyInput(String(cartItem.quantity));
+      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
       setQtyInput(String(minOrder));
+      setTempInput(String(minOrder));
     }
   }, [cartItem, showControls, minOrder]);
 
@@ -220,17 +223,48 @@ const ProductCard = React.memo(({
     setShowControls(true);
   }, [item, addToCart, qtyInput, minOrder]);
 
-  // Enhanced input validation with MOQ
+  // Enhanced input validation with MOQ - using temporary state
   const handleInputChange = useCallback((val: string) => {
+    // Just update temporary display without validation
     const onlyDigits = val.replace(/[^0-9]/g, "");
-    setQtyInput(onlyDigits);
+    setTempInput(onlyDigits);
+  }, []);
 
+  // Validate and apply changes when user finishes editing
+  const handleBlur = useCallback(() => {
+    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
+
+    // If empty or below MOQ, snap to minimum quantity
     if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      removeFromCart(item.productId);
+      const snapQty = minOrder;
+      setTempInput(String(snapQty));
+      setQtyInput(String(snapQty));
+      
+      // Update cart to minimum quantity
+      if (cartItem) {
+        const diff = snapQty - cartItem.quantity;
+        if (diff > 0) {
+          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
+        } else if (diff < 0) {
+          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
+        }
+      } else {
+        for (let i = 0; i < snapQty; i++) {
+          addToCart({
+            productId: item.productId,
+            productName: item.productName,
+            price: item.price,
+            image: item.image,
+            productUnits: item.productUnits,
+            unitsOfMeasurement: item.unitsOfMeasurement,
+          });
+        }
+      }
       return;
     }
 
     const numVal = Number(onlyDigits);
+    setQtyInput(String(numVal));
     
     if (!cartItem && numVal >= minOrder) {
       for (let i = 0; i < numVal; i++) {
@@ -251,7 +285,7 @@ const ProductCard = React.memo(({
         for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
       }
     }
-  }, [item, cartItem, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, minOrder]);
+  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder]);
 
   // Enhanced decrease with MOQ validation
   const handleDecrease = useCallback(() => {
@@ -372,8 +406,9 @@ const ProductCard = React.memo(({
               height: 24, // Fixed height
             }}>
               <TextInput
-                value={qtyInput}
+                value={tempInput}
                 onChangeText={handleInputChange}
+                onBlur={handleBlur}
                 keyboardType="number-pad"
                 maxLength={3}
                 style={{

@@ -612,7 +612,7 @@ const ProductCard = React.memo(({
   sectionKey: string;
   index: number;
 }) => {
-  const { cart, addToCart, increase, decrease, removeFromCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const router = useRouter();
 
@@ -623,16 +623,19 @@ const ProductCard = React.memo(({
 
   const [showControls, setShowControls] = useState(!!cartItem);
   const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
+  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
 
   useEffect(() => {
     if (cartItem) {
       setQtyInput(String(cartItem.quantity));
+      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
       setQtyInput(String(minOrder));
+      setTempInput(String(minOrder));
     }
   }, [cartItem, showControls, minOrder]);
 
@@ -716,21 +719,52 @@ const ProductCard = React.memo(({
       return;
     }
 
+    // Just update temporary display without validation
     const onlyDigits = val.replace(/[^0-9]/g, "");
-    setQtyInput(onlyDigits);
+    setTempInput(onlyDigits);
+  }, [isCustomerExists]);
 
+  // Validate and apply changes when user finishes editing
+  const handleBlur = useCallback(() => {
+    if (!isCustomerExists) return;
+
+    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
+
+    // If empty or below MOQ, snap to minimum quantity
     if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      removeFromCart(item.productId);
+      const snapQty = minOrder;
+      setTempInput(String(snapQty));
+      setQtyInput(String(snapQty));
+      
+      // Update cart to minimum quantity
+      if (cartItem) {
+        const diff = snapQty - cartItem.quantity;
+        if (diff > 0) {
+          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
+        } else if (diff < 0) {
+          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
+        }
+      } else {
+        addToCart({
+          productId: item.productId,
+          productName: item.productName,
+          price: item.price || 0,
+          image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
+          productUnits: item.productUnits,
+          unitsOfMeasurement: item.unitsOfMeasurement,
+        }, snapQty);
+      }
       return;
     }
 
     const numVal = Number(onlyDigits);
+    setQtyInput(String(numVal));
 
     if (!cartItem && numVal >= minOrder) {
       addToCart({
         productId: item.productId,
         productName: item.productName,
-        price: item.price || 0, // Use 0 if price is null (catalog mode)
+        price: item.price || 0,
         image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
         productUnits: item.productUnits,
         unitsOfMeasurement: item.unitsOfMeasurement,
@@ -738,12 +772,12 @@ const ProductCard = React.memo(({
     } else if (cartItem) {
       const diff = numVal - cartItem.quantity;
       if (diff > 0) {
-        for (let i = 0; i < diff; i++) increase(item.productId);
+        for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
       } else if (diff < 0) {
-        for (let i = 0; i < Math.abs(diff); i++) decrease(item.productId);
+        for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
       }
     }
-  }, [item, cartItem, addToCart, increase, decrease, removeFromCart, minOrder, isCustomerExists]);
+  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder, isCustomerExists]);
 
   const handleDecrease = useCallback(() => {
     // Check if user is registered before allowing cart access
@@ -759,11 +793,11 @@ const ProductCard = React.memo(({
     }
 
     if (cartItem && cartItem.quantity > minOrder) {
-      decrease(item.productId);
+      decreaseQuantity(item.productId);
     } else if (cartItem && cartItem.quantity === minOrder) {
       removeFromCart(item.productId);
     }
-  }, [cartItem, decrease, removeFromCart, item.productId, minOrder, isCustomerExists]);
+  }, [cartItem, decreaseQuantity, removeFromCart, item.productId, minOrder, isCustomerExists]);
 
   const handleIncrease = useCallback(() => {
     // Check if user is registered before allowing cart access
@@ -778,8 +812,8 @@ const ProductCard = React.memo(({
       return;
     }
 
-    increase(item.productId);
-  }, [increase, item.productId, isCustomerExists]);
+    increaseQuantity(item.productId);
+  }, [increaseQuantity, item.productId, isCustomerExists]);
 
   return (
     <View
@@ -867,8 +901,9 @@ const ProductCard = React.memo(({
             height: 32, // Fixed height
           }}>
             <TextInput
-              value={qtyInput}
+              value={tempInput}
               onChangeText={handleInputChange}
+              onBlur={handleBlur}
               keyboardType="number-pad"
               maxLength={3}
               style={{
