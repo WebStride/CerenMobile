@@ -23,12 +23,19 @@ function placeOrder(req, res) {
                     error: 'User not authenticated'
                 });
             }
-            const { customerId, customerName, orderItems } = req.body;
+            const { customerId, customerName, orderItems, orderDate } = req.body;
             // Validate request
             if (!customerId || !customerName || !orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
                 return res.status(400).json({
                     success: false,
                     error: 'Missing required fields: customerId, customerName, and orderItems are required',
+                });
+            }
+            // Validate orderDate format (YYYY-MM-DD)
+            if (!orderDate || !/^\d{4}-\d{2}-\d{2}$/.test(orderDate)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid orderDate format. Expected YYYY-MM-DD',
                 });
             }
             // Validate order items
@@ -45,9 +52,10 @@ function placeOrder(req, res) {
                 customerId,
                 customerName,
                 itemCount: orderItems.length,
+                orderDate,
             });
             // Place order via external API
-            const result = yield (0, placeOrder_1.placeOrderViaExternalApi)(customerId, customerName, orderItems);
+            const result = yield (0, placeOrder_1.placeOrderViaExternalApi)(customerId, customerName, orderItems, orderDate);
             if (!result.success) {
                 return res.status(500).json({
                     success: false,

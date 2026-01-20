@@ -85,7 +85,8 @@ export async function placeOrderViaExternalApi(
         productName: string;
         quantity: number;
         price: number;
-    }>
+    }>,
+    orderDate: string
 ): Promise<PlaceOrderResponse> {
     try {
         // Step 1: Get authentication token
@@ -99,7 +100,7 @@ export async function placeOrderViaExternalApi(
         }
 
         // Step 2: Prepare order payload
-        const orderDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        // Use the orderDate provided by the user
         
         const payload: PlaceOrderPayload = {
             OrderDate: orderDate,

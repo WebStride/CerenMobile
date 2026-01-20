@@ -56,7 +56,7 @@ function getExternalApiToken() {
 /**
  * Place order via external API
  */
-function placeOrderViaExternalApi(customerId, customerName, orderItems) {
+function placeOrderViaExternalApi(customerId, customerName, orderItems, orderDate) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             // Step 1: Get authentication token
@@ -68,7 +68,7 @@ function placeOrderViaExternalApi(customerId, customerName, orderItems) {
                 };
             }
             // Step 2: Prepare order payload
-            const orderDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+            // Use the orderDate provided by the user
             const payload = {
                 OrderDate: orderDate,
                 CustomerID: customerId,
