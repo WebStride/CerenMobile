@@ -5,12 +5,16 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Modal,
+  Platform,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router"; // Import useRouter
 import { useFocusEffect } from "@react-navigation/native";
-import { getOrders } from "../../services/api";
+import { getOrders, getOrderItems, placeOrder } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Local UI order shape
@@ -33,45 +37,28 @@ const OrderCard = ({ order, onOrderAgain, onViewDetails }: {
   onViewDetails: (order: UiOrder) => void;
 }) => {
   const getStatusConfig = () => {
-    // order.status might be a canonical key (delivered/cancelled/confirmed/failed)
-    // or an arbitrary string coming from the API. We'll map common variants
-    // to canonical keys but if it's an unknown label, show the raw status text.
+    // Show the actual status from backend
     const raw = (order.status ?? '').toString();
     const key = raw.trim().toLowerCase();
 
-    // Map known variants to canonical keys
-    const canonicalMap: Record<string, string> = {
-      'delivered': 'delivered',
-      'del': 'delivered',
-      'completed': 'delivered',
-      'confirmed': 'confirmed',
-      'confirmed_by_pos': 'confirmed',
-      'failed': 'failed',
-      'payment_failed': 'failed',
-      'cancelled': 'cancelled',
-      'canceled': 'cancelled',
-      'cancelled_by_customer': 'cancelled',
-      'refunded': 'cancelled',
-      'returned': 'cancelled'
-    };
-
-    const canonical = canonicalMap[key] ?? null;
-
-    if (canonical === 'delivered') {
-      return { text: `Order Delivered`, icon: 'checkmark-circle', iconColor: '#22C55E', bgColor: '#F0FDF4' };
-    }
-    if (canonical === 'failed') {
-      return { text: `Order Failed`, icon: 'close-circle', iconColor: '#EF4444', bgColor: '#FEF2F2' };
-    }
-    if (canonical === 'confirmed') {
-      return { text: `Order Confirmed`, icon: 'time', iconColor: '#F59E0B', bgColor: '#FFFBEB' };
-    }
-    if (canonical === 'cancelled') {
-      return { text: `Order Cancelled`, icon: 'close-circle', iconColor: '#6B7280', bgColor: '#F9FAFB' };
-    }
-
-    // Unknown canonical mapping - show the raw status nicely capitalized
+    // Format the display text
     const label = raw ? raw.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Unknown Status';
+
+    // Assign colors and icons based on status
+    if (key === 'completed') {
+      return { text: label, icon: 'checkmark-circle', iconColor: '#22C55E', bgColor: '#F0FDF4' };
+    }
+    if (key === 'created') {
+      return { text: label, icon: 'time', iconColor: '#3B82F6', bgColor: '#EFF6FF' };
+    }
+    if (key === 'cancelled' || key === 'canceled') {
+      return { text: label, icon: 'close-circle', iconColor: '#6B7280', bgColor: '#F9FAFB' };
+    }
+    if (key === 'failed') {
+      return { text: label, icon: 'close-circle', iconColor: '#EF4444', bgColor: '#FEF2F2' };
+    }
+
+    // Default for any other status
     return { text: label, icon: 'help-circle', iconColor: '#6B7280', bgColor: '#F9FAFB' };
   };
 
@@ -91,7 +78,6 @@ const OrderCard = ({ order, onOrderAgain, onViewDetails }: {
 
       <View className="flex-row items-center mb-3">
         <View className="flex-1">
-          <Text className="text-base font-medium text-gray-900">{order.orderNumber}</Text>
           <Text className="text-sm text-gray-500">{order.itemCount ?? 0} items • {order.orderDate}</Text>
         </View>
         <View className="items-end ml-4">
@@ -127,7 +113,7 @@ const OrderCard = ({ order, onOrderAgain, onViewDetails }: {
               fontSize: 14
             }}>View Details</Text>
           </TouchableOpacity>
-          {order.status === 'delivered' && (
+          {order.status.toLowerCase() === 'completed' && (
             <TouchableOpacity
               style={{
                 flex: 1,
@@ -185,34 +171,28 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<UiOrder[]>([]);
+  const [showOrderAgainModal, setShowOrderAgainModal] = useState(false);
+  const [selectedOrderForReorder, setSelectedOrderForReorder] = useState<UiOrder | null>(null);
+  const [reorderDate, setReorderDate] = useState(new Date());
+  const [showReorderDatePicker, setShowReorderDatePicker] = useState(false);
+  const [isPlacingReorder, setIsPlacingReorder] = useState(false);
 
   const filterOptions = [
     { key: 'all', label: 'All' },
+    { key: 'created', label: 'Created' },
     { key: 'cancelled', label: 'Cancelled' },
-    { key: 'delivered', label: 'Delivered' },
+    { key: 'completed', label: 'Completed' },
   ];
 
-    // Helper to normalize incoming API status strings to canonical keys
-    const normalizeStatus = (raw?: string) => {
-      const key = (raw ?? '').toString().trim().toLowerCase();
-      const canonicalMap: Record<string, string> = {
-        'delivered': 'delivered', 'del': 'delivered', 'completed': 'delivered', 'complete': 'delivered',
-        'confirmed': 'confirmed', 'confirmed_by_pos': 'confirmed',
-        'failed': 'failed', 'payment_failed': 'failed',
-        'cancelled': 'cancelled', 'canceled': 'cancelled', 'cancelled_by_customer': 'cancelled', 'refunded': 'cancelled', 'returned': 'cancelled'
-      };
-      return (canonicalMap[key] ?? key) || 'unknown';
-    };
-
-    // Build counts from fetched orders using normalized status keys
+    // Build counts from fetched orders using raw status keys
     const counts = orders.reduce((acc, order) => {
-      const s = normalizeStatus(order.status);
+      const s = order.status.toLowerCase();
       acc[s as keyof typeof acc] = (acc[s as keyof typeof acc] || 0) + 1;
       acc.all = (acc.all || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-  const filteredOrders = selectedFilter === 'all' ? orders : orders.filter(order => order.status === selectedFilter);
+  const filteredOrders = selectedFilter === 'all' ? orders : orders.filter(order => order.status.toLowerCase() === selectedFilter);
   const [refreshing, setRefreshing] = useState(false);
 
   // Extracted load function as a reusable callback
@@ -239,15 +219,14 @@ export default function OrdersScreen() {
       const res = await getOrders(customerId);
       if (res && Array.isArray(res.orders)) {
         const mapped = res.orders.map((o: any) => {
-          // try common fields for status and normalize
+          // Use raw status from backend
           const rawStatus = (o.OrderStatus ?? o.orderStatus ?? o.Status ?? o.status ?? o.OrderStatusText ?? '').toString();
-          const normalized = normalizeStatus(rawStatus);
 
           return {
             id: String(o.OrderID),
             orderNumber: o.OrderNumber ?? `Order ${o.OrderID}`,
             itemCount: Number(o.OrderItemCount ?? 0),
-            status: normalized,
+            status: rawStatus,
             amount: Number(o.EstimateOrderAmount ?? 0),
             orderDate: o.OrderDate ? new Date(o.OrderDate).toLocaleDateString() : undefined,
             deliveryDate: o.DateDelivered ?? null,
@@ -280,17 +259,114 @@ export default function OrdersScreen() {
     loadOrders(true);
   }, [loadOrders]);
 
-  const handleOrderAgain = (orderId: string) => {
+  const handleOrderAgain = async (orderId: string) => {
     console.log("Order again for:", orderId);
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setSelectedOrderForReorder(order);
+      setReorderDate(new Date());
+      setShowOrderAgainModal(true);
+    }
+  };
+
+  const confirmReorder = async () => {
+    if (!selectedOrderForReorder) return;
+    
+    setIsPlacingReorder(true);
+    
+    try {
+      // Fetch order items for the selected order
+      const orderItemsResponse = await getOrderItems(Number(selectedOrderForReorder.id));
+      
+      if (!orderItemsResponse || !orderItemsResponse.orderItems || orderItemsResponse.orderItems.length === 0) {
+        Alert.alert('Error', 'Failed to fetch order items. Please try again.');
+        setIsPlacingReorder(false);
+        return;
+      }
+      
+      // Get customer info
+      const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
+      const customerName = await AsyncStorage.getItem('customerName') || 'Customer';
+      
+      if (!selectedStoreId) {
+        Alert.alert('Error', 'No store selected. Please select a store first.');
+        setIsPlacingReorder(false);
+        return;
+      }
+      
+      // Map order items to the format expected by placeOrder API
+      const orderItems = orderItemsResponse.orderItems.map((item: any) => ({
+        productId: item.ProductID,
+        productName: item.ProductName || `Product ${item.ProductID}`,
+        quantity: Number(item.OrderQty ?? item.SaleQty ?? 0),
+        price: Number(item.Price ?? 0),
+      }));
+      
+      // Format order date as YYYY-MM-DD
+      const formattedOrderDate = reorderDate.toISOString().split('T')[0];
+      
+      // Place the order
+      const result = await placeOrder(
+        Number(selectedStoreId),
+        customerName,
+        orderItems,
+        formattedOrderDate
+      );
+      
+      if (result.success) {
+        setShowOrderAgainModal(false);
+        setSelectedOrderForReorder(null);
+        
+        Alert.alert(
+          'Success',
+          'Your order has been placed successfully!',
+          [
+            { 
+              text: 'OK', 
+              onPress: () => {
+                // Refresh orders list
+                loadOrders();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Order Failed',
+          result.message || 'Failed to place order. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error placing reorder:', error);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsPlacingReorder(false);
+    }
   };
 
   const handleViewDetails = (order: UiOrder) => {
+    console.log('🔍 Navigating to order details with params:', { 
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      orderStatus: order.status,
+      orderDate: order.rawOrderDate,
+      deliveryDate: order.rawDeliveryDate,
+      amount: order.amount
+    });
     router.push({
       pathname: '/orders/[orderId]',
       params: { 
         orderId: order.id,
+        orderNumber: order.orderNumber ?? '',
+        orderStatus: order.status ?? '',
         orderDate: order.rawOrderDate ?? '',
-        deliveryDate: order.rawDeliveryDate ?? ''
+        deliveryDate: order.rawDeliveryDate ?? '',
+        amount: String(order.amount ?? 0)
       }
     });
   };
@@ -369,6 +445,172 @@ export default function OrdersScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Order Again Modal */}
+      <Modal
+        visible={showOrderAgainModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowOrderAgainModal(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20
+        }}>
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 16,
+            padding: 24,
+            width: '100%',
+            maxWidth: 400,
+          }}>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: '#111827',
+              marginBottom: 8
+            }}>Place Order Again</Text>
+            
+            <Text style={{
+              fontSize: 14,
+              color: '#6B7280',
+              marginBottom: 20
+            }}>Select a date for your new order</Text>
+
+            {/* Date Selection */}
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: 8
+              }}>Order Date</Text>
+              
+              <TouchableOpacity
+                onPress={() => setShowReorderDatePicker(true)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 12,
+                  backgroundColor: '#F9FAFB',
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB'
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="calendar-outline" size={20} color="#15803d" />
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#111827',
+                    fontWeight: '500',
+                    marginLeft: 8
+                  }}>
+                    {reorderDate.toLocaleDateString('en-IN', { 
+                      weekday: 'short',
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            {showReorderDatePicker && (
+              <DateTimePicker
+                value={reorderDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowReorderDatePicker(Platform.OS === 'ios');
+                  if (selectedDate) {
+                    setReorderDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+
+            {/* Order Summary */}
+            {selectedOrderForReorder && (
+              <View style={{
+                backgroundColor: '#F9FBEF',
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 24,
+                borderWidth: 1,
+                borderColor: '#BCD042'
+              }}>
+                <Text style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: '#6B7280',
+                  marginBottom: 4
+                }}>Original Order</Text>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: 2
+                }}>{selectedOrderForReorder.orderNumber}</Text>
+                <Text style={{
+                  fontSize: 13,
+                  color: '#374151'
+                }}>{selectedOrderForReorder.itemCount} items • ₹{Number(selectedOrderForReorder.amount ?? 0).toFixed(2)}</Text>
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowOrderAgainModal(false);
+                  setSelectedOrderForReorder(null);
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#F3F4F6',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center'
+                }}
+                disabled={isPlacingReorder}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={confirmReorder}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#15803d',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  opacity: isPlacingReorder ? 0.6 : 1
+                }}
+                disabled={isPlacingReorder}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: 'white'
+                }}>{isPlacingReorder ? 'Placing...' : 'Confirm Order'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -17,6 +17,10 @@ module.exports = ({ config }) => {
   // doesn't export a config plugin (which causes the "Unexpected token '<'"
   // error seen in Expo Go).
   const basePlugins = Array.isArray(config.expo?.plugins) ? [...config.expo.plugins] : [];
+  
+  // Add DateTimePicker plugin
+  basePlugins.push('@react-native-community/datetimepicker');
+  
   try {
     // If react-native-maps provides an app.plugin.js, resolve it and include the plugin.
     // This will throw if the file doesn't exist, and we silently skip the plugin.

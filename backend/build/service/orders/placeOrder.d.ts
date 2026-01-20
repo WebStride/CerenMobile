@@ -12,5 +12,5 @@ export declare function placeOrderViaExternalApi(customerId: number, customerNam
     productName: string;
     quantity: number;
     price: number;
-}>): Promise<PlaceOrderResponse>;
+}>, orderDate: string): Promise<PlaceOrderResponse>;
 export {};

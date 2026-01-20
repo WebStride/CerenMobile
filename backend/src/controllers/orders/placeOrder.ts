@@ -16,6 +16,7 @@ interface PlaceOrderRequest {
     customerId: number;
     customerName: string;
     orderItems: OrderItemRequest[];
+    orderDate: string;
 }
 
 export async function placeOrder(req: AuthRequest, res: Response) {
@@ -27,13 +28,21 @@ export async function placeOrder(req: AuthRequest, res: Response) {
             });
         }
 
-        const { customerId, customerName, orderItems } = req.body as PlaceOrderRequest;
+        const { customerId, customerName, orderItems, orderDate } = req.body as PlaceOrderRequest;
 
         // Validate request
         if (!customerId || !customerName || !orderItems || !Array.isArray(orderItems) || orderItems.length === 0) {
             return res.status(400).json({
                 success: false,
                 error: 'Missing required fields: customerId, customerName, and orderItems are required',
+            });
+        }
+
+        // Validate orderDate format (YYYY-MM-DD)
+        if (!orderDate || !/^\d{4}-\d{2}-\d{2}$/.test(orderDate)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid orderDate format. Expected YYYY-MM-DD',
             });
         }
 
@@ -52,13 +61,15 @@ export async function placeOrder(req: AuthRequest, res: Response) {
             customerId,
             customerName,
             itemCount: orderItems.length,
+            orderDate,
         });
 
         // Place order via external API
         const result = await placeOrderViaExternalApi(
             customerId,
             customerName,
-            orderItems
+            orderItems,
+            orderDate
         );
 
         if (!result.success) {

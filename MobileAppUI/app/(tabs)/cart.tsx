@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, SafeAreaView, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, SafeAreaView, TextInput, Platform } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,8 @@ export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [orderDate, setOrderDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   
   // Check customer existence when component mounts
   useEffect(() => {
@@ -238,6 +241,45 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Order Date Selection */}
+        <View className="mx-4 mb-4 bg-white rounded-lg border border-gray-200 p-4">
+          <Text className="text-base font-semibold text-gray-900 mb-3">Select Order Date</Text>
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            className="flex-row items-center justify-between py-3 px-4 bg-gray-50 rounded-lg border border-gray-300"
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center">
+              <Ionicons name="calendar-outline" size={20} color="#16a34a" />
+              <Text className="text-gray-900 font-semibold ml-3">
+                {orderDate.toLocaleDateString('en-IN', { 
+                  weekday: 'short',
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+          <Text className="text-xs text-gray-500 mt-2 ml-1">Select your preferred order date</Text>
+        </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={orderDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minimumDate={new Date()}
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(Platform.OS === 'ios');
+              if (selectedDate) {
+                setOrderDate(selectedDate);
+              }
+            }}
+          />
+        )}
+
         {/* Bill Details */}
         <View className="mx-4 mb-4 bg-gray-50 rounded-lg p-4">
           <Text className="text-lg font-bold text-gray-900 mb-4">Bill Details</Text>
@@ -375,11 +417,15 @@ export default function CartScreen() {
                 price: item.price,
               }));
 
+              // Format order date as YYYY-MM-DD
+              const formattedOrderDate = orderDate.toISOString().split('T')[0];
+
               // Place order via external API
               const result = await placeOrder(
                 Number(selectedStoreId),
                 customerName,
-                orderItems
+                orderItems,
+                formattedOrderDate
               );
 
               if (result.success) {

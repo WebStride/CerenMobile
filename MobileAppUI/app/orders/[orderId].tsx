@@ -7,12 +7,15 @@ import {
   Alert,
   Platform,
   Linking,
+  Modal,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getOrderItems } from '../../services/api';
+import { getOrderItems, getDefaultAddress, placeOrder } from '../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Placeholder image for loading state
 const placeholderImage = require('../../assets/images/Banana.png');
@@ -55,11 +58,19 @@ interface OrderItem {
 const OrderDetailScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { orderId, orderDate: routeOrderDate, deliveryDate: routeDeliveryDate } = useLocalSearchParams();
+  const { orderId, orderNumber, orderStatus, orderDate: routeOrderDate, deliveryDate: routeDeliveryDate, amount: routeAmount } = useLocalSearchParams();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [defaultAddress, setDefaultAddress] = useState<any>(null);
+  const [showOrderAgainModal, setShowOrderAgainModal] = useState(false);
+  const [reorderDate, setReorderDate] = useState(new Date());
+  const [showReorderDatePicker, setShowReorderDatePicker] = useState(false);
+  const [isPlacingReorder, setIsPlacingReorder] = useState(false);
+
+  // Debug: Log route parameters
+  console.log('📋 Route Params:', { orderId, orderNumber, orderStatus, routeOrderDate, routeDeliveryDate });
 
   useEffect(() => {
 
@@ -115,6 +126,28 @@ const OrderDetailScreen = () => {
 
     return () => { mounted = false; };
   }, [orderId]);
+
+  // Fetch default delivery address
+  useEffect(() => {
+    const fetchDefaultAddress = async () => {
+      try {
+        console.log('📍 Fetching default address...');
+        const response = await getDefaultAddress();
+        console.log('📍 Default address response:', JSON.stringify(response, null, 2));
+        if (response.success && response.address) {
+          console.log('✅ Default address fetched:', response.address);
+          setDefaultAddress(response.address);
+        } else {
+          console.log('⚠️ No default address found or API returned unsuccessful');
+          setDefaultAddress('not_found');
+        }
+      } catch (err) {
+        console.error('❌ Error fetching default address:', err);
+        setDefaultAddress('error');
+      }
+    };
+    fetchDefaultAddress();
+  }, []);
 
   if (loading) {
     return (
@@ -214,7 +247,7 @@ const OrderDetailScreen = () => {
           </TouchableOpacity>
           
           <Text className="text-xl font-bold text-gray-900">
-            Orders #{orderId}
+            Order {orderNumber || `#${orderId}`}
           </Text>
           
           {/* Placeholder for balance */}
@@ -267,14 +300,26 @@ const OrderDetailScreen = () => {
             Order Details
           </Text>
           
-          <DetailRow label="Order ID" value={`#${orderId}`} />
-          <DetailRow label="Payment Amount" value={orderItems.reduce((s, it) => s + (it.price * it.quantity), 0)} />
-          <DetailRow label="Order Status" value={orderItems.length ? (orderItems.every(i => i.status === 'Cancelled') ? 'Cancelled' : 'Processed') : 'Unknown'} />
-          <DetailRow label="Order Date" value={routeOrderDate ? new Date(routeOrderDate as string).toLocaleDateString() : '--'} />
-          <DetailRow label="Delivery Date" value={routeDeliveryDate ? new Date(routeDeliveryDate as string).toLocaleDateString() : '--'} />
+          <DetailRow label="Order Number" value={orderNumber || `#${orderId}`} />
+          <DetailRow label="Payment Amount" value={routeAmount ? `₹${Number(routeAmount).toFixed(2)}` : '--'} />
+          <DetailRow label="Order Status" value={orderStatus ? String(orderStatus).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Unknown'} />
+          <DetailRow label="Order Date" value={routeOrderDate && String(routeOrderDate).trim() ? new Date(routeOrderDate as string).toLocaleDateString() : '--'} />
           <DetailRow 
             label="Delivery Address" 
-            value={'--'}
+            value={
+              defaultAddress === null 
+                ? 'Loading...' 
+                : defaultAddress === 'not_found' || defaultAddress === 'error'
+                  ? 'No delivery address set'
+                  : (() => {
+                      const parts = [];
+                      if (defaultAddress.HouseNumber) parts.push(defaultAddress.HouseNumber);
+                      if (defaultAddress.BuildingBlock) parts.push(defaultAddress.BuildingBlock);
+                      if (defaultAddress.Landmark) parts.push(defaultAddress.Landmark);
+                      if (defaultAddress.City) parts.push(defaultAddress.City);
+                      return parts.length > 0 ? parts.join(', ') : 'No address available';
+                    })()
+            }
             isLast={true}
           />
         </View>
@@ -292,7 +337,7 @@ const OrderDetailScreen = () => {
             <View className="flex-row justify-between items-center">
               <Text className="text-base font-bold text-gray-900">Grand Total</Text>
               <Text className="text-lg font-bold text-green-600">
-                ₹{(orderItems.reduce((s, it) => s + (it.price * it.quantity), 0)).toFixed(2)}
+                ₹{routeAmount ? Number(routeAmount).toFixed(2) : '0.00'}
               </Text>
             </View>
           </View>
@@ -304,8 +349,8 @@ const OrderDetailScreen = () => {
             className="flex-1 bg-green-600 py-4 rounded-xl items-center shadow-sm"
             activeOpacity={0.8}
             onPress={() => {
-              // Navigate to shop to reorder
-              console.log("Reorder items");
+              setReorderDate(new Date());
+              setShowOrderAgainModal(true);
             }}
           >
             <Text className="text-white font-semibold text-base">
@@ -327,6 +372,234 @@ const OrderDetailScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Order Again Modal */}
+      <Modal
+        visible={showOrderAgainModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowOrderAgainModal(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20
+        }}>
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 16,
+            padding: 24,
+            width: '100%',
+            maxWidth: 400,
+          }}>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: '#111827',
+              marginBottom: 8
+            }}>Place Order Again</Text>
+            
+            <Text style={{
+              fontSize: 14,
+              color: '#6B7280',
+              marginBottom: 20
+            }}>Select a date for your new order</Text>
+
+            {/* Date Selection */}
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: '#374151',
+                marginBottom: 8
+              }}>Order Date</Text>
+              
+              <TouchableOpacity
+                onPress={() => setShowReorderDatePicker(true)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 12,
+                  backgroundColor: '#F9FAFB',
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB'
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="calendar-outline" size={20} color="#15803d" />
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#111827',
+                    fontWeight: '500',
+                    marginLeft: 8
+                  }}>
+                    {reorderDate.toLocaleDateString('en-IN', { 
+                      weekday: 'short',
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            {showReorderDatePicker && (
+              <DateTimePicker
+                value={reorderDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowReorderDatePicker(Platform.OS === 'ios');
+                  if (selectedDate) {
+                    setReorderDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+
+            {/* Order Summary */}
+            <View style={{
+              backgroundColor: '#F9FBEF',
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 24,
+              borderWidth: 1,
+              borderColor: '#BCD042'
+            }}>
+              <Text style={{
+                fontSize: 12,
+                fontWeight: '600',
+                color: '#6B7280',
+                marginBottom: 4
+              }}>Reordering</Text>
+              <Text style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: '#111827',
+                marginBottom: 2
+              }}>{orderNumber || `Order #${orderId}`}</Text>
+              <Text style={{
+                fontSize: 13,
+                color: '#374151'
+              }}>{orderItems.length} items • ₹{routeAmount ? Number(routeAmount).toFixed(2) : '0.00'}</Text>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowOrderAgainModal(false);
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#F3F4F6',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center'
+                }}
+                disabled={isPlacingReorder}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: '#374151'
+                }}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={async () => {
+                  setIsPlacingReorder(true);
+                  
+                  try {
+                    // Get customer info
+                    const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
+                    const customerName = await AsyncStorage.getItem('customerName') || 'Customer';
+                    
+                    if (!selectedStoreId) {
+                      Alert.alert('Error', 'No store selected. Please select a store first.');
+                      setIsPlacingReorder(false);
+                      return;
+                    }
+                    
+                    // Use existing order items
+                    const orderItemsForApi = orderItems.map(item => ({
+                      productId: item.productId,
+                      productName: item.productName || `Product ${item.productId}`,
+                      quantity: item.quantity,
+                      price: item.price,
+                    }));
+                    
+                    // Format order date as YYYY-MM-DD
+                    const formattedOrderDate = reorderDate.toISOString().split('T')[0];
+                    
+                    // Place the order
+                    const result = await placeOrder(
+                      Number(selectedStoreId),
+                      customerName,
+                      orderItemsForApi,
+                      formattedOrderDate
+                    );
+                    
+                    if (result.success) {
+                      setShowOrderAgainModal(false);
+                      
+                      Alert.alert(
+                        'Success',
+                        'Your order has been placed successfully!',
+                        [
+                          { 
+                            text: 'OK', 
+                            onPress: () => {
+                              router.push('/(tabs)/orders');
+                            }
+                          }
+                        ]
+                      );
+                    } else {
+                      Alert.alert(
+                        'Order Failed',
+                        result.message || 'Failed to place order. Please try again.',
+                        [{ text: 'OK' }]
+                      );
+                    }
+                  } catch (error) {
+                    console.error('Error placing reorder:', error);
+                    Alert.alert(
+                      'Error',
+                      'An unexpected error occurred. Please try again.',
+                      [{ text: 'OK' }]
+                    );
+                  } finally {
+                    setIsPlacingReorder(false);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#15803d',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  opacity: isPlacingReorder ? 0.6 : 1
+                }}
+                disabled={isPlacingReorder}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: 'white'
+                }}>{isPlacingReorder ? 'Placing...' : 'Confirm Order'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

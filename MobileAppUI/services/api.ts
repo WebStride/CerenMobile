@@ -1146,7 +1146,8 @@ export const placeOrder = async (
     productName: string;
     quantity: number;
     price: number;
-  }>
+  }>,
+  orderDate: string
 ): Promise<{ success: boolean; message?: string; data?: any }> => {
   try {
     const endpoint = `${apiUrl}/orders/place`;
@@ -1163,6 +1164,7 @@ export const placeOrder = async (
         customerId,
         customerName,
         orderItems,
+        orderDate,
       }),
     });
 
