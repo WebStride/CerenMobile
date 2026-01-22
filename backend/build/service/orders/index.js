@@ -179,7 +179,23 @@ function getInvoicesByCustomerId(customerId) {
             console.log('🔍 Querying invoices for CustomerID:', customerId);
             const invoices = yield prisma.invoices.findMany({
                 where: { CustomerID: customerId },
-                orderBy: { InvoiceDate: 'desc' }
+                orderBy: { InvoiceDate: 'desc' },
+                select: {
+                    InvoiceID: true,
+                    InvoiceNumber: true,
+                    InvoiceDate: true,
+                    CustomerID: true,
+                    OrderID: true,
+                    InvoiceItemCount: true,
+                    GrossInvoiceAmount: true,
+                    DiscountAmount: true,
+                    NetInvoiceAmount: true,
+                    InvoiceStatus: true,
+                    BalanceAmount: true,
+                    DeliveryLineID: true,
+                    CreationDate: true,
+                    LastUpdatedDate: true
+                }
             });
             console.log('📊 Found invoices count:', invoices.length);
             // Convert BigInt and Date values to serializable format
@@ -202,20 +218,79 @@ function getInvoicesByCustomerId(customerId) {
 function getInvoiceItemsByInvoiceId(invoiceId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('🔍 Querying invoice items for InvoiceID:', invoiceId);
+            console.log('🔍 [getInvoiceItemsByInvoiceId] START - InvoiceID:', invoiceId);
             const invoiceItems = yield prisma.invoiceItems.findMany({
                 where: { InvoiceID: invoiceId }
             });
-            console.log('📊 Found invoice items count:', invoiceItems.length);
+            console.log('📊 [getInvoiceItemsByInvoiceId] Found invoice items count:', invoiceItems.length);
+            console.log('📊 [getInvoiceItemsByInvoiceId] Raw invoice items:', JSON.stringify(invoiceItems, (key, value) => typeof value === 'bigint' ? value.toString() : value));
+            // Get product names and images from ProductMaster table
+            const productIds = invoiceItems.map(item => item.ProductID).filter((id) => id !== null);
+            console.log('🆔 [getInvoiceItemsByInvoiceId] Product IDs to lookup:', productIds);
+            let productNameMap = new Map();
+            let productImageMap = new Map();
+            if (productIds.length > 0) {
+                const products = yield prisma.productMaster.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ProductName: true, DisplayName: true }
+                });
+                console.log('📦 [getInvoiceItemsByInvoiceId] Products found from ProductMaster:', JSON.stringify(products));
+                products.forEach(p => {
+                    const name = p.DisplayName || p.ProductName || `Product #${p.ProductID}`;
+                    console.log(`📝 [getInvoiceItemsByInvoiceId] Mapping ProductID ${p.ProductID} -> "${name}"`);
+                    productNameMap.set(p.ProductID, name);
+                });
+                // Fetch product images from ProductImages and ImageMaster tables
+                const productImages = yield prisma.productImages.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ImageID: true }
+                });
+                console.log('🖼️ [getInvoiceItemsByInvoiceId] Product images found:', JSON.stringify(productImages));
+                if (productImages.length > 0) {
+                    const imageIds = productImages.map(pi => pi.ImageID);
+                    const images = yield prisma.imageMaster.findMany({
+                        where: { ImageID: { in: imageIds } },
+                        select: { ImageID: true, Url: true }
+                    });
+                    console.log('🎨 [getInvoiceItemsByInvoiceId] Images found from ImageMaster:', JSON.stringify(images));
+                    const imageIdToUrlMap = new Map();
+                    const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
+                    images.forEach(img => {
+                        if (img.Url) {
+                            // Check if URL is already absolute
+                            const imageUrl = img.Url.startsWith('http://') || img.Url.startsWith('https://')
+                                ? img.Url
+                                : `${imageBaseUrl}${img.Url}`;
+                            imageIdToUrlMap.set(img.ImageID, imageUrl);
+                        }
+                    });
+                    productImages.forEach(pi => {
+                        const imageUrl = imageIdToUrlMap.get(pi.ImageID) || null;
+                        productImageMap.set(pi.ProductID, imageUrl);
+                        console.log(`🖼️ [getInvoiceItemsByInvoiceId] ProductID ${pi.ProductID} -> Image: ${imageUrl}`);
+                    });
+                }
+            }
+            else {
+                console.log('⚠️ [getInvoiceItemsByInvoiceId] No valid ProductIDs found in invoice items');
+            }
+            // Enrich invoice items with product names and images
+            const invoiceItemsWithNames = invoiceItems.map(item => {
+                const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
+                const productImage = item.ProductID ? (productImageMap.get(item.ProductID) || null) : null;
+                console.log(`🏷️ [getInvoiceItemsByInvoiceId] InvoiceItemID ${item.InvoiceItemID}: ProductID=${item.ProductID} -> ProductName="${productName}", ProductImage="${productImage}"`);
+                return Object.assign(Object.assign({}, item), { ProductName: productName, ProductImage: productImage });
+            });
             // Convert BigInt and Date values to serializable format
-            const serializedInvoiceItems = serializeForJson(invoiceItems);
+            const serializedInvoiceItems = serializeForJson(invoiceItemsWithNames);
+            console.log('✅ [getInvoiceItemsByInvoiceId] Final serialized invoice items:', JSON.stringify(serializedInvoiceItems));
             return {
                 success: true,
                 invoiceItems: serializedInvoiceItems
             };
         }
         catch (error) {
-            console.error('Error in getInvoiceItemsByInvoiceId service:', error);
+            console.error('❌ [getInvoiceItemsByInvoiceId] Error:', error);
             return {
                 success: false,
                 invoiceItems: [],
