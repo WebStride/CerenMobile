@@ -35,7 +35,7 @@ export default function OnboardingScreen() {
           await AsyncStorage.setItem('accessToken', validation.newAccessToken);
         }
         console.log("Tokens are valid, navigating to shop");
-        router.replace("/(tabs)/shop");
+        router.push("/(tabs)/shop");
         return;
       }
 

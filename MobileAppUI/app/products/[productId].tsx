@@ -273,11 +273,16 @@ const ProductCard = React.memo(({
       )}
       
       <View className="w-full mb-2">
-        <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
+        {isCustomerExists && item.price > 0 ? (
+          <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
+        ) : (
+          <Text className="text-gray-500 text-sm italic">Price on request</Text>
+        )}
       </View>
       
-      {isCustomerExists ? (
-        showControls ? (
+      {isCustomerExists && item.price > 0 && (
+        <>
+          {showControls ? (
           // FIXED: Better Android compatibility for quantity controls
           <View style={{
             flexDirection: 'row',
@@ -374,11 +379,8 @@ const ProductCard = React.memo(({
               Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
             </Text>
           </TouchableOpacity>
-        )
-      ) : (
-        <View className="w-full bg-gray-300 rounded-full py-2 px-3 items-center justify-center">
-          <Text className="text-gray-600 font-semibold text-sm">Verification Required</Text>
-        </View>
+        )}
+        </>
       )}
     </View>
   );
@@ -538,7 +540,18 @@ export default function ProductDetailsScreen() {
 
         const simRes = await getSimilarProductsApi(pid);
         if (mounted && simRes && simRes.success) {
-          setSimilarProducts((simRes.products || []) as Product[]);
+          // Normalize similar products fields to match Product interface
+          const normalized = (simRes.products || []).map((p: any) => ({
+            productId: Number(p.ProductID ?? p.productId ?? p.id ?? 0),
+            productName: p.ProductName ?? p.productName ?? p.DisplayName ?? '',
+            productUnits: Number(p.ProductUnits ?? p.productUnits ?? p.productUnit ?? 1),
+            unitsOfMeasurement: p.UnitsOfMeasurement ?? p.unitsOfMeasurement ?? p.uom ?? '',
+            price: Number(p.Price ?? p.price ?? 0),
+            image: p.Image ?? p.image ?? p.ProductImage ?? null,
+            minOrderQuantity: Number(p.MinimumOrderQuantity ?? p.minimumOrderQuantity ?? p.minOrderQuantity ?? p.MinQuantity ?? 1)
+          } as Product));
+
+          setSimilarProducts(normalized);
         }
       } catch (err) {
         console.error('Error loading catalog/similar:', err);
@@ -669,7 +682,7 @@ export default function ProductDetailsScreen() {
   const renderSimilarProduct = useCallback(({ item, index }: { item: Product, index: number }) => (
     <ProductCard
       item={item}
-      isCustomerExists={isCustomerExists}
+      isCustomerExists={isCustomerExists ?? false}
       sectionKey="similar_products"
       index={index}
     />

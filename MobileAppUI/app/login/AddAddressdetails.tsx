@@ -113,7 +113,7 @@ export default function AddAddressDetailsScreen() {
                 if (fromLocationModal === "true") {
                   // User came from location modal, navigate back to home screen
                   console.log("🏠 Navigating back to home screen after adding address");
-                  router.push("/(tabs)/shop");
+                  router.replace("/(tabs)/shop");
                 } else {
                   // Normal login flow: navigate to SelectStore so user can pick a store
                   console.log("🔐 Normal login flow, navigating to SelectStore with user data");
