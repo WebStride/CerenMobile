@@ -34,7 +34,17 @@ export default function LoginNumberScreen() {
       setLoading(true);
       const fullPhoneNumber = `${countryData.code}${phoneNumber}`;
       
-      if (isExistingUser) {
+      // Check customer existence if not already checked
+      let userExists = isExistingUser;
+      if (userExists === null) {
+        console.log('[LoginNumberScreen] Checking customer existence before proceeding...');
+        const resp = await checkCustomer(fullPhoneNumber);
+        console.log('[LoginNumberScreen] checkCustomer response:', resp);
+        userExists = resp.success && resp.exists;
+        setIsExistingUser(userExists);
+      }
+      
+      if (userExists) {
         // Existing user: send OTP and go directly to OTP screen
         const resp = await sendOtp(fullPhoneNumber);
         if (resp.success) {
