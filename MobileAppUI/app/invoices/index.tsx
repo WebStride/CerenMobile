@@ -1013,148 +1013,128 @@ export default function InvoicesScreen() {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [downloadingStatement, setDownloadingStatement] = useState(false);
 
-  useEffect(() => {
-    const loadInvoices = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Fetch invoices from backend API
-        console.log('📊 Loading invoices from API...');
-        
-        const toDate = new Date();
-        const fromDate = new Date();
-        fromDate.setDate(fromDate.getDate() - 90); // Last 90 days
-        
-        const fromDateTime = fromDate.getTime().toString();
-        const toDateTime = toDate.getTime().toString();
-        
-        const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
-        
-        if (!res || !res.success || !Array.isArray(res.invoices)) {
-          throw new Error('Invalid response from API');
-        }
-        
-        const apiInvoices = res.invoices;
-        console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
-        
-        // Calculate the actual Before Balance (BF)
-        // BF = obAmount (opening balance before this invoice) - saleAmount (current invoice)
-        // This gives us the balance before any transactions in this list
-        const firstInvoice = apiInvoices[0];
-        const openingBalance = firstInvoice 
-          ? (firstInvoice.obAmount - firstInvoice.saleAmount) 
-          : 0;
-        
-        console.log('💰 Before Balance (BF) Calculation:', {
-          obAmount: firstInvoice?.obAmount,
-          saleAmount: firstInvoice?.saleAmount,
-          calculatedBF: openingBalance
-        });
-          
-          // Create all transactions (invoices + payments)
-          const allTransactions: Transaction[] = [];
-          
-          // Add opening balance (BF - Before Balance)
-          allTransactions.push({
-            id: "BF",
-            amount: openingBalance,
-            date: null,
-            type: "balance",
-            description: "Before Balance",
-            details: {
-              openingBalance: openingBalance,
-              note: "Outstanding balance brought forward"
-            }
-          });
-          
-          // Process each invoice with transaction index
-          apiInvoices.forEach((inv: any, index: number) => {
-            const transactionIndex = index + 1; // 1-based index for display
-            
-            // Add invoice (skip if sale amount is 0)
-            if (inv.saleAmount > 0) {
-              allTransactions.push({
-              id: inv.invoiceNo || `INV-${inv.invoiceID}`,
-              amount: Number(inv.saleAmount || 0),
-              date: inv.invoiceDateString || null,
-              type: "invoice",
-              description: `Grocery Order #${(inv.invoiceNo || '').split('-').pop() || inv.invoiceID}`,
-              details: {
-                transactionIndex: transactionIndex,
-                invoiceId: inv.invoiceID,
-                invoiceNo: inv.invoiceNo,
-                saleAmount: Number(inv.saleAmount || 0),
-                balanceAmount: Number(inv.balanceAmount || 0),
-                obAmount: Number(inv.obAmount || 0),
-                upiAmount: Number(inv.upiAmount || 0),
-                cashAmount: Number(inv.cashAmount || 0),
-                chequeAmount: Number(inv.chequeAmount || 0),
-                items: [],
-                subtotal: Number(inv.saleAmount || 0),
-                tax: 0,
-                total: Number(inv.saleAmount || 0),
-                customerInfo: {
-                  name: "Customer",
-                  address: "",
-                  mobile: ""
-                }
-              }
-              });
-            }
-            
-            // Add payment if exists
-            const totalPayment = Number(inv.upiAmount || 0) + Number(inv.cashAmount || 0) + Number(inv.chequeAmount || 0);
-            if (totalPayment > 0) {
-              const paymentMethod = inv.upiAmount > 0 ? "UPI" : inv.cashAmount > 0 ? "Cash" : "Cheque";
-              allTransactions.push({
-                id: `PMT-${String(transactionIndex).padStart(3, '0')}`,
-                amount: totalPayment,
-                date: inv.invoiceDateString || null,
-                type: "payment",
-                description: "Payment Received",
-                details: {
-                  transactionIndex: transactionIndex,
-                  paymentMethod: paymentMethod,
-                  transactionId: `TXN${inv.invoiceID}`,
-                  paidBy: "Customer",
-                  paymentDate: inv.invoiceDateString,
-                  bankReference: `REF${inv.invoiceID}`,
-                  status: "Success",
-                  upiAmount: Number(inv.upiAmount || 0),
-                  cashAmount: Number(inv.cashAmount || 0),
-                  chequeAmount: Number(inv.chequeAmount || 0)
-                }
-              });
-            }
-          });
-          
-          console.log('✅ Total transactions:', allTransactions.length);
-          setTransactions(allTransactions);
-          setFilteredTransactions(allTransactions);
-        
-        /* COMMENTED - Real API call for when endpoint has data
-        const toDate = new Date();
-        const fromDate = new Date();
-        fromDate.setDate(fromDate.getDate() - 90);
-        const fromDateTime = fromDate.getTime().toString();
-        const toDateTime = toDate.getTime().toString();
-        const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
-        if (res && res.success && Array.isArray(res.invoices)) {
-          // Process real API data...
-        }
-        */
-      } catch (err: any) {
-        console.error('❌ Error loading invoices:', err);
-        setError(err?.message || 'Failed to load invoices');
-        setTransactions([]);
-        setFilteredTransactions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Load invoices helper: accepts optional custom date range (Date objects)
+  const loadInvoices = async (fromDate?: Date, toDate?: Date) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('📊 Loading invoices from API...');
 
+      const toDt = toDate || new Date();
+      const fromDt = fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+      const fromDateTime = fromDt.getTime().toString();
+      const toDateTime = toDt.getTime().toString();
+
+      const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
+
+      if (!res || !res.success || !Array.isArray(res.invoices)) {
+        throw new Error('Invalid response from API');
+      }
+
+      const apiInvoices = res.invoices;
+      console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
+
+      const firstInvoice = apiInvoices[0];
+      const openingBalance = firstInvoice ? (firstInvoice.obAmount - firstInvoice.saleAmount) : 0;
+
+      console.log('💰 Before Balance (BF) Calculation:', {
+        obAmount: firstInvoice?.obAmount,
+        saleAmount: firstInvoice?.saleAmount,
+        calculatedBF: openingBalance
+      });
+
+      const allTransactions: Transaction[] = [];
+      allTransactions.push({
+        id: 'BF',
+        amount: openingBalance,
+        date: null,
+        type: 'balance',
+        description: 'Before Balance',
+        details: { openingBalance: openingBalance, note: 'Outstanding balance brought forward' }
+      });
+
+      apiInvoices.forEach((inv: any, index: number) => {
+        const transactionIndex = index + 1;
+
+        if (inv.saleAmount > 0) {
+          allTransactions.push({
+            id: inv.invoiceNo || `INV-${inv.invoiceID}`,
+            amount: Number(inv.saleAmount || 0),
+            date: inv.invoiceDateString || null,
+            type: 'invoice',
+            description: `Grocery Order #${(inv.invoiceNo || '').split('-').pop() || inv.invoiceID}`,
+            details: {
+              transactionIndex,
+              invoiceId: inv.invoiceID,
+              invoiceNo: inv.invoiceNo,
+              saleAmount: Number(inv.saleAmount || 0),
+              balanceAmount: Number(inv.balanceAmount || 0),
+              obAmount: Number(inv.obAmount || 0),
+              upiAmount: Number(inv.upiAmount || 0),
+              cashAmount: Number(inv.cashAmount || 0),
+              chequeAmount: Number(inv.chequeAmount || 0),
+              items: [],
+              subtotal: Number(inv.saleAmount || 0),
+              tax: 0,
+              total: Number(inv.saleAmount || 0),
+              customerInfo: { name: 'Customer', address: '', mobile: '' }
+            }
+          });
+        }
+
+        const totalPayment = Number(inv.upiAmount || 0) + Number(inv.cashAmount || 0) + Number(inv.chequeAmount || 0);
+        if (totalPayment > 0) {
+          const paymentMethod = inv.upiAmount > 0 ? 'UPI' : inv.cashAmount > 0 ? 'Cash' : 'Cheque';
+          allTransactions.push({
+            id: `PMT-${String(transactionIndex).padStart(3, '0')}`,
+            amount: totalPayment,
+            date: inv.invoiceDateString || null,
+            type: 'payment',
+            description: 'Payment Received',
+            details: {
+              transactionIndex,
+              paymentMethod,
+              transactionId: `TXN${inv.invoiceID}`,
+              paidBy: 'Customer',
+              paymentDate: inv.invoiceDateString,
+              bankReference: `REF${inv.invoiceID}`,
+              status: 'Success',
+              upiAmount: Number(inv.upiAmount || 0),
+              cashAmount: Number(inv.cashAmount || 0),
+              chequeAmount: Number(inv.chequeAmount || 0)
+            }
+          });
+        }
+      });
+
+      console.log('✅ Total transactions:', allTransactions.length);
+      setTransactions(allTransactions);
+      setFilteredTransactions(allTransactions);
+    } catch (err: any) {
+      console.error('❌ Error loading invoices:', err);
+      setError(err?.message || 'Failed to load invoices');
+      setTransactions([]);
+      setFilteredTransactions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Run on mount with default last-90-days
+  useEffect(() => {
     loadInvoices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-fetch invoices when custom date range is selected
+  useEffect(() => {
+    if (selectedFilter === 'custom') {
+      console.log('🔁 Custom date range selected - re-fetching invoices for range:', startDate, endDate);
+      loadInvoices(startDate, endDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFilter, startDate, endDate]);
 
   const filterOptions = [
     { key: "7days", label: "Last 7 Days" },
