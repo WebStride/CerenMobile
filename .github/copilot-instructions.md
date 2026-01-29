@@ -198,3 +198,9 @@ If you intend Google Maps on iOS (current MapView uses provider google):
 - Replace universal whitelist with restricted IPs
 - Rotate any test API keys
 - Run security scans and dependency updates
+
+## To install the mobile app:
+
+cd MobileAppUI && eas build --platform android --profile preview
+
+Then install the generated APK on your Android device.

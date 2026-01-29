@@ -1164,10 +1164,8 @@ export default function InvoicesScreen() {
   ];
 
   useEffect(() => {
-    if (transactions.length > 0) {
-      filterTransactions();
-    }
-  }, [selectedFilter, startDate, endDate, transactions]);
+    filterTransactions();
+  }, [selectedFilter, startDate, endDate]);
 
   const filterTransactions = () => {
     let filtered = [...transactions];
@@ -1176,9 +1174,7 @@ export default function InvoicesScreen() {
     console.log('🔍 Filtering transactions:', {
       total: transactions.length,
       filter: selectedFilter,
-      currentDate: now.toISOString(),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      currentDate: now.toISOString()
     });
     
     switch (selectedFilter) {
@@ -1204,13 +1200,8 @@ export default function InvoicesScreen() {
       case "custom":
         filtered = transactions.filter(transaction => {
           if (transaction.type === "balance") return true;
-          if (!transaction.date) return false;
-          const transactionDate = new Date(transaction.date);
-          // Normalize dates to compare only date parts (ignore time)
-          const txDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), transactionDate.getDate());
-          const fromDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-          const toDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-          return txDate >= fromDate && txDate <= toDate;
+          const transactionDate = new Date(transaction.date!);
+          return transactionDate >= startDate && transactionDate <= endDate;
         });
         break;
     }
