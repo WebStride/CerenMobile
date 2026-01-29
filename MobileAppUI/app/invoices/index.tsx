@@ -315,6 +315,77 @@ const InvoiceDetailModal = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ padding: 24 }}
           >
+            {/* Invoice Information Section */}
+            <View style={{
+              backgroundColor: '#EFF6FF',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 20,
+              borderLeftWidth: 4,
+              borderLeftColor: '#3B82F6'
+            }}>
+              <Text style={{
+                fontSize: 16,
+                fontWeight: 'bold',
+                color: '#111827',
+                marginBottom: 12
+              }}>Invoice Information</Text>
+              
+              {/* Invoice Number */}
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginBottom: 8
+              }}>
+                <Text style={{ color: '#6B7280', fontSize: 14 }}>Invoice Number:</Text>
+                <Text style={{ 
+                  fontWeight: '600', 
+                  color: '#111827',
+                  fontSize: 14
+                }}>
+                  {transaction.details.invoiceNo || transaction.id}
+                </Text>
+              </View>
+
+              {/* Invoice Status */}
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginBottom: 8
+              }}>
+                <Text style={{ color: '#6B7280', fontSize: 14 }}>Invoice Status:</Text>
+                <View style={{
+                  backgroundColor: transaction.details.invoiceStatus === 'Paid' ? '#D1FAE5' : '#FEF3C7',
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  borderRadius: 12
+                }}>
+                  <Text style={{ 
+                    fontWeight: '600', 
+                    color: transaction.details.invoiceStatus === 'Paid' ? '#059669' : '#D97706',
+                    fontSize: 13
+                  }}>
+                    {transaction.details.invoiceStatus || 'Pending'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Net Invoice Amount */}
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between'
+              }}>
+                <Text style={{ color: '#6B7280', fontSize: 14 }}>Net Invoice Amount:</Text>
+                <Text style={{ 
+                  fontWeight: '700', 
+                  color: '#059669',
+                  fontSize: 15
+                }}>
+                  ₹{(transaction.details.netInvoiceAmount || transaction.details.total || 0).toFixed(2)}
+                </Text>
+              </View>
+            </View>
+
             {/* Items List (fetched from API) */}
             <View style={{ marginBottom: 24 }}>
               <Text style={{
@@ -383,12 +454,6 @@ const InvoiceDetailModal = ({
                         </View>
                       </View>
                     </View>
-
-                    {/* Net Total (separated) */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 8, marginTop: 8 }}>
-                      <Text style={{ fontWeight: 'bold', color: '#111827', fontSize: 16 }}>Net Total:</Text>
-                      <Text style={{ fontWeight: 'bold', color: '#059669', fontSize: 16 }}>₹{typeof item.NetTotal === 'number' ? item.NetTotal.toFixed(2) : (item.NetTotal ?? 0)}</Text>
-                    </View>
                   </View>
                 ))
               ) : (
@@ -398,58 +463,30 @@ const InvoiceDetailModal = ({
               )}
             </View>
 
-            {/* Total Summary */}
+            {/* Net Total Summary */}
             <View style={{
-              backgroundColor: '#F9FAFB',
+              backgroundColor: '#F0FDF4',
               borderRadius: 16,
-              padding: 16
+              padding: 16,
+              borderWidth: 2,
+              borderColor: '#059669'
             }}>
               <View style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
-                marginBottom: 8
+                alignItems: 'center'
               }}>
-                <Text style={{ color: '#6B7280', fontSize: 14 }}>Subtotal:</Text>
-                <Text style={{ 
-                  fontWeight: '600', 
-                  color: '#111827',
-                  fontSize: 14
-                }}>
-                  ₹{transaction.details.subtotal.toFixed(2)}
-                </Text>
-              </View>
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                marginBottom: 12
-              }}>
-                <Text style={{ color: '#6B7280', fontSize: 14 }}>Tax:</Text>
-                <Text style={{ 
-                  fontWeight: '600', 
-                  color: '#111827',
-                  fontSize: 14
-                }}>
-                  ₹{transaction.details.tax.toFixed(2)}
-                </Text>
-              </View>
-              <View style={{
-                borderTopWidth: 1,
-                borderTopColor: '#D1D5DB',
-                paddingTop: 12,
-                flexDirection: 'row',
-                justifyContent: 'space-between'
-              }}>
-                <Text style={{
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  color: '#111827'
-                }}>Total:</Text>
                 <Text style={{
                   fontSize: 18,
                   fontWeight: 'bold',
                   color: '#059669'
+                }}>Net Total:</Text>
+                <Text style={{
+                  fontSize: 22,
+                  fontWeight: 'bold',
+                  color: '#059669'
                 }}>
-                  ₹{transaction.details.total.toFixed(2)}
+                  ₹{(transaction.details.netInvoiceAmount || transaction.details.total || 0).toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -924,6 +961,12 @@ export default function InvoicesScreen() {
       const apiInvoices = res.invoices;
       console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
 
+      // Log the first invoice structure to see actual field names
+      if (apiInvoices.length > 0) {
+        console.log('📋 First invoice fields:', Object.keys(apiInvoices[0]));
+        console.log('📋 Sample invoice data:', JSON.stringify(apiInvoices[0], null, 2));
+      }
+
       const firstInvoice = apiInvoices[0];
       const openingBalance = firstInvoice ? (firstInvoice.obAmount - firstInvoice.saleAmount) : 0;
 
@@ -957,6 +1000,9 @@ export default function InvoicesScreen() {
               transactionIndex,
               invoiceId: inv.invoiceID,
               invoiceNo: inv.invoiceNo,
+              // Use correct casing from database: InvoiceStatus and NetInvoiceAmount
+              invoiceStatus: inv.InvoiceStatus || inv.invoiceStatus || 'Pending',
+              netInvoiceAmount: Number(inv.NetInvoiceAmount || inv.netInvoiceAmount || inv.saleAmount || 0),
               saleAmount: Number(inv.saleAmount || 0),
               balanceAmount: Number(inv.balanceAmount || 0),
               obAmount: Number(inv.obAmount || 0),
