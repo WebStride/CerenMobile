@@ -331,8 +331,8 @@ const InvoiceDetailModal = ({
                 </Text>
               ) : invoiceItems.length > 0 ? (
                 invoiceItems.map((item: any, index: number) => (
-                  <View 
-                    key={index} 
+                  <View
+                    key={index}
                     style={{
                       backgroundColor: '#F9FAFB',
                       borderRadius: 12,
@@ -340,165 +340,54 @@ const InvoiceDetailModal = ({
                       marginBottom: 12
                     }}
                   >
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      marginBottom: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        color: '#111827',
-                        fontSize: 14
-                      }}>
-                        Invoice ID:
-                      </Text>
-                      <Text style={{
-                        color: '#6B7280',
-                        fontSize: 14
-                      }}>
-                        {item.InvoiceID}
-                      </Text>
-                    </View>
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      marginBottom: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        color: '#111827',
-                        fontSize: 14
-                      }}>
-                        Product ID:
-                      </Text>
-                      <Text style={{
-                        color: '#6B7280',
-                        fontSize: 14
-                      }}>
-                        {item.ProductID}
-                      </Text>
-                    </View>
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        color: '#111827',
-                        fontSize: 14
-                      }}>
-                        Product Name:
-                      </Text>
-                      <Text style={{
-                        color: '#6B7280',
-                        fontSize: 14,
-                        flex: 1,
-                        textAlign: 'right'
-                      }}>
-                        {item.ProductName || 'Unknown Product'}
-                      </Text>
-                    </View>
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        color: '#111827',
-                        fontSize: 14
-                      }}>
-                        Product Image:
-                      </Text>
-                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                      {/* Left: Image */}
+                      <View style={{ width: 84, marginRight: 12 }}>
                         {item.ProductImage ? (
-                          <Image source={{ uri: item.ProductImage }} style={{ width: 40, height: 40, borderRadius: 8 }} />
+                          <Image source={{ uri: item.ProductImage }} style={{ width: 72, height: 72, borderRadius: 8 }} />
                         ) : (
-                          <Image source={require('../../assets/images/Banana.png')} style={{ width: 40, height: 40, borderRadius: 8 }} />
+                          <Image source={require('../../assets/images/Banana.png')} style={{ width: 72, height: 72, borderRadius: 8 }} />
                         )}
                       </View>
+
+                      {/* Right: stacked rows (labels left, values right) */}
+                      <View style={{ flex: 1 }}>
+                        {/* Product Name (full width) */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <Text style={{ fontWeight: '600', color: '#111827', fontSize: 14 }}>Product Name</Text>
+                          <Text style={{ color: '#6B7280', fontSize: 14 }}>{item.ProductName || 'Unknown Product'}</Text>
+                        </View>
+
+                        {/* Quantity */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text style={{ color: '#111827', fontSize: 13 }}>Quantity</Text>
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.OrderQty ?? '-'}</Text>
+                        </View>
+
+                        {/* Sales Qty */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text style={{ color: '#111827', fontSize: 13 }}>Sales Qty</Text>
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.SaleQty ?? 0}</Text>
+                        </View>
+
+                        {/* Price */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text style={{ color: '#111827', fontSize: 13 }}>Price</Text>
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>₹{typeof item.Price === 'number' ? item.Price.toFixed(2) : (item.Price ?? '-')}</Text>
+                        </View>
+
+                        {/* Taxable Value */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text style={{ color: '#111827', fontSize: 13 }}>Taxable Value</Text>
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>₹{typeof item.TaxableValue === 'number' ? item.TaxableValue.toFixed(2) : (item.TaxableValue ?? 0)}</Text>
+                        </View>
+                      </View>
                     </View>
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      marginBottom: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        color: '#111827',
-                        fontSize: 14
-                      }}>
-                        Quantity:
-                      </Text>
-                      <Text style={{
-                        color: '#6B7280',
-                        fontSize: 14
-                      }}>
-                        {item.OrderQty}
-                      </Text>
-                    </View>
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      marginBottom: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        color: '#111827',
-                        fontSize: 14
-                      }}>
-                        Price:
-                      </Text>
-                      <Text style={{
-                        color: '#6B7280',
-                        fontSize: 14
-                      }}>
-                        ₹{item.Price}
-                      </Text>
-                    </View>
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      marginBottom: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        color: '#111827',
-                        fontSize: 14
-                      }}>
-                        Taxable Value:
-                      </Text>
-                      <Text style={{
-                        color: '#6B7280',
-                        fontSize: 14
-                      }}>
-                        ₹{item.TaxableValue}
-                      </Text>
-                    </View>
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      borderTopWidth: 1,
-                      borderTopColor: '#E5E7EB',
-                      paddingTop: 8
-                    }}>
-                      <Text style={{
-                        fontWeight: 'bold',
-                        color: '#111827',
-                        fontSize: 16
-                      }}>
-                        Net Total:
-                      </Text>
-                      <Text style={{
-                        fontWeight: 'bold',
-                        color: '#059669',
-                        fontSize: 16
-                      }}>
-                        ₹{item.NetTotal}
-                      </Text>
+
+                    {/* Net Total (separated) */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 8, marginTop: 8 }}>
+                      <Text style={{ fontWeight: 'bold', color: '#111827', fontSize: 16 }}>Net Total:</Text>
+                      <Text style={{ fontWeight: 'bold', color: '#059669', fontSize: 16 }}>₹{typeof item.NetTotal === 'number' ? item.NetTotal.toFixed(2) : (item.NetTotal ?? 0)}</Text>
                     </View>
                   </View>
                 ))
