@@ -209,18 +209,20 @@ const InvoiceDetailModal = ({
         throw new Error('Transaction date is required for PDF generation');
       }
 
-      const customerName = transaction.details?.customerInfo?.name || "Customer";
+      // Get store name from AsyncStorage
+      const storeName = await AsyncStorage.getItem('selectedStoreName') || 'Customer';
       const dateStr = formatDateForFilename(transaction.date);
-      const fileName = `${customerName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
+      const fileName = `${storeName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
 
       console.log('📄 Generating PDF with filename:', fileName);
       console.log('📄 Invoice items count:', invoiceItems.length);
+      console.log('📄 Store name:', storeName);
 
       const html = generateInvoicePDF(
         transaction,
         invoiceItems,
         transaction.details?.customerInfo || {},
-        customerName
+        storeName
       );
 
       console.log('📄 HTML generated, creating PDF...');
@@ -427,12 +429,6 @@ const InvoiceDetailModal = ({
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
                           <Text style={{ fontWeight: '600', color: '#111827', fontSize: 14 }}>Product Name</Text>
                           <Text style={{ color: '#6B7280', fontSize: 14 }}>{item.ProductName || 'Unknown Product'}</Text>
-                        </View>
-
-                        {/* Quantity */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ color: '#111827', fontSize: 13 }}>Quantity</Text>
-                          <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.OrderQty ?? '-'}</Text>
                         </View>
 
                         {/* Sales Qty */}
@@ -924,6 +920,7 @@ export default function InvoicesScreen() {
   
   // State management
   const [selectedFilter, setSelectedFilter] = useState("3months");
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<"start" | "end">("start");
   const [startDate, setStartDate] = useState(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
@@ -989,34 +986,33 @@ export default function InvoicesScreen() {
       apiInvoices.forEach((inv: any, index: number) => {
         const transactionIndex = index + 1;
 
-        if (inv.saleAmount > 0) {
-          allTransactions.push({
-            id: inv.invoiceNo || `INV-${inv.invoiceID}`,
-            amount: Number(inv.saleAmount || 0),
-            date: inv.invoiceDateString || null,
-            type: 'invoice',
-            description: `Grocery Order #${(inv.invoiceNo || '').split('-').pop() || inv.invoiceID}`,
-            details: {
-              transactionIndex,
-              invoiceId: inv.invoiceID,
-              invoiceNo: inv.invoiceNo,
-              // Use correct casing from database: InvoiceStatus and NetInvoiceAmount
-              invoiceStatus: inv.InvoiceStatus || inv.invoiceStatus || 'Pending',
-              netInvoiceAmount: Number(inv.NetInvoiceAmount || inv.netInvoiceAmount || inv.saleAmount || 0),
-              saleAmount: Number(inv.saleAmount || 0),
-              balanceAmount: Number(inv.balanceAmount || 0),
-              obAmount: Number(inv.obAmount || 0),
-              upiAmount: Number(inv.upiAmount || 0),
-              cashAmount: Number(inv.cashAmount || 0),
-              chequeAmount: Number(inv.chequeAmount || 0),
-              items: [],
-              subtotal: Number(inv.saleAmount || 0),
-              tax: 0,
-              total: Number(inv.saleAmount || 0),
-              customerInfo: { name: 'Customer', address: '', mobile: '' }
-            }
-          });
-        }
+        // Always include invoices in the ledger, even when saleAmount is zero
+        allTransactions.push({
+          id: inv.invoiceNo || `INV-${inv.invoiceID}`,
+          amount: Number(inv.saleAmount ?? 0),
+          date: inv.invoiceDateString || null,
+          type: 'invoice',
+          description: `Grocery Order #${(inv.invoiceNo || '').split('-').pop() || inv.invoiceID}`,
+          details: {
+            transactionIndex,
+            invoiceId: inv.invoiceID,
+            invoiceNo: inv.invoiceNo,
+            // Normalize various possible fields for invoice status
+            invoiceStatus: (inv.InvoiceStatus ?? inv.invoiceStatus ?? inv.Status ?? inv.status ?? '').toString(),
+            netInvoiceAmount: Number(inv.NetInvoiceAmount ?? inv.netInvoiceAmount ?? inv.saleAmount ?? 0),
+            saleAmount: Number(inv.saleAmount ?? 0),
+            balanceAmount: Number(inv.balanceAmount ?? 0),
+            obAmount: Number(inv.obAmount ?? 0),
+            upiAmount: Number(inv.upiAmount ?? 0),
+            cashAmount: Number(inv.cashAmount ?? 0),
+            chequeAmount: Number(inv.chequeAmount ?? 0),
+            items: [],
+            subtotal: Number(inv.saleAmount ?? 0),
+            tax: 0,
+            total: Number(inv.saleAmount ?? 0),
+            customerInfo: { name: 'Customer', address: '', mobile: '' }
+          }
+        });
 
         const totalPayment = Number(inv.upiAmount || 0) + Number(inv.cashAmount || 0) + Number(inv.chequeAmount || 0);
         if (totalPayment > 0) {
@@ -1078,11 +1074,19 @@ export default function InvoicesScreen() {
     { key: "custom", label: "Custom Range" },
   ];
 
+  const statusFilterOptions = [
+    { key: "all", label: "All Status" },
+    { key: "created", label: "Created" },
+    { key: "paid", label: "Paid" },
+    { key: "delivered", label: "Delivered" },
+    { key: "cancelled", label: "Cancelled" },
+  ];
+
   useEffect(() => {
     if (transactions.length > 0) {
       filterTransactions();
     }
-  }, [selectedFilter, startDate, endDate, transactions]);
+  }, [selectedFilter, selectedStatus, startDate, endDate, transactions]);
 
   const filterTransactions = () => {
     let filtered = [...transactions];
@@ -1130,7 +1134,18 @@ export default function InvoicesScreen() {
         break;
     }
     
-    console.log('✅ Filtered to', filtered.length, 'transactions');
+    // Apply status filter
+    if (selectedStatus && selectedStatus !== 'all') {
+      filtered = filtered.filter(transaction => {
+        if (transaction.type === 'invoice') {
+          const invoiceStatus = (transaction.details?.invoiceStatus || '').toString().trim().toLowerCase();
+          return invoiceStatus === selectedStatus;
+        }
+        return transaction.type === 'balance' || transaction.type === 'payment';
+      });
+    }
+    
+    console.log('✅ Filtered to', filtered.length, 'transactions (status:', selectedStatus || 'all', ')');
     setFilteredTransactions(filtered);
   };
 
@@ -1576,6 +1591,24 @@ export default function InvoicesScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Status Filter */}
+        <View className="mb-2">
+          <Text className="text-xs text-gray-600 mb-2 ml-1">Filter by Status</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+          >
+            {statusFilterOptions.map((option) => (
+              <FilterButton
+                key={option.key}
+                title={option.label}
+                isActive={selectedStatus === option.key || (option.key === 'all' && !selectedStatus)}
+                onPress={() => setSelectedStatus(option.key === 'all' ? null : option.key)}
+              />
+            ))}
+          </ScrollView>
+        </View>
 
       </View>
 

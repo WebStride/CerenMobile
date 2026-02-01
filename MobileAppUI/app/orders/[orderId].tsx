@@ -5,8 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Platform,
-  Linking,
   Modal,
 } from "react-native";
 import { Image } from "expo-image";
@@ -173,21 +171,7 @@ const OrderDetailScreen = () => {
     );
   }
 
-  const handleDownloadInvoice = async () => {
-    try {
-      // For demo purposes - replace with actual invoice download logic
-      Alert.alert(
-        "Download Invoice", 
-        "Invoice download feature will be implemented here",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Download", onPress: () => console.log("Download started") }
-        ]
-      );
-    } catch (error) {
-      Alert.alert("Error", "Unable to download invoice");
-    }
-  };
+  // Download invoice removed per UI requirement
 
   const ItemRow = ({ item }: { item: OrderItem }) => (
     <View className="py-3 border-b border-gray-100">
@@ -270,16 +254,7 @@ const OrderDetailScreen = () => {
             Arrived on —
           </Text>
           
-          <TouchableOpacity 
-            onPress={handleDownloadInvoice}
-            className="flex-row items-center mb-4"
-            activeOpacity={0.7}
-          >
-            <Text className="text-green-600 font-semibold text-sm mr-1">
-              Download Invoice
-            </Text>
-            <Ionicons name="download-outline" size={16} color="#22C55E" />
-          </TouchableOpacity>
+
 
           <Text className="text-base font-semibold text-gray-900 mb-3">
             {orderItems.length} items in this order

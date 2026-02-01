@@ -107,34 +107,35 @@ export const generateInvoicePDF = (
   customerName: string = "Customer"
 ): string => {
 
-  // For BF invoices, don't show date or description in items table - just show totals
-  const isBFInvoice = invoice.id === 'BF' || invoice.details.invoiceNo === 'BF';
-  
-  const invoiceItems = !isBFInvoice && items.length > 0 
+  // Generate items rows for the simplified invoice
+  const invoiceItems = items.length > 0 
     ? items.map((item, index) => `
         <tr>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${index + 1}</td>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb;">
-            ${escapeHtml(item.name || `Product #${item.ProductID || 'N/A'}`)}
+            ${escapeHtml(item.ProductName || item.name || 'Product')}
           </td>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">
-            ${item.SaleQty || item.quantity || '-'}
+            ${item.SaleQty || 0}
           </td>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">
-            ${formatCurrency(item.Price || item.price || 0)}
+            ${formatCurrency(item.Price || 0)}
           </td>
           <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">
-            ${formatCurrency(item.NetTotal || item.total || 0)}
+            ${formatCurrency(item.NetTotal || 0)}
           </td>
         </tr>
       `).join('')
     : `
         <tr>
           <td colspan="5" style="padding: 24px; text-align: center; color: #6b7280;">
-            ${isBFInvoice ? 'Opening Balance' : 'No items available'}
+            No items available
           </td>
         </tr>
       `;
+
+  // Calculate net total from items
+  const netTotal = items.reduce((sum, item) => sum + (item.NetTotal || 0), 0);
 
   return `
     <!DOCTYPE html>
@@ -170,10 +171,11 @@ export const generateInvoicePDF = (
           color: #15803D;
           margin-bottom: 8px;
         }
-        .company-details {
-          font-size: 12px;
-          color: #6b7280;
-          line-height: 1.8;
+        .store-name {
+          font-size: 18px;
+          font-weight: 600;
+          color: #374151;
+          margin-top: 8px;
         }
         .invoice-title {
           text-align: center;
@@ -183,36 +185,6 @@ export const generateInvoicePDF = (
           margin: 30px 0 20px 0;
           text-transform: uppercase;
           letter-spacing: 1px;
-        }
-        .info-section {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 30px;
-        }
-        .info-box {
-          flex: 1;
-          padding: 15px;
-          background: #f9fafb;
-          border-radius: 8px;
-          margin: 0 10px;
-        }
-        .info-box:first-child {
-          margin-left: 0;
-        }
-        .info-box:last-child {
-          margin-right: 0;
-        }
-        .info-label {
-          font-size: 11px;
-          color: #6b7280;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 8px;
-        }
-        .info-value {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
         }
         .table {
           width: 100%;
@@ -242,23 +214,18 @@ export const generateInvoicePDF = (
         .table th:nth-last-child(2) {
           text-align: right;
         }
-        .totals {
-          margin-top: 20px;
+        .net-total {
+          margin-top: 30px;
           padding: 20px;
           background: #f0fdf4;
           border-radius: 8px;
+          border: 2px solid #15803D;
         }
-        .total-row {
+        .net-total-row {
           display: flex;
           justify-content: space-between;
-          padding: 8px 0;
-          font-size: 14px;
-        }
-        .total-row.grand-total {
-          border-top: 2px solid #15803D;
-          margin-top: 10px;
-          padding-top: 15px;
-          font-size: 18px;
+          align-items: center;
+          font-size: 20px;
           font-weight: bold;
           color: #15803D;
         }
@@ -270,25 +237,6 @@ export const generateInvoicePDF = (
           font-size: 11px;
           color: #6b7280;
         }
-        .customer-section {
-          margin-bottom: 30px;
-          padding: 15px;
-          background: #eff6ff;
-          border-left: 4px solid #3b82f6;
-          border-radius: 4px;
-        }
-        .customer-title {
-          font-size: 12px;
-          font-weight: 600;
-          color: #1e40af;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-        }
-        .customer-info {
-          font-size: 13px;
-          color: #374151;
-          line-height: 1.6;
-        }
       </style>
     </head>
     <body>
@@ -296,47 +244,11 @@ export const generateInvoicePDF = (
         <!-- Company Header -->
         <div class="header">
           <div class="company-name">${COMPANY_INFO.name}</div>
-          <div class="company-details">
-            ${COMPANY_INFO.address}<br>
-            GST: ${COMPANY_INFO.gst} | Phone: ${COMPANY_INFO.phone} | Email: ${COMPANY_INFO.email}
-          </div>
+          <div class="store-name">${escapeHtml(customerName)}</div>
         </div>
 
         <!-- Invoice Title -->
-        <div class="invoice-title">Tax Invoice - ${escapeHtml(customerInfo.name || customerName)}</div>
-
-        <!-- Customer Information -->
-        <div class="customer-section">
-          <div class="customer-title">Bill To:</div>
-          <div class="customer-info">
-            <strong>${escapeHtml(customerInfo.name || customerName)}</strong><br>
-            ${escapeHtml(customerInfo.address || 'Address not available')}<br>
-            ${escapeHtml(customerInfo.mobile || 'Mobile not available')}
-          </div>
-        </div>
-
-        <!-- Invoice Information -->
-        <div class="info-section">
-          <div class="info-box">
-            <div class="info-label">Invoice Number</div>
-            <div class="info-value">${invoice.details.invoiceNo || invoice.id}</div>
-          </div>
-          ${!isBFInvoice ? `
-          <div class="info-box">
-            <div class="info-label">Invoice Date</div>
-            <div class="info-value">${formatDate(invoice.date)}</div>
-          </div>
-          ` : `
-          <div class="info-box">
-            <div class="info-label">Type</div>
-            <div class="info-value">Opening Balance</div>
-          </div>
-          `}
-          <div class="info-box">
-            <div class="info-label">Balance Due</div>
-            <div class="info-value">${formatCurrency(invoice.details.balanceAmount || 0)}</div>
-          </div>
-        </div>
+        <div class="invoice-title">Tax Invoice - Customer</div>
 
         <!-- Items Table -->
         <table class="table">
@@ -354,51 +266,11 @@ export const generateInvoicePDF = (
           </tbody>
         </table>
 
-        <!-- Totals -->
-        <div class="totals">
-          <div class="total-row">
-            <span>Subtotal:</span>
-            <span>${formatCurrency(invoice.details.subtotal || invoice.details.saleAmount || 0)}</span>
-          </div>
-          <div class="total-row">
-            <span>Tax (CGST + SGST):</span>
-            <span>${formatCurrency(invoice.details.tax || 0)}</span>
-          </div>
-          <div class="total-row grand-total">
-            <span>Grand Total:</span>
-            <span>${formatCurrency(invoice.details.total || invoice.details.saleAmount || 0)}</span>
-          </div>
-          ${invoice.details.upiAmount || invoice.details.cashAmount || invoice.details.chequeAmount ? `
-            <div class="total-row" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #bbf7d0;">
-              <span style="font-weight: 600;">Payments Received:</span>
-              <span></span>
-            </div>
-            ${invoice.details.upiAmount ? `
-              <div class="total-row">
-                <span style="padding-left: 20px;">UPI Payment:</span>
-                <span>-${formatCurrency(invoice.details.upiAmount)}</span>
-              </div>
-            ` : ''}
-            ${invoice.details.cashAmount ? `
-              <div class="total-row">
-                <span style="padding-left: 20px;">Cash Payment:</span>
-                <span>-${formatCurrency(invoice.details.cashAmount)}</span>
-              </div>
-            ` : ''}
-            ${invoice.details.chequeAmount ? `
-              <div class="total-row">
-                <span style="padding-left: 20px;">Cheque Payment:</span>
-                <span>-${formatCurrency(invoice.details.chequeAmount)}</span>
-              </div>
-            ` : ''}
-            <div class="total-row" style="font-weight: 600; color: #dc2626;">
-              <span>Balance Amount:</span>
-              <span>${formatCurrency(invoice.details.balanceAmount || 0)}</span>
-            </div>
-          ` : ''}
-          <div class="total-row" style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #15803D; font-size: 16px; font-weight: bold; color: #15803D;">
-            <span>Total Amount =</span>
-            <span>${formatCurrency(invoice.details.total || invoice.details.saleAmount || 0)}</span>
+        <!-- Net Total -->
+        <div class="net-total">
+          <div class="net-total-row">
+            <span>Net Total:</span>
+            <span>${formatCurrency(netTotal)}</span>
           </div>
         </div>
 
