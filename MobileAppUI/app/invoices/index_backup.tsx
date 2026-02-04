@@ -209,20 +209,18 @@ const InvoiceDetailModal = ({
         throw new Error('Transaction date is required for PDF generation');
       }
 
-      // Get store name from AsyncStorage
-      const storeName = await AsyncStorage.getItem('selectedStoreName') || 'Customer';
+      const customerName = transaction.details?.customerInfo?.name || "Customer";
       const dateStr = formatDateForFilename(transaction.date);
-      const fileName = `${storeName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
+      const fileName = `${customerName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
 
       console.log('📄 Generating PDF with filename:', fileName);
       console.log('📄 Invoice items count:', invoiceItems.length);
-      console.log('📄 Store name:', storeName);
 
       const html = generateInvoicePDF(
         transaction,
         invoiceItems,
         transaction.details?.customerInfo || {},
-        storeName
+        customerName
       );
 
       console.log('📄 HTML generated, creating PDF...');
@@ -317,77 +315,6 @@ const InvoiceDetailModal = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ padding: 24 }}
           >
-            {/* Invoice Information Section */}
-            <View style={{
-              backgroundColor: '#EFF6FF',
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 20,
-              borderLeftWidth: 4,
-              borderLeftColor: '#3B82F6'
-            }}>
-              <Text style={{
-                fontSize: 16,
-                fontWeight: 'bold',
-                color: '#111827',
-                marginBottom: 12
-              }}>Invoice Information</Text>
-              
-              {/* Invoice Number */}
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                marginBottom: 8
-              }}>
-                <Text style={{ color: '#6B7280', fontSize: 14 }}>Invoice Number:</Text>
-                <Text style={{ 
-                  fontWeight: '600', 
-                  color: '#111827',
-                  fontSize: 14
-                }}>
-                  {transaction.details.invoiceNo || transaction.id}
-                </Text>
-              </View>
-
-              {/* Invoice Status */}
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                marginBottom: 8
-              }}>
-                <Text style={{ color: '#6B7280', fontSize: 14 }}>Invoice Status:</Text>
-                <View style={{
-                  backgroundColor: transaction.details.invoiceStatus === 'Paid' ? '#D1FAE5' : '#FEF3C7',
-                  paddingHorizontal: 12,
-                  paddingVertical: 4,
-                  borderRadius: 12
-                }}>
-                  <Text style={{ 
-                    fontWeight: '600', 
-                    color: transaction.details.invoiceStatus === 'Paid' ? '#059669' : '#D97706',
-                    fontSize: 13
-                  }}>
-                    {transaction.details.invoiceStatus || 'Pending'}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Net Invoice Amount */}
-              <View style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between'
-              }}>
-                <Text style={{ color: '#6B7280', fontSize: 14 }}>Net Invoice Amount:</Text>
-                <Text style={{ 
-                  fontWeight: '700', 
-                  color: '#059669',
-                  fontSize: 15
-                }}>
-                  ₹{(transaction.details.netInvoiceAmount || transaction.details.total || 0).toFixed(2)}
-                </Text>
-              </View>
-            </View>
-
             {/* Items List (fetched from API) */}
             <View style={{ marginBottom: 24 }}>
               <Text style={{
@@ -404,8 +331,8 @@ const InvoiceDetailModal = ({
                 </Text>
               ) : invoiceItems.length > 0 ? (
                 invoiceItems.map((item: any, index: number) => (
-                  <View
-                    key={index}
+                  <View 
+                    key={index} 
                     style={{
                       backgroundColor: '#F9FAFB',
                       borderRadius: 12,
@@ -413,42 +340,165 @@ const InvoiceDetailModal = ({
                       marginBottom: 12
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                      {/* Left: Image */}
-                      <View style={{ width: 84, marginRight: 12 }}>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Invoice ID:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        {item.InvoiceID}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Product ID:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        {item.ProductID}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Product Name:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14,
+                        flex: 1,
+                        textAlign: 'right'
+                      }}>
+                        {item.ProductName || 'Unknown Product'}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Product Image:
+                      </Text>
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
                         {item.ProductImage ? (
-                          <Image source={{ uri: item.ProductImage }} style={{ width: 72, height: 72, borderRadius: 8 }} />
+                          <Image source={{ uri: item.ProductImage }} style={{ width: 40, height: 40, borderRadius: 8 }} />
                         ) : (
-                          <Image source={require('../../assets/images/Banana.png')} style={{ width: 72, height: 72, borderRadius: 8 }} />
+                          <Image source={require('../../assets/images/Banana.png')} style={{ width: 40, height: 40, borderRadius: 8 }} />
                         )}
                       </View>
-
-                      {/* Right: stacked rows (labels left, values right) */}
-                      <View style={{ flex: 1 }}>
-                        {/* Product Name (full width) */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <Text style={{ fontWeight: '600', color: '#111827', fontSize: 14 }}>Product Name</Text>
-                          <Text style={{ color: '#6B7280', fontSize: 14 }}>{item.ProductName || 'Unknown Product'}</Text>
-                        </View>
-
-                        {/* Sales Qty */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ color: '#111827', fontSize: 13 }}>Sales Qty</Text>
-                          <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.SaleQty ?? 0}</Text>
-                        </View>
-
-                        {/* Price */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ color: '#111827', fontSize: 13 }}>Price</Text>
-                          <Text style={{ color: '#6B7280', fontSize: 13 }}>₹{typeof item.Price === 'number' ? item.Price.toFixed(2) : (item.Price ?? '-')}</Text>
-                        </View>
-
-                        {/* Taxable Value */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <Text style={{ color: '#111827', fontSize: 13 }}>Taxable Value</Text>
-                          <Text style={{ color: '#6B7280', fontSize: 13 }}>₹{typeof item.TaxableValue === 'number' ? item.TaxableValue.toFixed(2) : (item.TaxableValue ?? 0)}</Text>
-                        </View>
-                      </View>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Quantity:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        {item.OrderQty}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Price:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        ₹{item.Price}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: '600',
+                        color: '#111827',
+                        fontSize: 14
+                      }}>
+                        Taxable Value:
+                      </Text>
+                      <Text style={{
+                        color: '#6B7280',
+                        fontSize: 14
+                      }}>
+                        ₹{item.TaxableValue}
+                      </Text>
+                    </View>
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      borderTopWidth: 1,
+                      borderTopColor: '#E5E7EB',
+                      paddingTop: 8
+                    }}>
+                      <Text style={{
+                        fontWeight: 'bold',
+                        color: '#111827',
+                        fontSize: 16
+                      }}>
+                        Net Total:
+                      </Text>
+                      <Text style={{
+                        fontWeight: 'bold',
+                        color: '#059669',
+                        fontSize: 16
+                      }}>
+                        ₹{item.NetTotal}
+                      </Text>
                     </View>
                   </View>
                 ))
@@ -459,30 +509,58 @@ const InvoiceDetailModal = ({
               )}
             </View>
 
-            {/* Net Total Summary */}
+            {/* Total Summary */}
             <View style={{
-              backgroundColor: '#F0FDF4',
+              backgroundColor: '#F9FAFB',
               borderRadius: 16,
-              padding: 16,
-              borderWidth: 2,
-              borderColor: '#059669'
+              padding: 16
             }}>
               <View style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                marginBottom: 8
+              }}>
+                <Text style={{ color: '#6B7280', fontSize: 14 }}>Subtotal:</Text>
+                <Text style={{ 
+                  fontWeight: '600', 
+                  color: '#111827',
+                  fontSize: 14
+                }}>
+                  ₹{transaction.details.subtotal.toFixed(2)}
+                </Text>
+              </View>
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginBottom: 12
+              }}>
+                <Text style={{ color: '#6B7280', fontSize: 14 }}>Tax:</Text>
+                <Text style={{ 
+                  fontWeight: '600', 
+                  color: '#111827',
+                  fontSize: 14
+                }}>
+                  ₹{transaction.details.tax.toFixed(2)}
+                </Text>
+              </View>
+              <View style={{
+                borderTopWidth: 1,
+                borderTopColor: '#D1D5DB',
+                paddingTop: 12,
+                flexDirection: 'row',
+                justifyContent: 'space-between'
               }}>
                 <Text style={{
                   fontSize: 18,
                   fontWeight: 'bold',
-                  color: '#059669'
-                }}>Net Total:</Text>
+                  color: '#111827'
+                }}>Total:</Text>
                 <Text style={{
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: 'bold',
                   color: '#059669'
                 }}>
-                  ₹{(transaction.details.netInvoiceAmount || transaction.details.total || 0).toFixed(2)}
+                  ₹{transaction.details.total.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -920,7 +998,6 @@ export default function InvoicesScreen() {
   
   // State management
   const [selectedFilter, setSelectedFilter] = useState("3months");
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<"start" | "end">("start");
   const [startDate, setStartDate] = useState(new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
@@ -936,136 +1013,148 @@ export default function InvoicesScreen() {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [downloadingStatement, setDownloadingStatement] = useState(false);
 
-  // Load invoices helper: accepts optional custom date range (Date objects)
-  const loadInvoices = async (fromDate?: Date, toDate?: Date) => {
-    setLoading(true);
-    setError(null);
-    try {
-      console.log('📊 Loading invoices from API...');
-
-      const toDt = toDate || new Date();
-      const fromDt = fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-
-      const fromDateTime = fromDt.getTime().toString();
-      const toDateTime = toDt.getTime().toString();
-
-      const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
-
-      if (!res || !res.success || !Array.isArray(res.invoices)) {
-        throw new Error('Invalid response from API');
-      }
-
-      const apiInvoices = res.invoices;
-      console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
-
-      // Log the first invoice structure to see actual field names
-      if (apiInvoices.length > 0) {
-        console.log('📋 First invoice fields:', Object.keys(apiInvoices[0]));
-        console.log('📋 Sample invoice data:', JSON.stringify(apiInvoices[0], null, 2));
-      }
-
-      const firstInvoice = apiInvoices[0];
-      const openingBalance = firstInvoice ? (firstInvoice.obAmount - firstInvoice.saleAmount) : 0;
-
-      console.log('💰 Before Balance (BF) Calculation:', {
-        obAmount: firstInvoice?.obAmount,
-        saleAmount: firstInvoice?.saleAmount,
-        calculatedBF: openingBalance
-      });
-
-      const allTransactions: Transaction[] = [];
-      allTransactions.push({
-        id: 'BF',
-        amount: openingBalance,
-        date: null,
-        type: 'balance',
-        description: 'Before Balance',
-        details: { openingBalance: openingBalance, note: 'Outstanding balance brought forward' }
-      });
-
-      apiInvoices.forEach((inv: any, index: number) => {
-        const transactionIndex = index + 1;
-
-        // Always include invoices in the ledger, even when saleAmount is zero
-        allTransactions.push({
-          id: inv.invoiceNo || `INV-${inv.invoiceID}`,
-          amount: Number(inv.saleAmount ?? 0),
-          date: inv.invoiceDateString || null,
-          type: 'invoice',
-          description: `Grocery Order #${(inv.invoiceNo || '').split('-').pop() || inv.invoiceID}`,
-          details: {
-            transactionIndex,
-            invoiceId: inv.invoiceID,
-            invoiceNo: inv.invoiceNo,
-            // Normalize various possible fields for invoice status
-            invoiceStatus: (inv.InvoiceStatus ?? inv.invoiceStatus ?? inv.Status ?? inv.status ?? '').toString(),
-            netInvoiceAmount: Number(inv.NetInvoiceAmount ?? inv.netInvoiceAmount ?? inv.saleAmount ?? 0),
-            saleAmount: Number(inv.saleAmount ?? 0),
-            balanceAmount: Number(inv.balanceAmount ?? 0),
-            obAmount: Number(inv.obAmount ?? 0),
-            upiAmount: Number(inv.upiAmount ?? 0),
-            cashAmount: Number(inv.cashAmount ?? 0),
-            chequeAmount: Number(inv.chequeAmount ?? 0),
-            items: [],
-            subtotal: Number(inv.saleAmount ?? 0),
-            tax: 0,
-            total: Number(inv.saleAmount ?? 0),
-            customerInfo: { name: 'Customer', address: '', mobile: '' }
-          }
+  useEffect(() => {
+    const loadInvoices = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Fetch invoices from backend API
+        console.log('📊 Loading invoices from API...');
+        
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - 90); // Last 90 days
+        
+        const fromDateTime = fromDate.getTime().toString();
+        const toDateTime = toDate.getTime().toString();
+        
+        const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
+        
+        if (!res || !res.success || !Array.isArray(res.invoices)) {
+          throw new Error('Invalid response from API');
+        }
+        
+        const apiInvoices = res.invoices;
+        console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
+        
+        // Calculate the actual Before Balance (BF)
+        // BF = obAmount (opening balance before this invoice) - saleAmount (current invoice)
+        // This gives us the balance before any transactions in this list
+        const firstInvoice = apiInvoices[0];
+        const openingBalance = firstInvoice 
+          ? (firstInvoice.obAmount - firstInvoice.saleAmount) 
+          : 0;
+        
+        console.log('💰 Before Balance (BF) Calculation:', {
+          obAmount: firstInvoice?.obAmount,
+          saleAmount: firstInvoice?.saleAmount,
+          calculatedBF: openingBalance
         });
-
-        const totalPayment = Number(inv.upiAmount || 0) + Number(inv.cashAmount || 0) + Number(inv.chequeAmount || 0);
-        if (totalPayment > 0) {
-          const paymentMethod = inv.upiAmount > 0 ? 'UPI' : inv.cashAmount > 0 ? 'Cash' : 'Cheque';
+          
+          // Create all transactions (invoices + payments)
+          const allTransactions: Transaction[] = [];
+          
+          // Add opening balance (BF - Before Balance)
           allTransactions.push({
-            id: `PMT-${String(transactionIndex).padStart(3, '0')}`,
-            amount: totalPayment,
-            date: inv.invoiceDateString || null,
-            type: 'payment',
-            description: 'Payment Received',
+            id: "BF",
+            amount: openingBalance,
+            date: null,
+            type: "balance",
+            description: "Before Balance",
             details: {
-              transactionIndex,
-              paymentMethod,
-              transactionId: `TXN${inv.invoiceID}`,
-              paidBy: 'Customer',
-              paymentDate: inv.invoiceDateString,
-              bankReference: `REF${inv.invoiceID}`,
-              status: 'Success',
-              upiAmount: Number(inv.upiAmount || 0),
-              cashAmount: Number(inv.cashAmount || 0),
-              chequeAmount: Number(inv.chequeAmount || 0)
+              openingBalance: openingBalance,
+              note: "Outstanding balance brought forward"
             }
           });
+          
+          // Process each invoice with transaction index
+          apiInvoices.forEach((inv: any, index: number) => {
+            const transactionIndex = index + 1; // 1-based index for display
+            
+            // Add invoice (skip if sale amount is 0)
+            if (inv.saleAmount > 0) {
+              allTransactions.push({
+              id: inv.invoiceNo || `INV-${inv.invoiceID}`,
+              amount: Number(inv.saleAmount || 0),
+              date: inv.invoiceDateString || null,
+              type: "invoice",
+              description: `Grocery Order #${(inv.invoiceNo || '').split('-').pop() || inv.invoiceID}`,
+              details: {
+                transactionIndex: transactionIndex,
+                invoiceId: inv.invoiceID,
+                invoiceNo: inv.invoiceNo,
+                saleAmount: Number(inv.saleAmount || 0),
+                balanceAmount: Number(inv.balanceAmount || 0),
+                obAmount: Number(inv.obAmount || 0),
+                upiAmount: Number(inv.upiAmount || 0),
+                cashAmount: Number(inv.cashAmount || 0),
+                chequeAmount: Number(inv.chequeAmount || 0),
+                items: [],
+                subtotal: Number(inv.saleAmount || 0),
+                tax: 0,
+                total: Number(inv.saleAmount || 0),
+                customerInfo: {
+                  name: "Customer",
+                  address: "",
+                  mobile: ""
+                }
+              }
+              });
+            }
+            
+            // Add payment if exists
+            const totalPayment = Number(inv.upiAmount || 0) + Number(inv.cashAmount || 0) + Number(inv.chequeAmount || 0);
+            if (totalPayment > 0) {
+              const paymentMethod = inv.upiAmount > 0 ? "UPI" : inv.cashAmount > 0 ? "Cash" : "Cheque";
+              allTransactions.push({
+                id: `PMT-${String(transactionIndex).padStart(3, '0')}`,
+                amount: totalPayment,
+                date: inv.invoiceDateString || null,
+                type: "payment",
+                description: "Payment Received",
+                details: {
+                  transactionIndex: transactionIndex,
+                  paymentMethod: paymentMethod,
+                  transactionId: `TXN${inv.invoiceID}`,
+                  paidBy: "Customer",
+                  paymentDate: inv.invoiceDateString,
+                  bankReference: `REF${inv.invoiceID}`,
+                  status: "Success",
+                  upiAmount: Number(inv.upiAmount || 0),
+                  cashAmount: Number(inv.cashAmount || 0),
+                  chequeAmount: Number(inv.chequeAmount || 0)
+                }
+              });
+            }
+          });
+          
+          console.log('✅ Total transactions:', allTransactions.length);
+          setTransactions(allTransactions);
+          setFilteredTransactions(allTransactions);
+        
+        /* COMMENTED - Real API call for when endpoint has data
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - 90);
+        const fromDateTime = fromDate.getTime().toString();
+        const toDateTime = toDate.getTime().toString();
+        const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
+        if (res && res.success && Array.isArray(res.invoices)) {
+          // Process real API data...
         }
-      });
+        */
+      } catch (err: any) {
+        console.error('❌ Error loading invoices:', err);
+        setError(err?.message || 'Failed to load invoices');
+        setTransactions([]);
+        setFilteredTransactions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      console.log('✅ Total transactions:', allTransactions.length);
-      setTransactions(allTransactions);
-      setFilteredTransactions(allTransactions);
-    } catch (err: any) {
-      console.error('❌ Error loading invoices:', err);
-      setError(err?.message || 'Failed to load invoices');
-      setTransactions([]);
-      setFilteredTransactions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Run on mount with default last-90-days
-  useEffect(() => {
     loadInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Re-fetch invoices when custom date range is selected
-  useEffect(() => {
-    if (selectedFilter === 'custom') {
-      console.log('🔁 Custom date range selected - re-fetching invoices for range:', startDate, endDate);
-      loadInvoices(startDate, endDate);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFilter, startDate, endDate]);
 
   const filterOptions = [
     { key: "7days", label: "Last 7 Days" },
@@ -1074,19 +1163,9 @@ export default function InvoicesScreen() {
     { key: "custom", label: "Custom Range" },
   ];
 
-  const statusFilterOptions = [
-    { key: "all", label: "All Status" },
-    { key: "created", label: "Created" },
-    { key: "paid", label: "Paid" },
-    { key: "delivered", label: "Delivered" },
-    { key: "cancelled", label: "Cancelled" },
-  ];
-
   useEffect(() => {
-    if (transactions.length > 0) {
-      filterTransactions();
-    }
-  }, [selectedFilter, selectedStatus, startDate, endDate, transactions]);
+    filterTransactions();
+  }, [selectedFilter, startDate, endDate]);
 
   const filterTransactions = () => {
     let filtered = [...transactions];
@@ -1095,9 +1174,7 @@ export default function InvoicesScreen() {
     console.log('🔍 Filtering transactions:', {
       total: transactions.length,
       filter: selectedFilter,
-      currentDate: now.toISOString(),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      currentDate: now.toISOString()
     });
     
     switch (selectedFilter) {
@@ -1123,29 +1200,13 @@ export default function InvoicesScreen() {
       case "custom":
         filtered = transactions.filter(transaction => {
           if (transaction.type === "balance") return true;
-          if (!transaction.date) return false;
-          const transactionDate = new Date(transaction.date);
-          // Normalize dates to compare only date parts (ignore time)
-          const txDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), transactionDate.getDate());
-          const fromDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-          const toDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-          return txDate >= fromDate && txDate <= toDate;
+          const transactionDate = new Date(transaction.date!);
+          return transactionDate >= startDate && transactionDate <= endDate;
         });
         break;
     }
     
-    // Apply status filter
-    if (selectedStatus && selectedStatus !== 'all') {
-      filtered = filtered.filter(transaction => {
-        if (transaction.type === 'invoice') {
-          const invoiceStatus = (transaction.details?.invoiceStatus || '').toString().trim().toLowerCase();
-          return invoiceStatus === selectedStatus;
-        }
-        return transaction.type === 'balance' || transaction.type === 'payment';
-      });
-    }
-    
-    console.log('✅ Filtered to', filtered.length, 'transactions (status:', selectedStatus || 'all', ')');
+    console.log('✅ Filtered to', filtered.length, 'transactions');
     setFilteredTransactions(filtered);
   };
 
@@ -1591,24 +1652,6 @@ export default function InvoicesScreen() {
             </TouchableOpacity>
           </View>
         )}
-
-        {/* Status Filter */}
-        <View className="mb-2">
-          <Text className="text-xs text-gray-600 mb-2 ml-1">Filter by Status</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-          >
-            {statusFilterOptions.map((option) => (
-              <FilterButton
-                key={option.key}
-                title={option.label}
-                isActive={selectedStatus === option.key || (option.key === 'all' && !selectedStatus)}
-                onPress={() => setSelectedStatus(option.key === 'all' ? null : option.key)}
-              />
-            ))}
-          </ScrollView>
-        </View>
 
       </View>
 

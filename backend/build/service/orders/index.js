@@ -374,6 +374,46 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
             });
             const invoices = response.data;
             console.log('📊 Received invoices count:', Array.isArray(invoices) ? invoices.length : 'non-array response');
+            // Log first invoice to see field structure
+            if (Array.isArray(invoices) && invoices.length > 0) {
+                console.log('📋 Sample invoice fields:', Object.keys(invoices[0]));
+                console.log('📋 First invoice data:', JSON.stringify(invoices[0], null, 2));
+            }
+            // Enrich external API data with InvoiceStatus and NetInvoiceAmount from our database
+            if (Array.isArray(invoices) && invoices.length > 0) {
+                console.log('🔄 Enriching invoice data from local database...');
+                // Get all invoice IDs from external API response
+                const invoiceIds = invoices
+                    .map((inv) => inv.invoiceID)
+                    .filter((id) => id !== null && id !== undefined);
+                if (invoiceIds.length > 0) {
+                    // Fetch InvoiceStatus and NetInvoiceAmount from our database
+                    const dbInvoices = yield prisma.invoices.findMany({
+                        where: {
+                            InvoiceID: { in: invoiceIds }
+                        },
+                        select: {
+                            InvoiceID: true,
+                            InvoiceStatus: true,
+                            NetInvoiceAmount: true,
+                            InvoiceNumber: true
+                        }
+                    });
+                    console.log('✅ Fetched', dbInvoices.length, 'invoices from local database');
+                    // Create a map for quick lookup
+                    const dbInvoiceMap = new Map(dbInvoices.map(inv => [inv.InvoiceID, inv]));
+                    // Enrich each invoice with database data
+                    invoices.forEach((inv) => {
+                        const dbData = dbInvoiceMap.get(inv.invoiceID);
+                        if (dbData) {
+                            inv.InvoiceStatus = dbData.InvoiceStatus;
+                            inv.NetInvoiceAmount = dbData.NetInvoiceAmount;
+                            inv.InvoiceNumber = dbData.InvoiceNumber;
+                            console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}`);
+                        }
+                    });
+                }
+            }
             return {
                 success: true,
                 invoices: invoices
