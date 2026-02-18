@@ -1522,7 +1522,7 @@ export default function InvoicesScreen() {
       >
         <View className="flex-row items-center justify-between mb-4">
           <TouchableOpacity 
-            onPress={() => router.back()}
+            onPress={() => router.push('/shop')}
             className="p-2 -ml-2"
           >
             <Ionicons name="arrow-back" size={24} color="#000" />

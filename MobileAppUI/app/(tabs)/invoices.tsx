@@ -1,5 +1,5 @@
-import { Redirect } from 'expo-router';
+import InvoicesScreen from '../invoices';
 
 export default function InvoicesTab() {
-  return <Redirect href="/invoices" />;
+  return <InvoicesScreen />;
 }
