@@ -25,9 +25,13 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.amitavpanda.MobileAppUI",
+      "permissions": [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ],
       "config": {
         "googleMaps": {
-          "apiKey": "process.env.GOOGLE_MAPS_API_KEY"
+          "apiKey": "process.env.EXPO_GOOGLE_MAPS_API_KEY"
         }
       }
     },

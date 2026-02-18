@@ -114,11 +114,40 @@ const params = useLocalSearchParams();
 
   const requestLocationPermission = async (): Promise<boolean> => {
     try {
+      console.log('[PinLocation] Requesting location permission...');
       const { status } = await Location.requestForegroundPermissionsAsync();
       console.log('[PinLocation] requestLocationPermission -> status:', status);
+      
+      if (status !== 'granted') {
+        // Show user-friendly alert in production
+        if (!__DEV__) {
+          Alert.alert(
+            'Location Permission Required',
+            'Please enable location permission in your device settings to use this feature.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => {
+                // Note: Opening settings requires additional linking setup
+                console.log('[PinLocation] User requested to open settings');
+              }}
+            ]
+          );
+        }
+      }
+      
       return status === 'granted';
     } catch (error) {
       console.error('[PinLocation] Error requesting location permission:', error);
+      
+      // Alert user in production about permission error
+      if (!__DEV__) {
+        Alert.alert(
+          'Location Error',
+          'Unable to request location permission. Please check your device settings.',
+          [{ text: 'OK' }]
+        );
+      }
+      
       return false;
     }
   };
@@ -341,7 +370,10 @@ const params = useLocalSearchParams();
     }
   };
   // Expose the Google Maps keys from app config (app.config.js injects these into expo.extra)
-  const extras = (Constants.expoConfig && (Constants.expoConfig.extra as any)) || (Constants.manifest && (Constants.manifest.extra as any)) || {};
+  const extras = (Constants.expoConfig?.extra as any) || (Constants.manifest2?.extra as any) || {};
+  
+  // For production: directly use EXPO_GOOGLE_MAPS_API_KEY for Android (simpler approach)
+  // This matches the production .env variable name exactly
   const ANDROID_API_KEY = extras.GOOGLE_MAPS_API_KEY_ANDROID || extras.GOOGLE_MAPS_API_KEY || '';
   const IOS_API_KEY = extras.GOOGLE_MAPS_API_KEY_IOS || extras.GOOGLE_MAPS_API_KEY || '';
   const API_BASE_URL = extras.EXPO_PUBLIC_API_URL || extras.API_BASE_URL || '';

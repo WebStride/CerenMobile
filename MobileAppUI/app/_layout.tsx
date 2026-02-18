@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext"; // <-- Import your new CartProvider
 import { FavouritesProvider } from "./context/FavouritesContext";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 // Runtime safety shim: wrap the global Response constructor to avoid a
 // RangeError when some code (or a failed network request) produces a
@@ -36,12 +37,14 @@ try {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <FavouritesProvider> {/* Add this wrapper */}
-          <Stack screenOptions={{ headerShown: false }} />
-        </FavouritesProvider>
-      </CartProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <CartProvider>
+          <FavouritesProvider> {/* Add this wrapper */}
+            <Stack screenOptions={{ headerShown: false }} />
+          </FavouritesProvider>
+        </CartProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

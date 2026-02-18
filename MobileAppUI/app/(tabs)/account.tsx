@@ -1045,12 +1045,12 @@ export default function AccountScreen() {
       icon: 'location-outline',
       onPress: () => setAddressModalVisible(true)
     },
-    {
-      id: 'invoices',
-      title: 'Invoices',
-      icon: 'document-text-outline',
-      onPress: () => router.push('/invoices')
-    },
+    // {
+    //   id: 'invoices',
+    //   title: 'Invoices',
+    //   icon: 'document-text-outline',
+    //   onPress: () => router.push('/invoices')
+    // },
     {
       id: 'notifications',
       title: 'Notifications',
