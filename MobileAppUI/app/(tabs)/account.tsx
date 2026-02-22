@@ -5,7 +5,6 @@ import {
   Image, 
   TouchableOpacity, 
   ScrollView, 
-  SafeAreaView,
   Modal,
   Pressable,
   Alert,
@@ -16,15 +15,17 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getUserAddresses,
   deleteUserAddress,
   updateUserAddress,
   setDefaultAddress as setDefaultAddressAPI,
   getDefaultAddress,
-  getUserMasterAddress
+  getUserMasterAddress,
+  submitContactUs
 } from "@/services/api";
+import { isGuestSession } from "@/utils/session";
 
 const { height, width } = Dimensions.get('window');
 
@@ -793,6 +794,15 @@ export default function AccountScreen() {
   // Modal states
   const [modalVisible, setModalVisible] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    requestType: 'Edit Shop Details',
+    name: '',
+    phoneNumber: '',
+    address: '',
+    message: '',
+  });
   const [defaultAddress, setDefaultAddress] = useState<Address | null>(null);
   const [userMasterAddress, setUserMasterAddress] = useState<string | null>(null);
   const [addressLoading, setAddressLoading] = useState(false);
@@ -825,6 +835,7 @@ export default function AccountScreen() {
   // State for store and user data
   const [storeName, setStoreName] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
 
   // Phone formatter utility: "+917077404655" -> "+91 70774 04655"
   const formatPhoneNumber = (phone: string): string => {
@@ -846,6 +857,9 @@ export default function AccountScreen() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
+        const guest = await isGuestSession();
+        setIsGuest(guest);
+
         const selectedStore = await AsyncStorage.getItem('selectedStoreName');
         const userDataStr = await AsyncStorage.getItem('userData');
         
@@ -973,6 +987,61 @@ export default function AccountScreen() {
     setAddressModalVisible(false);
   };
 
+  const openContactModal = () => {
+    const resolvedAddress = defaultAddress
+      ? [
+          defaultAddress.HouseNumber,
+          defaultAddress.BuildingBlock,
+          defaultAddress.Landmark,
+          defaultAddress.City,
+          defaultAddress.District,
+          defaultAddress.PinCode,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : userMasterAddress || '';
+
+    setContactForm((prev) => ({
+      ...prev,
+      name: isGuest ? '' : (storeName || ''),
+      phoneNumber: isGuest ? '' : (phoneNumber || ''),
+      address: isGuest ? '' : resolvedAddress,
+      message: '',
+    }));
+
+    setContactModalVisible(true);
+  };
+
+  const handleSubmitContact = async () => {
+    if (!contactForm.name.trim() || !contactForm.phoneNumber.trim() || !contactForm.address.trim() || !contactForm.message.trim()) {
+      Alert.alert('Missing details', 'Please fill all required fields.');
+      return;
+    }
+
+    setContactSubmitting(true);
+    try {
+      const result = await submitContactUs({
+        name: contactForm.name.trim(),
+        phoneNumber: contactForm.phoneNumber.trim(),
+        address: contactForm.address.trim(),
+        message: contactForm.message.trim(),
+        requestType: contactForm.requestType,
+        isGuest,
+      });
+
+      if (result.success) {
+        setContactModalVisible(false);
+        Alert.alert('Request sent', 'Your query has been submitted to customer care.');
+      } else {
+        Alert.alert('Failed', result.message || 'Unable to submit request. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to submit request. Please try again.');
+    } finally {
+      setContactSubmitting(false);
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert(
       "Log Out",
@@ -1062,6 +1131,12 @@ export default function AccountScreen() {
       title: 'About',
       icon: 'information-circle-outline',
       onPress: () => router.push('/account/about')
+    },
+    {
+      id: 'contact-us',
+      title: 'Customer Care / Contact Us',
+      icon: 'chatbox-ellipses-outline',
+      onPress: openContactModal
     }
   ];
 
@@ -1087,7 +1162,7 @@ export default function AccountScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <ScrollView 
         className="flex-1" 
         showsVerticalScrollIndicator={false}
@@ -1116,15 +1191,9 @@ export default function AccountScreen() {
                 <Text className="text-xl font-bold text-gray-900 flex-1">
                   {storeName || "No store selected"}
                 </Text>
-                <TouchableOpacity 
-                  onPress={() => Alert.alert("Coming Soon", "Edit store feature is under development.")}
-                  className="ml-2"
-                >
-                  <Ionicons name="create-outline" size={20} color="#10B981" />
-                </TouchableOpacity>
               </View>
               <Text className="text-gray-500 text-base mt-1">
-                {phoneNumber ? formatPhoneNumber(phoneNumber) : "Phone not available"}
+                {isGuest ? "Browsing as guest" : (phoneNumber ? formatPhoneNumber(phoneNumber) : "Phone not available")}
               </Text>
             </View>
           </View>
@@ -1167,17 +1236,17 @@ export default function AccountScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button - UNCHANGED */}
+        {/* Auth Action Button */}
         <View className="mt-8 mx-4">
           <TouchableOpacity
-            onPress={handleLogout}
+            onPress={isGuest ? () => router.push('/login') : handleLogout}
             className="bg-white rounded-lg py-4 px-4 border border-gray-200 shadow-sm"
             activeOpacity={0.8}
           >
             <View className="flex-row items-center justify-center">
-              <Ionicons name="log-out-outline" size={24} color="#10B981" />
+              <Ionicons name={isGuest ? "log-in-outline" : "log-out-outline"} size={24} color="#10B981" />
               <Text className="text-lg font-semibold text-green-600 ml-3">
-                Log Out
+                {isGuest ? "Login" : "Log Out"}
               </Text>
             </View>
           </TouchableOpacity>
@@ -1256,6 +1325,95 @@ export default function AccountScreen() {
         onAddNewAddress={handleAddNewAddress}
         onAddressSetAsDefault={fetchDefaultAddress}
       />
+
+      <Modal
+        visible={contactModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setContactModalVisible(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 20 }}
+          onPress={() => setContactModalVisible(false)}
+        >
+          <Pressable
+            style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18 }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 6 }}>
+              Customer Care
+            </Text>
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 14 }}>
+              Raise a query for shop changes or new shop requests.
+            </Text>
+
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8 }}>Request Type</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {['Edit Shop Details', 'Add New Shop', 'Other'].map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => setContactForm((prev) => ({ ...prev, requestType: option }))}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: contactForm.requestType === option ? '#BCD042' : '#E5E7EB',
+                    backgroundColor: contactForm.requestType === option ? '#F9FBEF' : '#fff',
+                    borderRadius: 999,
+                    paddingVertical: 7,
+                    paddingHorizontal: 12,
+                  }}
+                >
+                  <Text style={{ color: '#374151', fontSize: 12, fontWeight: '600' }}>{option}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              placeholder="Name"
+              value={contactForm.name}
+              onChangeText={(text) => setContactForm((prev) => ({ ...prev, name: text }))}
+              style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, marginBottom: 10 }}
+            />
+            <TextInput
+              placeholder="Phone Number"
+              value={contactForm.phoneNumber}
+              onChangeText={(text) => setContactForm((prev) => ({ ...prev, phoneNumber: text }))}
+              keyboardType="phone-pad"
+              style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, marginBottom: 10 }}
+            />
+            <TextInput
+              placeholder="Address"
+              value={contactForm.address}
+              onChangeText={(text) => setContactForm((prev) => ({ ...prev, address: text }))}
+              style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, marginBottom: 10 }}
+            />
+            <TextInput
+              placeholder="Message"
+              value={contactForm.message}
+              onChangeText={(text) => setContactForm((prev) => ({ ...prev, message: text }))}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, minHeight: 90, marginBottom: 14 }}
+            />
+
+            <TouchableOpacity
+              onPress={handleSubmitContact}
+              disabled={contactSubmitting}
+              style={{
+                backgroundColor: '#BCD042',
+                borderRadius: 12,
+                paddingVertical: 12,
+                alignItems: 'center',
+                opacity: contactSubmitting ? 0.7 : 1,
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
+                {contactSubmitting ? 'Submitting...' : 'Send Message'}
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

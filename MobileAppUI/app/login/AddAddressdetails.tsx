@@ -16,7 +16,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { sendAddressDetails } from "@/services/api";
+import { sendAddressDetails, getStoresForUser } from "@/services/api";
 
 const SAVE_AS_OPTIONS = [
   {
@@ -109,28 +109,90 @@ export default function AddAddressDetailsScreen() {
           [
             {
               text: "OK",
-              onPress: () => {
+              onPress: async () => {
                 if (fromLocationModal === "true") {
                   // User came from location modal, navigate back to home screen
                   console.log("🏠 Navigating back to home screen after adding address");
                   router.replace("/(tabs)/shop");
                 } else {
-                  // Normal login flow: navigate to SelectStore so user can pick a store
-                  console.log("🔐 Normal login flow, navigating to SelectStore with user data");
-                  router.push({
-                    pathname: "/login/SelectStore",
-                    params: {
-                      city,
-                      district,
-                      location,
-                      address,
-                      name,
-                      phoneNumber,
-                      fromLocationModal,
-                      latitude,
-                      longitude
-                    },
-                  });
+                  // Normal login flow: check store count before deciding navigation
+                  console.log("🔐 Normal login flow, checking stores...");
+                  try {
+                    const storesRes = await getStoresForUser();
+                    if (storesRes.success && Array.isArray(storesRes.stores)) {
+                      // Store the hasMultipleStores flag
+                      await AsyncStorage.setItem('hasMultipleStores', String(storesRes.stores.length > 1));
+                      
+                      if (storesRes.stores.length === 1) {
+                        // Only one store - auto-select and go directly to shop
+                        const singleStore = storesRes.stores[0];
+                        await AsyncStorage.setItem('selectedStoreId', String(singleStore.CUSTOMERID));
+                        await AsyncStorage.setItem('selectedStoreName', singleStore.CUSTOMERNAME);
+                        console.log('🏪 Auto-selected single store:', singleStore.CUSTOMERNAME);
+                        router.replace({
+                          pathname: '/(tabs)/shop',
+                          params: {
+                            customerId: String(singleStore.CUSTOMERID),
+                            storeName: singleStore.CUSTOMERNAME,
+                          }
+                        });
+                      } else if (storesRes.stores.length === 0) {
+                        // No stores - go to shop without store (catalog mode)
+                        await AsyncStorage.removeItem('selectedStoreId');
+                        await AsyncStorage.removeItem('selectedStoreName');
+                        router.replace('/(tabs)/shop');
+                      } else {
+                        // Multiple stores - show SelectStore page
+                        router.push({
+                          pathname: "/login/SelectStore",
+                          params: {
+                            city,
+                            district,
+                            location,
+                            address,
+                            name,
+                            phoneNumber,
+                            fromLocationModal,
+                            latitude,
+                            longitude
+                          },
+                        });
+                      }
+                    } else {
+                      // Failed to fetch stores, fallback to SelectStore page
+                      router.push({
+                        pathname: "/login/SelectStore",
+                        params: {
+                          city,
+                          district,
+                          location,
+                          address,
+                          name,
+                          phoneNumber,
+                          fromLocationModal,
+                          latitude,
+                          longitude
+                        },
+                      });
+                    }
+                  } catch (storeError) {
+                    console.error('Error checking stores:', storeError);
+                    // Fallback to SelectStore page on error
+                    router.push({
+                      pathname: "/login/SelectStore",
+                      params: {
+                        city,
+                        district,
+                        location,
+                        address,
+                        name,
+                        phoneNumber,
+                        fromLocationModal,
+                        latitude,
+                        longitude
+                      },
+                    });
+                  }
                 }
               },
             },
