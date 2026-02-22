@@ -6,16 +6,17 @@ import {
   TouchableOpacity,
   RefreshControl,
   Modal,
-  Platform,
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router"; // Import useRouter
 import { useFocusEffect } from "@react-navigation/native";
-import { getOrders, getOrderItems, placeOrder } from "../../services/api";
+import { getOrders, getOrderItems } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import GuestScreen from "@/components/GuestScreen";
+import { isGuestSession } from "@/utils/session";
+import { useCart } from "../context/CartContext";
 
 // Local UI order shape
 type UiOrder = {
@@ -28,6 +29,16 @@ type UiOrder = {
   deliveryDate?: string | null;
   rawOrderDate?: string;
   rawDeliveryDate?: string | null;
+};
+
+type OrderAgainItem = {
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  productUnits: number;
+  unitsOfMeasurement: string;
+  image: string;
 };
 
 // We'll fetch orders from API and map them to UiOrder
@@ -167,15 +178,24 @@ const FilterButton = ({ title, isActive, onPress }: { title: string; isActive: b
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { cart, addToCart } = useCart();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<UiOrder[]>([]);
-  const [showOrderAgainModal, setShowOrderAgainModal] = useState(false);
-  const [selectedOrderForReorder, setSelectedOrderForReorder] = useState<UiOrder | null>(null);
-  const [reorderDate, setReorderDate] = useState(new Date());
-  const [showReorderDatePicker, setShowReorderDatePicker] = useState(false);
-  const [isPlacingReorder, setIsPlacingReorder] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [showOrderAgainPopup, setShowOrderAgainPopup] = useState(false);
+  const [orderAgainItems, setOrderAgainItems] = useState<OrderAgainItem[]>([]);
+  const [isOrderAgainPreviewLoading, setIsOrderAgainPreviewLoading] = useState(false);
+
+  React.useEffect(() => {
+    const loadGuestState = async () => {
+      const guest = await isGuestSession();
+      setIsGuest(guest);
+    };
+
+    loadGuestState();
+  }, []);
 
   const filterOptions = [
     { key: 'all', label: 'All' },
@@ -197,6 +217,12 @@ export default function OrdersScreen() {
 
   // Extracted load function as a reusable callback
   const loadOrders = useCallback(async (isRefresh = false) => {
+    if (isGuest !== false) {
+      setOrders([]);
+      setError(null);
+      return;
+    }
+
     if (isRefresh) {
       setRefreshing(true);
     } else {
@@ -245,7 +271,7 @@ export default function OrdersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [isGuest]);
 
   // Use useFocusEffect to reload orders whenever the screen comes into focus
   useFocusEffect(
@@ -260,92 +286,102 @@ export default function OrdersScreen() {
   }, [loadOrders]);
 
   const handleOrderAgain = async (orderId: string) => {
-    console.log("Order again for:", orderId);
-    const order = orders.find(o => o.id === orderId);
-    if (order) {
-      setSelectedOrderForReorder(order);
-      setReorderDate(new Date());
-      setShowOrderAgainModal(true);
-    }
-  };
-
-  const confirmReorder = async () => {
-    if (!selectedOrderForReorder) return;
-    
-    setIsPlacingReorder(true);
-    
     try {
-      // Fetch order items for the selected order
-      const orderItemsResponse = await getOrderItems(Number(selectedOrderForReorder.id));
+      setIsOrderAgainPreviewLoading(true);
+      const orderItemsResponse = await getOrderItems(Number(orderId));
       
       if (!orderItemsResponse || !orderItemsResponse.orderItems || orderItemsResponse.orderItems.length === 0) {
-        Alert.alert('Error', 'Failed to fetch order items. Please try again.');
-        setIsPlacingReorder(false);
+        Alert.alert('Error', 'No products found in this order.');
         return;
       }
-      
-      // Get customer info
+
       const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
-      const customerName = await AsyncStorage.getItem('customerName') || 'Customer';
-      
       if (!selectedStoreId) {
-        Alert.alert('Error', 'No store selected. Please select a store first.');
-        setIsPlacingReorder(false);
+        Alert.alert('Error', 'Please select a store before using Order Again.');
         return;
       }
-      
-      // Map order items to the format expected by placeOrder API
-      const orderItems = orderItemsResponse.orderItems.map((item: any) => ({
-        productId: item.ProductID,
-        productName: item.ProductName || `Product ${item.ProductID}`,
-        quantity: Number(item.OrderQty ?? item.SaleQty ?? 0),
-        price: Number(item.Price ?? 0),
-      }));
-      
-      // Format order date as YYYY-MM-DD
-      const formattedOrderDate = reorderDate.toISOString().split('T')[0];
-      
-      // Place the order
-      const result = await placeOrder(
-        Number(selectedStoreId),
-        customerName,
-        orderItems,
-        formattedOrderDate
-      );
-      
-      if (result.success) {
-        setShowOrderAgainModal(false);
-        setSelectedOrderForReorder(null);
-        
-        Alert.alert(
-          'Success',
-          'Your order has been placed successfully!',
-          [
-            { 
-              text: 'OK', 
-              onPress: () => {
-                // Refresh orders list
-                loadOrders();
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert(
-          'Order Failed',
-          result.message || 'Failed to place order. Please try again.',
-          [{ text: 'OK' }]
-        );
+
+      const itemsForPreview: OrderAgainItem[] = orderItemsResponse.orderItems
+        .map((item: any) => {
+          const quantity = Number(item.OrderQty ?? item.SaleQty ?? 0);
+          return {
+            productId: Number(item.ProductID),
+            productName: item.ProductName || `Product ${item.ProductID}`,
+            quantity,
+            price: Number(item.Price ?? 0),
+            image: item.ProductImage || '',
+            productUnits: Number(item.ProductUnits ?? 1),
+            unitsOfMeasurement: item.UnitsOfMeasurement || 'pcs',
+          };
+        })
+        .filter((item: OrderAgainItem) => item.quantity > 0);
+
+      if (!itemsForPreview.length) {
+        Alert.alert('Error', 'No valid products found in this order.');
+        return;
       }
+
+      setOrderAgainItems(itemsForPreview);
+      setShowOrderAgainPopup(true);
     } catch (error) {
-      console.error('Error placing reorder:', error);
+      console.error('Error preparing order again preview:', error);
       Alert.alert(
         'Error',
-        'An unexpected error occurred. Please try again.',
+        'Failed to load ordered products. Please try again.',
         [{ text: 'OK' }]
       );
     } finally {
-      setIsPlacingReorder(false);
+      setIsOrderAgainPreviewLoading(false);
+    }
+  };
+
+  const confirmOrderAgain = () => {
+    try {
+      let totalAddedQuantity = 0;
+      let skippedExistingCount = 0;
+
+      for (const item of orderAgainItems) {
+        const alreadyInCart = cart.some((cartItem) => cartItem.productId === item.productId);
+        if (alreadyInCart) {
+          skippedExistingCount += 1;
+          continue;
+        }
+
+        addToCart(
+          {
+            productId: item.productId,
+            productName: item.productName,
+            price: item.price,
+            image: item.image,
+            productUnits: item.productUnits,
+            unitsOfMeasurement: item.unitsOfMeasurement,
+          },
+          item.quantity
+        );
+
+        totalAddedQuantity += item.quantity;
+      }
+
+      setShowOrderAgainPopup(false);
+      setOrderAgainItems([]);
+
+      if (totalAddedQuantity > 0) {
+        router.push('/(tabs)/cart');
+      } else {
+        Alert.alert(
+          'No New Items Added',
+          skippedExistingCount > 0
+            ? 'All products from this order already exist in your cart. Existing quantities were not changed.'
+            : 'No valid products found to add to cart.'
+        );
+      }
+    } catch (error) {
+      console.error('Error adding ordered products to cart:', error);
+      Alert.alert(
+        'Error',
+        'Failed to add products to cart. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -370,6 +406,19 @@ export default function OrdersScreen() {
       }
     });
   };
+
+  // Show guest screen if guest or still checking
+  if (isGuest === null || isGuest === true) {
+    return (
+      <GuestScreen
+        isGuest={isGuest}
+        title="Orders"
+        icon="receipt-outline"
+        message="Please login to view and manage your orders."
+        showBackButton={false}
+      />
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -446,171 +495,112 @@ export default function OrdersScreen() {
         )}
       </ScrollView>
 
-      {/* Order Again Modal */}
       <Modal
-        visible={showOrderAgainModal}
-        transparent={true}
+        visible={showOrderAgainPopup}
+        transparent
         animationType="fade"
-        onRequestClose={() => setShowOrderAgainModal(false)}
+        onRequestClose={() => setShowOrderAgainPopup(false)}
       >
         <View style={{
           flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0,0,0,0.45)',
           justifyContent: 'center',
-          alignItems: 'center',
-          padding: 20
+          paddingHorizontal: 20,
         }}>
           <View style={{
-            backgroundColor: 'white',
+            backgroundColor: '#fff',
             borderRadius: 16,
-            padding: 24,
-            width: '100%',
-            maxWidth: 400,
+            maxHeight: '75%',
+            padding: 16,
           }}>
-            <Text style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: '#111827',
-              marginBottom: 8
-            }}>Place Order Again</Text>
-            
-            <Text style={{
-              fontSize: 14,
-              color: '#6B7280',
-              marginBottom: 20
-            }}>Select a date for your new order</Text>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 }}>
+              Order Again
+            </Text>
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+              The following products will be added to your cart with the same quantities.
+            </Text>
 
-            {/* Date Selection */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: '#374151',
-                marginBottom: 8
-              }}>Order Date</Text>
-              
-              <TouchableOpacity
-                onPress={() => setShowReorderDatePicker(true)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 12,
-                  backgroundColor: '#F9FAFB',
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB'
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="calendar-outline" size={20} color="#15803d" />
-                  <Text style={{
-                    fontSize: 14,
-                    color: '#111827',
-                    fontWeight: '500',
-                    marginLeft: 8
-                  }}>
-                    {reorderDate.toLocaleDateString('en-IN', { 
-                      weekday: 'short',
-                      year: 'numeric', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })}
+            <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+              {orderAgainItems.map((item) => (
+                <View
+                  key={`${item.productId}-${item.productName}`}
+                  style={{
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#F3F4F6',
+                    paddingVertical: 10,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }} numberOfLines={2}>
+                      {item.productName}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                      ₹{item.price.toFixed(2)}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#15803d' }}>
+                    x{item.quantity}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
+              ))}
+            </ScrollView>
 
-            {showReorderDatePicker && (
-              <DateTimePicker
-                value={reorderDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
-                  setShowReorderDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) {
-                    setReorderDate(selectedDate);
-                  }
-                }}
-              />
-            )}
-
-            {/* Order Summary */}
-            {selectedOrderForReorder && (
-              <View style={{
-                backgroundColor: '#F9FBEF',
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 24,
-                borderWidth: 1,
-                borderColor: '#BCD042'
-              }}>
-                <Text style={{
-                  fontSize: 12,
-                  fontWeight: '600',
-                  color: '#6B7280',
-                  marginBottom: 4
-                }}>Original Order</Text>
-                <Text style={{
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: '#111827',
-                  marginBottom: 2
-                }}>{selectedOrderForReorder.orderNumber}</Text>
-                <Text style={{
-                  fontSize: 13,
-                  color: '#374151'
-                }}>{selectedOrderForReorder.itemCount} items • ₹{Number(selectedOrderForReorder.amount ?? 0).toFixed(2)}</Text>
-              </View>
-            )}
-
-            {/* Action Buttons */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flexDirection: 'row', marginTop: 16 }}>
               <TouchableOpacity
                 onPress={() => {
-                  setShowOrderAgainModal(false);
-                  setSelectedOrderForReorder(null);
+                  setShowOrderAgainPopup(false);
+                  setOrderAgainItems([]);
                 }}
                 style={{
                   flex: 1,
-                  backgroundColor: '#F3F4F6',
+                  marginRight: 8,
+                  borderWidth: 1,
+                  borderColor: '#E5E7EB',
+                  borderRadius: 12,
                   paddingVertical: 12,
-                  borderRadius: 8,
-                  alignItems: 'center'
-                }}
-                disabled={isPlacingReorder}
-              >
-                <Text style={{
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: '#374151'
-                }}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                onPress={confirmReorder}
-                style={{
-                  flex: 1,
-                  backgroundColor: '#15803d',
-                  paddingVertical: 12,
-                  borderRadius: 8,
                   alignItems: 'center',
-                  opacity: isPlacingReorder ? 0.6 : 1
                 }}
-                disabled={isPlacingReorder}
               >
-                <Text style={{
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: 'white'
-                }}>{isPlacingReorder ? 'Placing...' : 'Confirm Order'}</Text>
+                <Text style={{ color: '#374151', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={confirmOrderAgain}
+                style={{
+                  flex: 1,
+                  marginLeft: 8,
+                  backgroundColor: '#BCD042',
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Confirm</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
+      {isOrderAgainPreviewLoading && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255,255,255,0.4)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#374151', fontWeight: '600' }}>Loading order items...</Text>
+        </View>
+      )}
     </View>
   );
 }

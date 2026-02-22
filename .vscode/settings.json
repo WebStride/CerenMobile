@@ -1,4 +1,14 @@
 {
     "debug.allowBreakpointsEverywhere": true,
-    "debug.showBreakpointsInOverviewRuler": true
+    "debug.showBreakpointsInOverviewRuler": true,
+    "github.copilot.chat.mcp.enabled": true,
+    "mcp.servers": {
+        "context7": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@upstash/context7-mcp"
+            ]
+        }
+    }
 }

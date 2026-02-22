@@ -175,8 +175,11 @@ export async function getInvoicesForCustomer(req: AuthRequest, res: Response) {
             });
         }
 
-        // Return the invoices array directly (matching external API response format)
-        res.json(result.invoices);
+        // Return with success wrapper to match frontend expectations
+        res.json({
+            success: true,
+            invoices: result.invoices
+        });
     } catch (error: any) {
         console.error('Error fetching invoices for customer:', error);
         res.status(500).json({

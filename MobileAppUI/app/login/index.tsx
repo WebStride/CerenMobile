@@ -13,6 +13,7 @@ import { useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import { checkCustomer, sendOtp } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import { setGuestSession } from "@/utils/session";
 
 
 const countryData = {
@@ -27,6 +28,11 @@ export default function LoginNumberScreen() {
   const [loading, setLoading] = useState(false);
 
   const isButtonDisabled = phoneNumber.length < 10;
+
+  const handleSkipLogin = async () => {
+    await setGuestSession();
+    router.replace("/(tabs)/shop");
+  };
 
 
   const handleNext = async () => {
@@ -134,6 +140,23 @@ export default function LoginNumberScreen() {
             >
               Enter your mobile number
             </Text>
+
+            <View className="flex-row justify-end mb-3">
+              <TouchableOpacity
+                onPress={handleSkipLogin}
+                accessibilityLabel="Skip Login"
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#BCD042",
+                  borderRadius: 999,
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                }}
+              >
+                <Text style={{ color: "#6A8D00", fontWeight: "600", fontSize: 13 }}>Skip Login</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Mobile Number Field */}
             <View className="mb-6">
               <Text

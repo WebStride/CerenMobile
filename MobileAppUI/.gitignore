@@ -17,6 +17,11 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+# Exclude release keystores (keep debug.keystore for development)
+release.keystore
+ceren-release.keystore
+*.keystore
+!debug.keystore
 
 # Metro
 .metro-health-check*
@@ -73,8 +78,12 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.local
 .env.development
 .env.production
+# Exclude fingerprint files
+fingerprints_*.txt
 # typescript
 *.tsbuildinfo
 
