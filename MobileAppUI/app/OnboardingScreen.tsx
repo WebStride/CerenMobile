@@ -4,6 +4,7 @@ import { logos } from "@/constants/logo";
 import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { validateTokens } from "@/services/api";
+import { isGuestSession, setAuthenticatedSession } from "@/utils/session";
 export default function OnboardingScreen() {
   const router = useRouter();
 
@@ -16,9 +17,14 @@ export default function OnboardingScreen() {
       console.log("Access token retrieved:", accessToken);
       const refreshToken = await AsyncStorage.getItem("refreshToken");
       console.log("Refresh token retrieved:", refreshToken);
+      const guest = await isGuestSession();
 
       // If there's no stored access token, go to login
       if (!accessToken) {
+        if (guest) {
+          router.replace("/(tabs)/shop");
+          return;
+        }
         console.log("No access token found, navigating to login");
         router.replace("/login");
         return;
@@ -34,6 +40,7 @@ export default function OnboardingScreen() {
         if (validation.newAccessToken) {
           await AsyncStorage.setItem('accessToken', validation.newAccessToken);
         }
+        await setAuthenticatedSession();
         console.log("Tokens are valid, navigating to shop");
         router.push("/(tabs)/shop");
         return;

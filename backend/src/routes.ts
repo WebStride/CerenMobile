@@ -21,6 +21,7 @@ import { checkCustomer } from "./controllers/auth";
 import { getStores } from "./controllers/customer";
 import { getOrdersByCustomer, getOrderItemsByOrder, getInvoicesByCustomer, getInvoiceItemsByInvoice, getInvoicesForCustomer } from "./controllers/orders";
 import { placeOrder } from "./controllers/orders/placeOrder";
+import { submitContactUs } from "./controllers/support";
 const prisma = new PrismaClient();
 
 function routes(app: Express) {
@@ -68,16 +69,16 @@ function routes(app: Express) {
     app.put("/user/addresses/:addressId", authenticateToken, updateUserAddress);
     app.delete("/user/addresses/:addressId", authenticateToken, deleteUserAddress);
 
-    // Product routes (all protected with authentication)
-    app.get("/products/exclusive", authenticateToken, getExclusiveProductsList);
-    app.get("/products/best-selling", authenticateToken, getBestSelling);
-    app.get("/products/newProducts", authenticateToken, newProductsList);
+    // Product routes (guest browsing allowed)
+    app.get("/products/exclusive", getExclusiveProductsList);
+    app.get("/products/best-selling", getBestSelling);
+    app.get("/products/newProducts", newProductsList);
     app.get("/products/buyAgain", authenticateToken, buyAgainProductsList);
-    app.get("/products/allProducts", authenticateToken, allProductsList);
+    app.get("/products/allProducts", allProductsList);
 
 
-    app.get("/categories/subCategories/:categoryId", authenticateToken, getSubCategories);
-    app.get("/products/categories", authenticateToken, getCategoryList);
+    app.get("/categories/subCategories/:categoryId", getSubCategories);
+    app.get("/products/categories", getCategoryList);
 
     // Favourites routes
     app.get('/favourites', authenticateToken, getFavourites);
@@ -93,15 +94,14 @@ function routes(app: Express) {
 
     app.get(
   "/products/productsBySubCategory/:subCategoryId",
-  authenticateToken,
   productsBySubCategory
 );
 
         // Similar products by productId (returns other products in same CategoryID)
-        app.get('/products/similar/:productId', authenticateToken, similarProductsList);
+        app.get('/products/similar/:productId', similarProductsList);
 
         // Products by catalog - given a productId, return other products in same CatalogID
-        app.get('/products/catalog/:productId', authenticateToken, productsByCatalog);
+        app.get('/products/catalog/:productId', productsByCatalog);
 
     // Customer routes
     app.get('/customer/check', authenticateToken, checkCustomer);
@@ -117,6 +117,9 @@ function routes(app: Express) {
     app.get('/invoices', authenticateToken, getInvoicesByCustomer);
     app.get('/invoices/:invoiceId/items', authenticateToken, getInvoiceItemsByInvoice);
     app.post('/invoices/by-customer', authenticateToken, getInvoicesForCustomer);
+
+    // Support routes
+    app.post('/support/contact-us', submitContactUs);
     
     // Maps proxy endpoints removed — using client-side keys / native SDKs instead
     

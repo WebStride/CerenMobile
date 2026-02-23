@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { isGuestSession } from '@/utils/session';
 
 // API Logging Configuration:
 // 🔗 Shows which backend URL is being used (local vs production)
@@ -545,20 +546,33 @@ export const getSimilarProductsApi = async (productId: number) => {
 };
 
 export async function checkCustomerExists() {
-  const response = await fetch(`${apiUrl}/customer/check`, {
-    method: "GET",
-    headers: {
-      'Authorization': await getAccessToken(),
-      'x-refresh-token': await getRefreshToken(),
-    },
-  });
+  try {
+    const guest = await isGuestSession();
+    const token = await AsyncStorage.getItem('accessToken');
 
-  if (!response.ok) {
-    console.error("Error checking customer existence:", response.statusText);
+    if (guest || !token) {
+      return { success: true, exists: false, guest: true };
+    }
+
+    const response = await fetch(`${apiUrl}/customer/check`, {
+      method: "GET",
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return { success: true, exists: false, guest: true };
+      }
+      return { success: false, exists: false, message: "Failed to check customer existence" };
+    }
+
+    return response.json();
+  } catch {
     return { success: false, exists: false, message: "Failed to check customer existence" };
   }
-
-  return response.json();
 }
 
 // Favourites API helpers
@@ -815,7 +829,6 @@ export const getInvoicesByCustomerAndDateRange = async (
     const id = customerId || await getSelectedStoreId() || await getCustomerId();
     
     if (!id) {
-      console.error('No customer ID available');
       return { success: false, invoices: [], message: 'Customer ID required' };
     }
 
@@ -846,10 +859,21 @@ export const getInvoicesByCustomerAndDateRange = async (
     }
 
     const data = await response.json();
-    console.log('📊 Invoices fetched:', Array.isArray(data) ? data.length : 'non-array');
+    console.log('📊 Invoices response:', JSON.stringify(data).substring(0, 200));
     
-    // API returns array directly
-    return { success: true, invoices: Array.isArray(data) ? data : [] };
+    // Backend returns { success: true, invoices: [...] }
+    if (data && typeof data === 'object' && 'success' in data && 'invoices' in data) {
+      return data; // Already in correct format
+    }
+    
+    // Fallback: if backend returns array directly
+    if (Array.isArray(data)) {
+      return { success: true, invoices: data };
+    }
+    
+    // Invalid format
+    console.error('Unexpected response format:', data);
+    return { success: false, invoices: [], message: 'Unexpected response format' };
   } catch (error: any) {
     console.error('Error in getInvoicesByCustomerAndDateRange:', error);
     return { success: false, invoices: [], message: error.message || 'Network error' };
@@ -1187,6 +1211,48 @@ export const placeOrder = async (
     return {
       success: false,
       message: error.message || 'Network error while placing order',
+    };
+  }
+};
+
+export const submitContactUs = async (payload: {
+  name: string;
+  phoneNumber: string;
+  address: string;
+  message: string;
+  requestType: string;
+  isGuest: boolean;
+}): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const endpoint = `${apiUrl}/support/contact-us`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || 'Failed to submit request',
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message || 'Request submitted',
+    };
+  } catch (error: any) {
+    console.error('Error submitting contact request:', error);
+    return {
+      success: false,
+      message: error?.message || 'Network error',
     };
   }
 };

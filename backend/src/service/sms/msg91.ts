@@ -277,3 +277,95 @@ export async function resendOtp(
         };
     }
 }
+
+export async function sendAdminContactAlert(payload: {
+    name: string;
+    phoneNumber: string;
+    address: string;
+    message: string;
+    requestType: string;
+    isGuest: boolean;
+}): Promise<{ success: boolean; message: string }> {
+    const authKey = process.env.MSG91_AUTH_KEY || process.env.MSG91_API_KEY || '';
+    const adminWhatsapp = (process.env.ADMIN_WHATSAPP_NUMBER || '').replace(/\D/g, '');
+    const integratedNumber = (process.env.MSG91_WHATSAPP_INTEGRATED_NUMBER || '').replace(/\D/g, '');
+    const templateName = process.env.MSG91_WHATSAPP_TEMPLATE_NAME || '';
+
+    const missing: string[] = [];
+    if (!authKey) missing.push('MSG91_AUTH_KEY/MSG91_API_KEY');
+    if (!adminWhatsapp) missing.push('ADMIN_WHATSAPP_NUMBER');
+    if (!integratedNumber) missing.push('MSG91_WHATSAPP_INTEGRATED_NUMBER');
+    if (!templateName) missing.push('MSG91_WHATSAPP_TEMPLATE_NAME');
+
+    if (missing.length > 0) {
+        return {
+            success: false,
+            message: `MSG91 WhatsApp configuration missing: ${missing.join(', ')}`
+        };
+    }
+
+    const endpoint = 'https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/';
+
+    try {
+        await axios.post(
+            endpoint,
+            {
+                integrated_number: integratedNumber,
+                content_type: 'template',
+                payload: {
+                    type: 'template',
+                    template: {
+                        name: templateName,
+                        language: {
+                            code: 'en',
+                            policy: 'deterministic'
+                        },
+                        to_and_components: [
+                            {
+                                to: [adminWhatsapp],
+                                components: {
+                                    body_1: {
+                                        type: 'text',
+                                        value: payload.name
+                                    },
+                                    body_2: {
+                                        type: 'text',
+                                        value: payload.phoneNumber
+                                    },
+                                    body_3: {
+                                        type: 'text',
+                                        value: payload.address
+                                    },
+                                    body_4: {
+                                        type: 'text',
+                                        value: payload.requestType
+                                    },
+                                    body_5: {
+                                        type: 'text',
+                                        value: payload.message
+                                    },
+                                    body_6: {
+                                        type: 'text',
+                                        value: payload.isGuest ? 'Guest' : 'Registered User'
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    messaging_product: 'whatsapp'
+                }
+            },
+            {
+                headers: {
+                    authkey: authKey,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        return { success: true, message: 'Admin WhatsApp alert sent' };
+    } catch (error: any) {
+        console.error('❌ Failed sending MSG91 WhatsApp contact alert:', error?.response?.data || error?.message);
+        return { success: false, message: 'Failed to send WhatsApp alert' };
+    }
+}

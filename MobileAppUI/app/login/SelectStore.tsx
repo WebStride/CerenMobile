@@ -59,9 +59,24 @@ export default function SelectStore() {
         setStores(res.stores);
         console.log(`🏪 [SelectStore] Found ${res.stores.length} stores`);
         
-        if (res.stores.length > 0) {
+        if (res.stores.length === 1) {
+          // Auto-select and navigate directly to shop if only one store
+          const singleStore = res.stores[0];
+          console.log('🏪 [SelectStore] Only one store found, auto-selecting:', singleStore.CUSTOMERNAME);
+          await AsyncStorage.setItem('selectedStoreId', String(singleStore.CUSTOMERID));
+          await AsyncStorage.setItem('selectedStoreName', singleStore.CUSTOMERNAME);
+          setLoading(false);
+          router.replace({
+            pathname: '/(tabs)/shop',
+            params: {
+              customerId: String(singleStore.CUSTOMERID),
+              storeName: singleStore.CUSTOMERNAME,
+            }
+          });
+          return;
+        } else if (res.stores.length > 1) {
           setSelectedStoreId(res.stores[0].CUSTOMERID);
-          console.log('🏪 [SelectStore] Auto-selected first store:', res.stores[0].CUSTOMERID);
+          console.log('🏪 [SelectStore] Multiple stores found, auto-selected first store:', res.stores[0].CUSTOMERID);
         } else {
           console.log('⚠️ [SelectStore] NO STORES - Will show "Continue to Browse" button');
         }
@@ -80,11 +95,12 @@ export default function SelectStore() {
     }
     
     try {
-      // Store the selected store info
+      // Store the selected store info and hasMultipleStores flag
       const selected = stores.find((s) => s.CUSTOMERID === selectedStoreId);
       if (selected) {
         await AsyncStorage.setItem('selectedStoreId', String(selected.CUSTOMERID));
         await AsyncStorage.setItem('selectedStoreName', selected.CUSTOMERNAME);
+        await AsyncStorage.setItem('hasMultipleStores', String(stores.length > 1));
         console.log('✅ Selected store:', selected.CUSTOMERNAME, '(ID:', selected.CUSTOMERID, ')');
       }
       

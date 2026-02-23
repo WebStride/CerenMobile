@@ -9,11 +9,10 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getOrderItems, getDefaultAddress, placeOrder } from '../../services/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { getOrderItems, getDefaultAddress } from '../../services/api';
+import { useCart } from "../context/CartContext";
 
 // Placeholder image for loading state
 const placeholderImage = require('../../assets/images/Banana.png');
@@ -56,6 +55,7 @@ interface OrderItem {
 const OrderDetailScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { cart, addToCart } = useCart();
   const { orderId, orderNumber, orderStatus, orderDate: routeOrderDate, deliveryDate: routeDeliveryDate, amount: routeAmount } = useLocalSearchParams();
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -63,9 +63,7 @@ const OrderDetailScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [defaultAddress, setDefaultAddress] = useState<any>(null);
   const [showOrderAgainModal, setShowOrderAgainModal] = useState(false);
-  const [reorderDate, setReorderDate] = useState(new Date());
-  const [showReorderDatePicker, setShowReorderDatePicker] = useState(false);
-  const [isPlacingReorder, setIsPlacingReorder] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   // Debug: Log route parameters
   console.log('📋 Route Params:', { orderId, orderNumber, orderStatus, routeOrderDate, routeDeliveryDate });
@@ -215,11 +213,11 @@ const OrderDetailScreen = () => {
   );
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}
       <View 
         className="bg-white px-4 pb-4 shadow-sm border-b border-gray-200"
-        style={{ paddingTop: insets.top + 16 }}
+        style={{ paddingTop: 16 }}
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity 
@@ -275,7 +273,7 @@ const OrderDetailScreen = () => {
             Order Details
           </Text>
           
-          <DetailRow label="Order Number" value={orderNumber || `#${orderId}`} />
+          <DetailRow label="Order Number" value={Array.isArray(orderNumber) ? orderNumber[0] : (orderNumber || `#${orderId}`)} />
           <DetailRow label="Payment Amount" value={routeAmount ? `₹${Number(routeAmount).toFixed(2)}` : '--'} />
           <DetailRow label="Order Status" value={orderStatus ? String(orderStatus).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Unknown'} />
           <DetailRow label="Order Date" value={routeOrderDate && String(routeOrderDate).trim() ? new Date(routeOrderDate as string).toLocaleDateString() : '--'} />
@@ -324,7 +322,10 @@ const OrderDetailScreen = () => {
             className="flex-1 bg-green-600 py-4 rounded-xl items-center shadow-sm"
             activeOpacity={0.8}
             onPress={() => {
-              setReorderDate(new Date());
+              if (!orderItems.length) {
+                Alert.alert('No items', 'No products found in this order.');
+                return;
+              }
               setShowOrderAgainModal(true);
             }}
           >
@@ -374,70 +375,13 @@ const OrderDetailScreen = () => {
               fontWeight: '700',
               color: '#111827',
               marginBottom: 8
-            }}>Place Order Again</Text>
+            }}>Order Again</Text>
             
             <Text style={{
               fontSize: 14,
               color: '#6B7280',
               marginBottom: 20
-            }}>Select a date for your new order</Text>
-
-            {/* Date Selection */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: '#374151',
-                marginBottom: 8
-              }}>Order Date</Text>
-              
-              <TouchableOpacity
-                onPress={() => setShowReorderDatePicker(true)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 12,
-                  backgroundColor: '#F9FAFB',
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: '#E5E7EB'
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="calendar-outline" size={20} color="#15803d" />
-                  <Text style={{
-                    fontSize: 14,
-                    color: '#111827',
-                    fontWeight: '500',
-                    marginLeft: 8
-                  }}>
-                    {reorderDate.toLocaleDateString('en-IN', { 
-                      weekday: 'short',
-                      year: 'numeric', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-
-            {showReorderDatePicker && (
-              <DateTimePicker
-                value={reorderDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
-                  setShowReorderDatePicker(Platform.OS === 'ios');
-                  if (selectedDate) {
-                    setReorderDate(selectedDate);
-                  }
-                }}
-              />
-            )}
+            }}>The following products will be added to cart with the same quantities.</Text>
 
             {/* Order Summary */}
             <View style={{
@@ -466,6 +410,27 @@ const OrderDetailScreen = () => {
               }}>{orderItems.length} items • ₹{routeAmount ? Number(routeAmount).toFixed(2) : '0.00'}</Text>
             </View>
 
+            <ScrollView style={{ maxHeight: 220, marginBottom: 20 }} showsVerticalScrollIndicator={false}>
+              {orderItems.map((item) => (
+                <View
+                  key={item.id}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 10,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#F3F4F6',
+                  }}
+                >
+                  <Text style={{ color: '#111827', fontWeight: '600', flex: 1, paddingRight: 10 }} numberOfLines={2}>
+                    {item.productName ?? `Product ${item.productId}`}
+                  </Text>
+                  <Text style={{ color: '#15803d', fontWeight: '700' }}>x{item.quantity}</Text>
+                </View>
+              ))}
+            </ScrollView>
+
             {/* Action Buttons */}
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <TouchableOpacity
@@ -479,7 +444,7 @@ const OrderDetailScreen = () => {
                   borderRadius: 8,
                   alignItems: 'center'
                 }}
-                disabled={isPlacingReorder}
+                disabled={isAddingToCart}
               >
                 <Text style={{
                   fontSize: 16,
@@ -490,69 +455,55 @@ const OrderDetailScreen = () => {
               
               <TouchableOpacity
                 onPress={async () => {
-                  setIsPlacingReorder(true);
+                  setIsAddingToCart(true);
                   
                   try {
-                    // Get customer info
-                    const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
-                    const customerName = await AsyncStorage.getItem('customerName') || 'Customer';
-                    
-                    if (!selectedStoreId) {
-                      Alert.alert('Error', 'No store selected. Please select a store first.');
-                      setIsPlacingReorder(false);
-                      return;
-                    }
-                    
-                    // Use existing order items
-                    const orderItemsForApi = orderItems.map(item => ({
-                      productId: item.productId,
-                      productName: item.productName || `Product ${item.productId}`,
-                      quantity: item.quantity,
-                      price: item.price,
-                    }));
-                    
-                    // Format order date as YYYY-MM-DD
-                    const formattedOrderDate = reorderDate.toISOString().split('T')[0];
-                    
-                    // Place the order
-                    const result = await placeOrder(
-                      Number(selectedStoreId),
-                      customerName,
-                      orderItemsForApi,
-                      formattedOrderDate
-                    );
-                    
-                    if (result.success) {
-                      setShowOrderAgainModal(false);
-                      
-                      Alert.alert(
-                        'Success',
-                        'Your order has been placed successfully!',
-                        [
-                          { 
-                            text: 'OK', 
-                            onPress: () => {
-                              router.push('/(tabs)/orders');
-                            }
-                          }
-                        ]
+                    let totalAddedQuantity = 0;
+                    let skippedExistingCount = 0;
+
+                    for (const item of orderItems) {
+                      const alreadyInCart = cart.some((cartItem) => cartItem.productId === item.productId);
+                      if (alreadyInCart) {
+                        skippedExistingCount += 1;
+                        continue;
+                      }
+
+                      addToCart(
+                        {
+                          productId: item.productId,
+                          productName: item.productName || `Product ${item.productId}`,
+                          price: item.price,
+                          image: item.productImage || '',
+                          productUnits: 1,
+                          unitsOfMeasurement: 'pcs',
+                        },
+                        item.quantity
                       );
+
+                      totalAddedQuantity += item.quantity;
+                    }
+
+                    setShowOrderAgainModal(false);
+
+                    if (totalAddedQuantity > 0) {
+                      router.push('/(tabs)/cart');
                     } else {
                       Alert.alert(
-                        'Order Failed',
-                        result.message || 'Failed to place order. Please try again.',
-                        [{ text: 'OK' }]
+                        'No New Items Added',
+                        skippedExistingCount > 0
+                          ? 'All products from this order already exist in your cart. Existing quantities were not changed.'
+                          : 'No valid products found to add to cart.'
                       );
                     }
                   } catch (error) {
-                    console.error('Error placing reorder:', error);
+                    console.error('Error adding reordered items to cart:', error);
                     Alert.alert(
                       'Error',
-                      'An unexpected error occurred. Please try again.',
+                      'Failed to add items to cart. Please try again.',
                       [{ text: 'OK' }]
                     );
                   } finally {
-                    setIsPlacingReorder(false);
+                    setIsAddingToCart(false);
                   }
                 }}
                 style={{
@@ -561,21 +512,21 @@ const OrderDetailScreen = () => {
                   paddingVertical: 12,
                   borderRadius: 8,
                   alignItems: 'center',
-                  opacity: isPlacingReorder ? 0.6 : 1
+                  opacity: isAddingToCart ? 0.6 : 1
                 }}
-                disabled={isPlacingReorder}
+                disabled={isAddingToCart}
               >
                 <Text style={{
                   fontSize: 16,
                   fontWeight: '600',
                   color: 'white'
-                }}>{isPlacingReorder ? 'Placing...' : 'Confirm Order'}</Text>
+                }}>{isAddingToCart ? 'Adding...' : 'Confirm'}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 

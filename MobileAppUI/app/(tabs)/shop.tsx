@@ -32,9 +32,11 @@ import {
   setDefaultAddress,
   updateUserAddress,
   deleteUserAddress,
-  getUserMasterAddress
+  getUserMasterAddress,
+  getStoresForUser
 } from "@/services/api";
 import { useCart } from "../context/CartContext";
+import { isGuestSession } from "@/utils/session";
 
 const { height, width } = Dimensions.get('window');
 
@@ -600,6 +602,191 @@ const LocationModal = ({
   );
 };
 
+// ---------- Store Selection Modal ----------
+const StoreSelectionModal = ({
+  visible,
+  onClose,
+  stores,
+  selectedStoreId,
+  onSelectStore,
+  loading,
+  onRefreshStores
+}: {
+  visible: boolean;
+  onClose: () => void;
+  stores: Array<{CUSTOMERID: number; CUSTOMERNAME: string; ADDRESS?: string | null; CITY?: string | null}>;
+  selectedStoreId: number | null;
+  onSelectStore: (store: {CUSTOMERID: number; CUSTOMERNAME: string}) => void;
+  loading: boolean;
+  onRefreshStores?: () => void;
+}) => {
+  const insets = useSafeAreaInsets();
+  const [hasTriedRefresh, setHasTriedRefresh] = useState(false);
+
+  // Debug log props
+  useEffect(() => {
+    console.log('🏪 [StoreSelectionModal] Props received:', {
+      visible,
+      storesCount: stores.length,
+      loading,
+      selectedStoreId,
+      hasTriedRefresh
+    });
+  }, [visible, stores.length, loading, selectedStoreId, hasTriedRefresh]);
+
+  // Always trigger refresh when modal opens
+  useEffect(() => {
+    if (visible && onRefreshStores) {
+      console.log('🏪 [StoreSelectionModal] Modal opened, refreshing stores...');
+      setHasTriedRefresh(false);
+      onRefreshStores();
+    }
+  }, [visible]);
+
+  // Track when loading completes
+  useEffect(() => {
+    if (visible && !loading) {
+      setHasTriedRefresh(true);
+    }
+  }, [visible, loading]);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+      statusBarTranslucent={false}
+    >
+      <View style={{
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end'
+      }}>
+        <Pressable 
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0
+          }} 
+          onPress={onClose}
+        />
+        
+        <View style={{
+          backgroundColor: 'white',
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          maxHeight: height * 0.6,
+          minHeight: height * 0.35,
+          paddingBottom: insets.bottom + 20,
+        }}>
+          {/* Header */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: 24,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: '#E5E7EB'
+          }}>
+            <Text style={{
+              fontSize: 18,
+              fontWeight: '600',
+              color: '#111827'
+            }}>Select Store</Text>
+            <Text style={{ fontSize: 10, color: '#9CA3AF' }}>
+              {`L:${loading ? 'Y' : 'N'} R:${hasTriedRefresh ? 'Y' : 'N'} S:${stores.length}`}
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+              <Ionicons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={{ maxHeight: height * 0.45 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ padding: 16 }}
+          >
+            {loading || !hasTriedRefresh ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#BCD042" />
+                <Text style={{ marginTop: 12, color: '#6B7280' }}>Loading stores...</Text>
+              </View>
+            ) : stores.length === 0 ? (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <Ionicons name="storefront-outline" size={48} color="#D1D5DB" />
+                <Text style={{ marginTop: 12, fontSize: 16, color: '#6B7280' }}>No stores available</Text>
+              </View>
+            ) : (
+              stores.map((store) => (
+                <TouchableOpacity
+                  key={store.CUSTOMERID}
+                  onPress={() => onSelectStore(store)}
+                  style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: selectedStoreId === store.CUSTOMERID ? '#BCD042' : '#E5E7EB',
+                    backgroundColor: selectedStoreId === store.CUSTOMERID ? '#F8FFED' : '#FFFFFF',
+                    marginBottom: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: selectedStoreId === store.CUSTOMERID ? '#BCD042' : '#F3F4F6',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12
+                  }}>
+                    <Ionicons 
+                      name="storefront" 
+                      size={22} 
+                      color={selectedStoreId === store.CUSTOMERID ? '#FFFFFF' : '#6B7280'} 
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ 
+                      fontWeight: '600', 
+                      fontSize: 16, 
+                      color: '#111827',
+                      marginBottom: 4
+                    }}>
+                      {store.CUSTOMERNAME}
+                    </Text>
+                    {store.ADDRESS && (
+                      <Text style={{ color: '#6B7280', fontSize: 13 }} numberOfLines={1}>
+                        {store.ADDRESS}
+                      </Text>
+                    )}
+                    {store.CITY && (
+                      <Text style={{ color: '#9CA3AF', fontSize: 12, marginTop: 2 }}>
+                        {store.CITY}
+                      </Text>
+                    )}
+                  </View>
+                  {selectedStoreId === store.CUSTOMERID && (
+                    <Ionicons name="checkmark-circle" size={24} color="#BCD042" />
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // ---------- FIXED ProductCard Component ----------
 const ProductCard = React.memo(({
   item,
@@ -1016,6 +1203,14 @@ const HomeScreen = () => {
   // Location modal state
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
+  
+  // Store selection state
+  const [stores, setStores] = useState<Array<{CUSTOMERID: number; CUSTOMERNAME: string; ADDRESS?: string | null; CITY?: string | null}>>([]);
+  const [selectedStoreName, setSelectedStoreName] = useState<string>("");
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+  const [showStoreModal, setShowStoreModal] = useState(false);
+  const [storesLoading, setStoresLoading] = useState(false);
+  const [hasMultipleStores, setHasMultipleStores] = useState<boolean>(false);
 
   const getLocationDisplay = () => {
     // Priority 1: Show default delivery address if available
@@ -1234,6 +1429,13 @@ const HomeScreen = () => {
 
   const fetchDefaultAddress = useCallback(async () => {
     try {
+      const guest = await isGuestSession();
+      if (guest) {
+        setDefaultAddress(null);
+        setUserMasterAddress(null);
+        return;
+      }
+
       setAddressLoading(true);
       
       // Fetch default delivery address
@@ -1241,7 +1443,6 @@ const HomeScreen = () => {
       if (response.success && response.address) {
         setDefaultAddress(response.address);
       } else {
-        console.log('No default address found or error:', response.message);
         setDefaultAddress(null);
         
         // If no default delivery address, fetch USERCUSTOMERMASTER address as fallback
@@ -1251,7 +1452,6 @@ const HomeScreen = () => {
             console.log('✅ Using USERCUSTOMERMASTER address:', masterAddressResponse.address);
             setUserMasterAddress(masterAddressResponse.address);
           } else {
-            console.log('No USERCUSTOMERMASTER address found');
             setUserMasterAddress(null);
           }
         } catch (masterError) {
@@ -1268,27 +1468,105 @@ const HomeScreen = () => {
     }
   }, []);
 
+  // Load store data and current selection
+  const loadStoreData = useCallback(async () => {
+    try {
+      console.log('🏪 [loadStoreData] Starting to load store data...');
+      
+      // Load current store selection from AsyncStorage
+      const storedStoreId = await AsyncStorage.getItem('selectedStoreId');
+      const storedStoreName = await AsyncStorage.getItem('selectedStoreName');
+      const storedHasMultiple = await AsyncStorage.getItem('hasMultipleStores');
+      
+      console.log('🏪 [loadStoreData] Stored values:', { storedStoreId, storedStoreName, storedHasMultiple });
+      
+      if (storedStoreId) {
+        setSelectedStoreId(Number(storedStoreId));
+      }
+      if (storedStoreName) {
+        setSelectedStoreName(storedStoreName);
+      }
+      if (storedHasMultiple) {
+        setHasMultipleStores(storedHasMultiple === 'true');
+      }
+
+      // Fetch all available stores
+      setStoresLoading(true);
+      console.log('🏪 [loadStoreData] Fetching stores from API...');
+      const res = await getStoresForUser();
+      console.log('🏪 [loadStoreData] API response:', res);
+      
+      if (res.success && Array.isArray(res.stores)) {
+        console.log('🏪 [loadStoreData] Setting stores:', res.stores.length, 'stores found');
+        setStores(res.stores);
+        const multipleStores = res.stores.length > 1;
+        setHasMultipleStores(multipleStores);
+        await AsyncStorage.setItem('hasMultipleStores', String(multipleStores));
+      } else {
+        console.log('🏪 [loadStoreData] No stores in response or API failed');
+      }
+    } catch (error) {
+      console.error('Error loading store data:', error);
+    } finally {
+      setStoresLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const checkCustomer = async () => {
       try {
+        const guest = await isGuestSession();
+        if (guest) {
+          setIsCustomerExists(false);
+          return;
+        }
+
         const response = await checkCustomerExists();
         setIsCustomerExists(response.success ? response.exists : false);
       } catch (error) {
-        console.error("Error checking customer existence:", error);
         setIsCustomerExists(false);
       }
     };
     checkCustomer();
     loadUserData();
+    loadStoreData(); // Load store data on mount
     fetchData(false); // Initially fetch without Buy Again products
-  }, [loadUserData]);
+  }, [loadUserData, loadStoreData]);
 
   // Use useFocusEffect to refresh address whenever screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchDefaultAddress();
-    }, [fetchDefaultAddress])
+      loadStoreData();
+    }, [fetchDefaultAddress, loadStoreData])
   );
+
+  // Handle store change
+  const handleStoreChange = useCallback(async (store: { CUSTOMERID: number; CUSTOMERNAME: string }) => {
+    try {
+      await AsyncStorage.setItem('selectedStoreId', String(store.CUSTOMERID));
+      await AsyncStorage.setItem('selectedStoreName', store.CUSTOMERNAME);
+      setSelectedStoreId(store.CUSTOMERID);
+      setSelectedStoreName(store.CUSTOMERNAME);
+      setShowStoreModal(false);
+      
+      // Refresh products with new store pricing
+      fetchData(isCustomerExists === true);
+    } catch (error) {
+      console.error('Error changing store:', error);
+      Alert.alert('Error', 'Failed to change store. Please try again.');
+    }
+  }, [isCustomerExists]);
+
+  // Handle opening store modal - ensure stores are loaded
+  const handleOpenStoreModal = useCallback(async () => {
+    setShowStoreModal(true);
+    // If stores haven't been loaded yet, load them now
+    if (stores.length === 0 && !storesLoading) {
+      console.log('🏪 [handleOpenStoreModal] Stores not loaded, fetching...');
+      loadStoreData();
+    }
+  }, [stores.length, storesLoading, loadStoreData]);
 
   // Fetch Buy Again products only for registered users
   useEffect(() => {
@@ -1455,23 +1733,84 @@ const HomeScreen = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 120 }} // Extra padding for cart button
           >
-            {/* Top Header with Dynamic Location */}
+            {/* Top Header with Store/Location */}
             <View className="flex-row items-center justify-between px-5 mt-20">
-              <TouchableOpacity
-                onPress={handleLocationPress}
-                className="flex-row items-center flex-1"
-                activeOpacity={0.7}
-              >
-                <Ionicons name="location-outline" size={20} color="#222" />
-                <Text
-                  className="text-base font-medium ml-1 text-gray-900 flex-1"
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
+              {/* Store Display - Replace location with store name when available */}
+              {selectedStoreName ? (
+                hasMultipleStores ? (
+                  // Multiple stores - show store name with change option and location below
+                  <TouchableOpacity
+                    onPress={handleOpenStoreModal}
+                    className="flex-1"
+                    activeOpacity={0.7}
+                  >
+                    <View className="flex-row items-center">
+                      <Ionicons name="storefront-outline" size={20} color="#222" />
+                      <Text
+                        className="text-base font-medium ml-1 text-gray-900 flex-1"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {selectedStoreName}
+                      </Text>
+                      <Ionicons name="chevron-down-outline" size={18} color="#222" />
+                    </View>
+                    {/* Location below store name */}
+                    <View className="flex-row items-center mt-1 ml-6">
+                      <Ionicons name="location-outline" size={14} color="#6B7280" />
+                      <Text
+                        className="text-xs text-gray-500 ml-1 flex-1"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {addressLoading ? "Loading..." : locationDisplay}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ) : (
+                  // Single store - show store name with location below (no dropdown)
+                  <View className="flex-1">
+                    <View className="flex-row items-center">
+                      <Ionicons name="storefront-outline" size={20} color="#222" />
+                      <Text
+                        className="text-base font-medium ml-1 text-gray-900 flex-1"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {selectedStoreName}
+                      </Text>
+                    </View>
+                    {/* Location below store name */}
+                    <View className="flex-row items-center mt-1 ml-6">
+                      <Ionicons name="location-outline" size={14} color="#6B7280" />
+                      <Text
+                        className="text-xs text-gray-500 ml-1 flex-1"
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {addressLoading ? "Loading..." : locationDisplay}
+                      </Text>
+                    </View>
+                  </View>
+                )
+              ) : (
+                // No store selected - show location dropdown
+                <TouchableOpacity
+                  onPress={handleLocationPress}
+                  className="flex-row items-center flex-1"
+                  activeOpacity={0.7}
                 >
-                  {addressLoading ? "Loading..." : locationDisplay}
-                </Text>
-                <Ionicons name="chevron-down-outline" size={18} color="#222" />
-              </TouchableOpacity>
+                  <Ionicons name="location-outline" size={20} color="#222" />
+                  <Text
+                    className="text-base font-medium ml-1 text-gray-900 flex-1"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {addressLoading ? "Loading..." : locationDisplay}
+                  </Text>
+                  <Ionicons name="chevron-down-outline" size={18} color="#222" />
+                </TouchableOpacity>
+              )}
 
               {/* Profile Button */}
               <TouchableOpacity 
@@ -1726,6 +2065,17 @@ const HomeScreen = () => {
             onSelectAddress={handleSelectAddress}
             onAddNewAddress={handleAddNewAddress}
             onAddressSetAsDefault={fetchDefaultAddress}
+          />
+
+          {/* Store Selection Modal */}
+          <StoreSelectionModal
+            visible={showStoreModal}
+            onClose={() => setShowStoreModal(false)}
+            stores={stores}
+            selectedStoreId={selectedStoreId}
+            onSelectStore={handleStoreChange}
+            loading={storesLoading}
+            onRefreshStores={loadStoreData}
           />
         </>
       )}

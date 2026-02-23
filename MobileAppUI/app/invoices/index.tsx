@@ -15,6 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { isGuestSession } from "@/utils/session";
+import GuestScreen from "@/components/GuestScreen";
 // @ts-ignore
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { getInvoices, getInvoiceItems, getInvoicesByCustomerAndDateRange } from '../../services/api';
@@ -348,6 +350,24 @@ const InvoiceDetailModal = ({
                   {transaction.details.invoiceNo || transaction.id}
                 </Text>
               </View>
+
+              {/* Order ID */}
+              {transaction.details.orderId && (
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  marginBottom: 8
+                }}>
+                  <Text style={{ color: '#6B7280', fontSize: 14 }}>Order ID:</Text>
+                  <Text style={{ 
+                    fontWeight: '600', 
+                    color: '#111827',
+                    fontSize: 14
+                  }}>
+                    #{transaction.details.orderId}
+                  </Text>
+                </View>
+              )}
 
               {/* Invoice Status */}
               <View style={{
@@ -935,6 +955,16 @@ export default function InvoicesScreen() {
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [downloadingStatement, setDownloadingStatement] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null); // null = checking, true = guest, false = logged in
+
+  // Check guest session on mount
+  useEffect(() => {
+    const checkGuestSession = async () => {
+      const guest = await isGuestSession();
+      setIsGuest(guest);
+    };
+    checkGuestSession();
+  }, []);
 
   // Load invoices helper: accepts optional custom date range (Date objects)
   const loadInvoices = async (fromDate?: Date, toDate?: Date) => {
@@ -949,9 +979,19 @@ export default function InvoicesScreen() {
       const fromDateTime = fromDt.getTime().toString();
       const toDateTime = toDt.getTime().toString();
 
+      console.log('🔍 API Request params:', { fromDateTime, toDateTime, from: fromDt, to: toDt });
+
       const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
 
+      console.log('📥 API Response:', JSON.stringify(res, null, 2));
+
       if (!res || !res.success || !Array.isArray(res.invoices)) {
+        console.error('❌ Invalid API response structure:', { 
+          hasRes: !!res, 
+          hasSuccess: res?.success, 
+          isArray: Array.isArray(res?.invoices),
+          response: res 
+        });
         throw new Error('Invalid response from API');
       }
 
@@ -997,6 +1037,7 @@ export default function InvoicesScreen() {
             transactionIndex,
             invoiceId: inv.invoiceID,
             invoiceNo: inv.invoiceNo,
+            orderId: inv.OrderID ?? inv.orderId ?? null,
             // Normalize various possible fields for invoice status
             invoiceStatus: (inv.InvoiceStatus ?? inv.invoiceStatus ?? inv.Status ?? inv.status ?? '').toString(),
             netInvoiceAmount: Number(inv.NetInvoiceAmount ?? inv.netInvoiceAmount ?? inv.saleAmount ?? 0),
@@ -1052,20 +1093,22 @@ export default function InvoicesScreen() {
     }
   };
 
-  // Run on mount with default last-90-days
+  // Run on mount with default last-90-days (only if confirmed not guest)
   useEffect(() => {
-    loadInvoices();
+    if (isGuest === false) {
+      loadInvoices();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isGuest]);
 
-  // Re-fetch invoices when custom date range is selected
+  // Re-fetch invoices when custom date range is selected (only if confirmed not guest)
   useEffect(() => {
-    if (selectedFilter === 'custom') {
+    if (isGuest === false && selectedFilter === 'custom') {
       console.log('🔁 Custom date range selected - re-fetching invoices for range:', startDate, endDate);
       loadInvoices(startDate, endDate);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedFilter, startDate, endDate]);
+  }, [selectedFilter, startDate, endDate, isGuest]);
 
   const filterOptions = [
     { key: "7days", label: "Last 7 Days" },
@@ -1512,6 +1555,19 @@ export default function InvoicesScreen() {
       setDownloadingStatement(false);
     }
   };
+
+  // Show guest screen if guest or still checking
+  if (isGuest === null || isGuest === true) {
+    return (
+      <GuestScreen
+        isGuest={isGuest}
+        title="Invoice Statement"
+        icon="receipt-outline"
+        message="Please login to view your invoices and payment history."
+        showBackButton={true}
+      />
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-50">

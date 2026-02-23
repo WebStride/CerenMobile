@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, SafeAreaView, TextInput, Platform } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
 import { useCart } from "../context/CartContext";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { checkCustomerExists, placeOrder } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import GuestScreen from "@/components/GuestScreen";
+import { isGuestSession } from "@/utils/session";
 
 const defaultImage = require("../../assets/images/Banana.png");
 
@@ -22,11 +24,18 @@ export default function CartScreen() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderDate, setOrderDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
   
   // Check customer existence when component mounts
   useEffect(() => {
     const checkCustomer = async () => {
       try {
+        const guest = await isGuestSession();
+        setIsGuest(guest);
+        if (guest) {
+          return;
+        }
+
         const response = await checkCustomerExists();
         const isRegistered = response.success ? response.exists : false;
         setIsCustomerExists(isRegistered);
@@ -56,6 +65,21 @@ export default function CartScreen() {
     
     checkCustomer();
   }, [router]);
+
+  // Show guest screen if guest or still checking
+  const guestScreen = (
+    <GuestScreen
+      isGuest={isGuest}
+      title="Cart"
+      icon="cart-outline"
+      message="Please login to access your cart and place orders."
+      showBackButton={false}
+    />
+  );
+
+  if (isGuest === null || isGuest === true) {
+    return guestScreen;
+  }
   
   // height we'll reserve for the checkout bar (approximate)
   const checkoutBarHeight = 72; // px
@@ -102,7 +126,7 @@ export default function CartScreen() {
   // Show loading state while checking registration
   if (isCustomerExists === null) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
         <View className="flex-1 items-center justify-center">
           <Text className="text-gray-500">Checking access...</Text>
         </View>
@@ -112,7 +136,7 @@ export default function CartScreen() {
 
   if (!cart.length) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
         <View className="flex-1 items-center justify-center">
           <Ionicons name="cart-outline" size={64} color="#CCC" />
           <Text className="text-xl font-semibold mt-4 text-gray-700">
@@ -131,7 +155,7 @@ export default function CartScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       {/* Header */}
       <View className="px-4 py-3 border-b border-gray-100">
         <Text className="text-xl font-bold text-center text-gray-900">My Cart</Text>

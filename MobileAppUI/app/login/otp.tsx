@@ -16,8 +16,9 @@ import { images } from "@/constants/images";
 import { useLocalSearchParams,  } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { verify, sendOtp, register } from "@/services/api";
+import { verify, sendOtp, register, getStoresForUser } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
+import { setAuthenticatedSession } from "@/utils/session";
 
 
 export default function VerificationScreen() {
@@ -89,6 +90,7 @@ export default function VerificationScreen() {
         console.log("👤 User data in response:", response.user);
         if (response.success) {
           console.log("Verification successful:", response);
+          await setAuthenticatedSession();
           if (response.accessToken) {
             await AsyncStorage.setItem("accessToken", response.accessToken);
           } else {
@@ -129,11 +131,53 @@ export default function VerificationScreen() {
               params: { phoneNumber: fullPhoneNumber, name },
             });
           } else {
-            // Existing user - route to SelectStore so user can pick store before entering app
-            router.push({
-              pathname: "/login/SelectStore",
-              params: { phoneNumber: fullPhoneNumber, name },
-            });
+            // Existing user - check store count before navigating
+            try {
+              const storesRes = await getStoresForUser();
+              if (storesRes.success && Array.isArray(storesRes.stores)) {
+                // Store the hasMultipleStores flag
+                await AsyncStorage.setItem('hasMultipleStores', String(storesRes.stores.length > 1));
+                
+                if (storesRes.stores.length === 1) {
+                  // Only one store - auto-select and go directly to shop
+                  const singleStore = storesRes.stores[0];
+                  await AsyncStorage.setItem('selectedStoreId', String(singleStore.CUSTOMERID));
+                  await AsyncStorage.setItem('selectedStoreName', singleStore.CUSTOMERNAME);
+                  console.log('🏪 Auto-selected single store:', singleStore.CUSTOMERNAME);
+                  router.replace({
+                    pathname: '/(tabs)/shop',
+                    params: {
+                      customerId: String(singleStore.CUSTOMERID),
+                      storeName: singleStore.CUSTOMERNAME,
+                    }
+                  });
+                } else if (storesRes.stores.length === 0) {
+                  // No stores - go to shop without store (catalog mode)
+                  await AsyncStorage.removeItem('selectedStoreId');
+                  await AsyncStorage.removeItem('selectedStoreName');
+                  router.replace('/(tabs)/shop');
+                } else {
+                  // Multiple stores - show SelectStore page
+                  router.push({
+                    pathname: "/login/SelectStore",
+                    params: { phoneNumber: fullPhoneNumber, name },
+                  });
+                }
+              } else {
+                // Failed to fetch stores, fallback to SelectStore page
+                router.push({
+                  pathname: "/login/SelectStore",
+                  params: { phoneNumber: fullPhoneNumber, name },
+                });
+              }
+            } catch (storeError) {
+              console.error('Error checking stores:', storeError);
+              // Fallback to SelectStore page on error
+              router.push({
+                pathname: "/login/SelectStore",
+                params: { phoneNumber: fullPhoneNumber, name },
+              });
+            }
           }
         } else {
           Alert.alert("Error", response.message || "Failed to verify OTP. Please try again.");

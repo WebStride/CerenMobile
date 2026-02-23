@@ -1,5 +1,4 @@
 import { Tabs } from "expo-router";
-import { Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 

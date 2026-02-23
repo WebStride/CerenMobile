@@ -428,7 +428,7 @@ export async function getInvoicesByCustomerAndDateRange(
                 .filter((id: any) => id !== null && id !== undefined);
 
             if (invoiceIds.length > 0) {
-                // Fetch InvoiceStatus and NetInvoiceAmount from our database
+                // Fetch InvoiceStatus, NetInvoiceAmount, and OrderID from our database
                 const dbInvoices = await prisma.invoices.findMany({
                     where: {
                         InvoiceID: { in: invoiceIds }
@@ -437,7 +437,8 @@ export async function getInvoicesByCustomerAndDateRange(
                         InvoiceID: true,
                         InvoiceStatus: true,
                         NetInvoiceAmount: true,
-                        InvoiceNumber: true
+                        InvoiceNumber: true,
+                        OrderID: true
                     }
                 });
 
@@ -455,7 +456,8 @@ export async function getInvoicesByCustomerAndDateRange(
                         inv.InvoiceStatus = dbData.InvoiceStatus;
                         inv.NetInvoiceAmount = dbData.NetInvoiceAmount;
                         inv.InvoiceNumber = dbData.InvoiceNumber;
-                        console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}`);
+                        inv.OrderID = dbData.OrderID ? Number(dbData.OrderID) : null;
+                        console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}, OrderID=${inv.OrderID}`);
                     }
                 });
             }
