@@ -1264,3 +1264,104 @@ export const submitContactUs = async (payload: {
   }
 };
 
+// MSG91 WhatsApp Price Request API
+interface PriceRequestPayload {
+  storeName: string;
+  phone: string;
+  productId: string;
+  productName: string;
+  dateTime: string;
+  note: string;
+}
+
+export const sendPriceRequestWhatsApp = async (
+  payload: PriceRequestPayload
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    // Get environment variables (must use EXPO_PUBLIC_ prefix for Expo/React Native)
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER || '+919891901895';
+    const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY || '';
+
+    console.log('📱 MSG91 Config:', { 
+      INTEGRATED_NO, 
+      ADMIN_TO_NUMBER, 
+      hasAuthKey: !!MSG91_AUTH_KEY,
+      authKeyLength: MSG91_AUTH_KEY.length 
+    });
+
+    if (!MSG91_AUTH_KEY) {
+      console.error('MSG91_AUTH_KEY is not configured');
+      return {
+        success: false,
+        message: 'Configuration error. Please contact support.',
+      };
+    }
+
+    const requestBody = {
+      integrated_number: INTEGRATED_NO,
+      content_type: 'template',
+      payload: {
+        messaging_product: 'whatsapp',
+        type: 'template',
+        template: {
+          name: 'price_request_admin_notify',
+          language: {
+            code: 'en_US',
+            policy: 'deterministic',
+          },
+          namespace: '19e99d27_1d5d_494d_93b5_63e9f05799fb',
+          to_and_components: [
+            {
+              to: [ADMIN_TO_NUMBER],
+              components: {
+                body_1: { type: 'text', value: payload.storeName },
+                body_2: { type: 'text', value: payload.phone },
+                body_3: { type: 'text', value: payload.productId },
+                body_4: { type: 'text', value: payload.productName },
+                body_5: { type: 'text', value: payload.dateTime },
+                body_6: { type: 'text', value: payload.note },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    console.log('📱 Sending WhatsApp price request:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(
+      'https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'authkey': MSG91_AUTH_KEY,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    console.log('📱 MSG91 Response:', JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || 'Failed to send price request',
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Price request sent successfully',
+    };
+  } catch (error: any) {
+    console.error('Error sending price request via WhatsApp:', error);
+    return {
+      success: false,
+      message: error?.message || 'Network error',
+    };
+  }
+};
+
