@@ -230,17 +230,24 @@ export const getStoresForUser = async (): Promise<{ success: boolean; stores?: A
 export const getExclusiveOffers = async () => {
   try {
     console.log("Fetching exclusive offers...");
-    const response = await fetch(`${apiUrl}/products/exclusive`, {
+    // Include selected store/customer id for pricing context (same as other product endpoints)
+    const selectedStoreId = await getSelectedStoreId();
+    const queryParams = new URLSearchParams(
+      selectedStoreId ? { customerId: String(selectedStoreId) } : {}
+    );
+
+    const response = await fetch(`${apiUrl}/products/exclusive?${queryParams}`, {
       method: 'GET',
       headers: {
         'Authorization': await getAccessToken(),
         'x-refresh-token': await getRefreshToken(),
+        ...(selectedStoreId && { 'x-customer-id': String(selectedStoreId) })
       },
     });
 
     console.log("Response status:", response.status);
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       console.error("Error fetching exclusive offers:", errorData);
       return { success: false, products: [], message: errorData.message };
     }
