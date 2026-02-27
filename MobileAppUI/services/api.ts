@@ -1264,6 +1264,118 @@ export const submitContactUs = async (payload: {
   }
 };
 
+// MSG91 WhatsApp Customer Care API
+interface CustomerCarePayload {
+  requestType: string;
+  customerName: string;
+  phone: string;
+  address: string;
+  message: string;
+  dateTime: string;
+}
+
+export const sendCustomerCareWhatsApp = async (
+  payload: CustomerCarePayload
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    // Get environment variables (must use EXPO_PUBLIC_ prefix for Expo/React Native)
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER || '+919891901895';
+    const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY || '';
+    const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL;
+
+    console.log('📞 Customer Care WhatsApp Config:', { 
+      INTEGRATED_NO, 
+      ADMIN_TO_NUMBER, 
+      hasAuthKey: !!MSG91_AUTH_KEY,
+      MSG91_WHATSAPP_URL
+    });
+
+    if (!MSG91_AUTH_KEY) {
+      console.error('MSG91_AUTH_KEY is not configured for customer care');
+      return {
+        success: false,
+        message: 'Configuration error. Please contact support.',
+      };
+    }
+
+    // Truncate address to ~150-200 chars for template
+    const truncatedAddress = payload.address.length > 150 
+      ? payload.address.substring(0, 147) + '...' 
+      : payload.address;
+
+    // Truncate message to reasonable length
+    const truncatedMessage = payload.message.length > 200 
+      ? payload.message.substring(0, 197) + '...' 
+      : payload.message;
+
+    const requestBody = {
+      integrated_number: INTEGRATED_NO,
+      content_type: 'template',
+      payload: {
+        messaging_product: 'whatsapp',
+        type: 'template',
+        template: {
+          name: 'customer_care_admin_notify_v1',
+          language: {
+            code: 'en_US',
+            policy: 'deterministic',
+          },
+          namespace: '58a2a2fd_4239_4df3_b0e0_df0fcf3c0a53',
+          to_and_components: [
+            {
+              to: [ADMIN_TO_NUMBER],
+              components: {
+                body_1: { type: 'text', value: payload.requestType },
+                body_2: { type: 'text', value: payload.customerName },
+                body_3: { type: 'text', value: payload.phone },
+                body_4: { type: 'text', value: truncatedAddress },
+                body_5: { type: 'text', value: truncatedMessage },
+                body_6: { type: 'text', value: payload.dateTime },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    console.log('📞 Sending Customer Care WhatsApp:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(
+      MSG91_WHATSAPP_URL,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'authkey': MSG91_AUTH_KEY,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    console.log('📞 MSG91 Customer Care Response:', JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || 'Failed to send customer care request',
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Customer care request sent successfully',
+    };
+  } catch (error: any) {
+    console.error('Error sending customer care request via WhatsApp:', error);
+    return {
+      success: false,
+      message: error?.message || 'Network error',
+    };
+  }
+};
+
 // MSG91 WhatsApp Price Request API
 interface PriceRequestPayload {
   storeName: string;
@@ -1282,12 +1394,14 @@ export const sendPriceRequestWhatsApp = async (
     const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
     const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER || '+919891901895';
     const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY || '';
+    const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL ;
 
     console.log('📱 MSG91 Config:', { 
       INTEGRATED_NO, 
       ADMIN_TO_NUMBER, 
       hasAuthKey: !!MSG91_AUTH_KEY,
-      authKeyLength: MSG91_AUTH_KEY.length 
+      authKeyLength: MSG91_AUTH_KEY.length,
+      MSG91_WHATSAPP_URL
     });
 
     if (!MSG91_AUTH_KEY) {
@@ -1331,7 +1445,7 @@ export const sendPriceRequestWhatsApp = async (
     console.log('📱 Sending WhatsApp price request:', JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(
-      'https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/',
+      MSG91_WHATSAPP_URL,
       {
         method: 'POST',
         headers: {
