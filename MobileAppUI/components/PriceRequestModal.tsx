@@ -241,7 +241,7 @@ export const PriceRequestModal: React.FC<PriceRequestModalProps> = ({
 
                   {/* Info Text */}
                   <Text className="text-gray-500 text-xs text-center mt-4">
-                    Our team will reach out to you via WhatsApp with pricing details.
+                    Our team will reach out to you with pricing details.
                   </Text>
                 </>
               )}

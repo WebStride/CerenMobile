@@ -1056,7 +1056,7 @@ export default function AccountScreen() {
       // Show success if WhatsApp was sent successfully (primary notification method)
       if (whatsappResult.success) {
         setContactModalVisible(false);
-        Alert.alert('Request Sent ✅', 'Your query has been submitted to customer care. We will contact you shortly via WhatsApp.');
+        Alert.alert('Request Sent ✅', 'Your query has been submitted to customer care. We will contact you shortly.');
       } else if (result.success) {
         // Fallback to backend success
         setContactModalVisible(false);
