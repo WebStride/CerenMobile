@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { getExclusiveOffers, getBestSelling, getNewProducts, getBuyAgainProducts, checkCustomerExists } from "@/services/api";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
+import { PriceRequestModal } from "@/components/PriceRequestModal";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -126,6 +127,7 @@ const ProductCard = React.memo(({
   const [showControls, setShowControls] = useState(!!cartItem);
   const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
+  const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
 
   useEffect(() => {
     if (cartItem) {
@@ -345,9 +347,25 @@ const ProductCard = React.memo(({
         {isCustomerExists && item.price > 0 ? (
           <Text className="font-bold text-sm text-gray-900">₹{item.price}.00</Text>
         ) : (
-          <Text className="font-semibold text-xs text-gray-500 italic">Price on request</Text>
+          <TouchableOpacity
+            onPress={() => setShowPriceRequestModal(true)}
+            className="bg-orange-100 border border-orange-300 rounded-lg px-2 py-1"
+            activeOpacity={0.7}
+          >
+            <Text className="font-semibold text-xs text-orange-600 text-center">
+              Price on Request
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
+
+      {/* Price Request Modal */}
+      <PriceRequestModal
+        visible={showPriceRequestModal}
+        onClose={() => setShowPriceRequestModal(false)}
+        productId={item.productId}
+        productName={item.productName}
+      />
       
       {/* Add to Cart Button OR Quantity Controls */}
       {(isCustomerExists && item.price > 0) ? (
@@ -561,7 +579,7 @@ const AllProductsList = () => {
   const renderProduct = useCallback(({ item, index }: { item: Product, index: number }) => (
     <ProductCard 
       item={item} 
-      isCustomerExists={isCustomerExists}
+      isCustomerExists={isCustomerExists ?? false}
       index={index}
     />
   ), [isCustomerExists]);

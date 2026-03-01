@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
 import { getProductsByCatalog, getSimilarProductsApi, checkCustomerExists } from "@/services/api";
+import { PriceRequestModal } from "@/components/PriceRequestModal";
 
 const { width } = Dimensions.get('window');
 const defaultImage = require("../../assets/images/Banana.png");
@@ -82,6 +83,7 @@ const ProductCard = React.memo(({
   const [showControls, setShowControls] = useState(!!cartItem);
   const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
+  const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
 
   useEffect(() => {
     if (cartItem) {
@@ -276,9 +278,25 @@ const ProductCard = React.memo(({
         {isCustomerExists && item.price > 0 ? (
           <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
         ) : (
-          <Text className="text-gray-500 text-sm italic">Price on request</Text>
+          <TouchableOpacity
+            onPress={() => setShowPriceRequestModal(true)}
+            className="bg-orange-100 border border-orange-300 rounded-lg px-2 py-1"
+            activeOpacity={0.7}
+          >
+            <Text className="text-gray-500 text-xs text-center font-semibold text-orange-600">
+              Price on Request
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
+
+      {/* Price Request Modal */}
+      <PriceRequestModal
+        visible={showPriceRequestModal}
+        onClose={() => setShowPriceRequestModal(false)}
+        productId={item.productId}
+        productName={item.productName}
+      />
       
       {isCustomerExists && item.price > 0 && (
         <>
@@ -465,6 +483,7 @@ export default function ProductDetailsScreen() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
+  const [showMainPriceRequestModal, setShowMainPriceRequestModal] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const isProductFavourite = isFavourite(currentProduct.productId);
@@ -838,15 +857,28 @@ export default function ProductDetailsScreen() {
                         )}
                       </>
                     ) : (
-                      <Text style={{
-                        textAlign: 'center',
-                        fontSize: 14,
-                        color: '#6B7280',
-                        fontStyle: 'italic',
-                        marginBottom: 4
-                      }}>
-                        Price on request
-                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setShowMainPriceRequestModal(true)}
+                        style={{
+                          backgroundColor: '#fff7ed',
+                          borderWidth: 1,
+                          borderColor: '#fdba74',
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          marginBottom: 4
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{
+                          textAlign: 'center',
+                          fontSize: 11,
+                          color: '#ea580c',
+                          fontWeight: '600'
+                        }}>
+                          Price on Request
+                        </Text>
+                      </TouchableOpacity>
                     )}
                     {variant.minOrderQuantity > 1 && (
                       <Text style={{
@@ -1210,6 +1242,14 @@ export default function ProductDetailsScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Main Page Price Request Modal */}
+      <PriceRequestModal
+        visible={showMainPriceRequestModal}
+        onClose={() => setShowMainPriceRequestModal(false)}
+        productId={currentProduct.productId}
+        productName={currentProduct.productName}
+      />
     </SafeAreaView>
   );
 }

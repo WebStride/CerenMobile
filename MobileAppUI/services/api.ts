@@ -118,6 +118,8 @@ export const register = async (phoneNumber: string, name: string): Promise<{ suc
     }
 
     const data = await response.json();
+    // Set new registration flag
+    await AsyncStorage.setItem('isNewRegistration', 'true');
     return { success: true, message: data.message };
   } catch (error) {
     console.error('Register API error:', error);
@@ -1022,6 +1024,33 @@ export const sendAddressDetails = async (payload: {
     }
 
     const data = await response.json();
+
+    // Check if this is just after registration
+    const isNewRegistration = await AsyncStorage.getItem('isNewRegistration');
+    if (isNewRegistration === 'true') {
+      // Build address string
+      const addressLine = [
+        payload.houseNumber,
+        payload.buildingBlock,
+        payload.city,
+        payload.district,
+        payload.pinCode,
+        payload.landmark
+      ].filter(Boolean).join(', ');
+      // Get registration date (YYYY-MM-DD)
+      const registrationDate = new Date().toISOString().slice(0, 10);
+      // Get customerId if available
+      const customerId = await AsyncStorage.getItem('customerId');
+      await sendNewRegistrationWhatsApp({
+        name: payload.name,
+        phoneNumber: payload.phoneNumber,
+        address: addressLine,
+        registrationDate,
+        customerId: customerId || undefined,
+      });
+      await AsyncStorage.setItem('isNewRegistration', 'false');
+    }
+
     return { success: true, message: data.message };
   } catch (error) {
     console.error('Send Address Details API error:', error);
@@ -1261,6 +1290,294 @@ export const submitContactUs = async (payload: {
       success: false,
       message: error?.message || 'Network error',
     };
+  }
+};
+
+// MSG91 WhatsApp Customer Care API
+interface CustomerCarePayload {
+  requestType: string;
+  customerName: string;
+  phone: string;
+  address: string;
+  message: string;
+  dateTime: string;
+}
+
+export const sendCustomerCareWhatsApp = async (
+  payload: CustomerCarePayload
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    // Get environment variables (must use EXPO_PUBLIC_ prefix for Expo/React Native)
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER;
+    const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY;
+    const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL;
+
+    console.log('📞 Customer Care WhatsApp Config:', { 
+      INTEGRATED_NO, 
+      ADMIN_TO_NUMBER, 
+      hasAuthKey: !!MSG91_AUTH_KEY,
+      MSG91_WHATSAPP_URL
+    });
+
+    if (!MSG91_AUTH_KEY) {
+      console.error('MSG91_AUTH_KEY is not configured for customer care');
+      return {
+        success: false,
+        message: 'Configuration error. Please contact support.',
+      };
+    }
+
+    // Truncate address to ~150-200 chars for template
+    const truncatedAddress = payload.address.length > 200 
+      ? payload.address.substring(0, 197) + '...' 
+      : payload.address;
+
+    // Truncate message to reasonable length
+    const truncatedMessage = payload.message.length > 200 
+      ? payload.message.substring(0, 197) + '...' 
+      : payload.message;
+
+    const requestBody = {
+      integrated_number: INTEGRATED_NO,
+      content_type: 'template',
+      payload: {
+        messaging_product: 'whatsapp',
+        type: 'template',
+        template: {
+          name: 'customer_care_admin_notify_v1',
+          language: {
+            code: 'en_US',
+            policy: 'deterministic',
+          },
+          namespace: '58a2a2fd_4239_4df3_b0e0_df0fcf3c0a53',
+          to_and_components: [
+            {
+              to: [ADMIN_TO_NUMBER],
+              components: {
+                body_1: { type: 'text', value: payload.requestType },
+                body_2: { type: 'text', value: payload.customerName },
+                body_3: { type: 'text', value: payload.phone },
+                body_4: { type: 'text', value: truncatedAddress },
+                body_5: { type: 'text', value: truncatedMessage },
+                body_6: { type: 'text', value: payload.dateTime },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    console.log('📞 Sending Customer Care WhatsApp:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(
+      MSG91_WHATSAPP_URL,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'authkey': MSG91_AUTH_KEY,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    console.log('📞 MSG91 Customer Care Response:', JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || 'Failed to send customer care request',
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Customer care request sent successfully',
+    };
+  } catch (error: any) {
+    console.error('Error sending customer care request via WhatsApp:', error);
+    return {
+      success: false,
+      message: error?.message || 'Network error',
+    };
+  }
+};
+
+// MSG91 WhatsApp Price Request API
+interface PriceRequestPayload {
+  storeName: string;
+  phone: string;
+  productId: string;
+  productName: string;
+  dateTime: string;
+  note: string;
+}
+
+export const sendPriceRequestWhatsApp = async (
+  payload: PriceRequestPayload
+): Promise<{ success: boolean; message?: string }> => {
+  try {
+    // Get environment variables (must use EXPO_PUBLIC_ prefix for Expo/React Native)
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER;
+    const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY;
+    const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL;
+
+    console.log('📱 MSG91 Config:', { 
+      INTEGRATED_NO, 
+      ADMIN_TO_NUMBER, 
+      hasAuthKey: !!MSG91_AUTH_KEY,
+      authKeyLength: MSG91_AUTH_KEY.length,
+      MSG91_WHATSAPP_URL
+    });
+
+    if (!MSG91_AUTH_KEY) {
+      console.error('MSG91_AUTH_KEY is not configured');
+      return {
+        success: false,
+        message: 'Configuration error. Please contact support.',
+      };
+    }
+
+    const requestBody = {
+      integrated_number: INTEGRATED_NO,
+      content_type: 'template',
+      payload: {
+        messaging_product: 'whatsapp',
+        type: 'template',
+        template: {
+          name: 'price_request_admin_notify',
+          language: {
+            code: 'en_US',
+            policy: 'deterministic',
+          },
+          namespace: '19e99d27_1d5d_494d_93b5_63e9f05799fb',
+          to_and_components: [
+            {
+              to: [ADMIN_TO_NUMBER],
+              components: {
+                body_1: { type: 'text', value: payload.storeName },
+                body_2: { type: 'text', value: payload.phone },
+                body_3: { type: 'text', value: payload.productId },
+                body_4: { type: 'text', value: payload.productName },
+                body_5: { type: 'text', value: payload.dateTime },
+                body_6: { type: 'text', value: payload.note },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    console.log('📱 Sending WhatsApp price request:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(
+      MSG91_WHATSAPP_URL,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'authkey': MSG91_AUTH_KEY,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+    console.log('📱 MSG91 Response:', JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: data.message || 'Failed to send price request',
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Price request sent successfully',
+    };
+  } catch (error: any) {
+    console.error('Error sending price request via WhatsApp:', error);
+    return {
+      success: false,
+      message: error?.message || 'Network error',
+    };
+  }
+};
+
+// WhatsApp New Registration Alert API
+export const sendNewRegistrationWhatsApp = async (payload: {
+  name: string;
+  phoneNumber: string;
+  address: string;
+  registrationDate: string;
+  customerId?: string | number;
+}): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER;
+    const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY;
+    const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL;
+
+    if (!MSG91_AUTH_KEY) {
+      console.error('MSG91_AUTH_KEY is not configured');
+      return { success: false, message: 'Configuration error. Please contact support.' };
+    }
+
+    // Truncate address to ~200 chars
+    const truncatedAddress = payload.address.length > 200
+      ? payload.address.substring(0, 197) + '...'
+      : payload.address;
+
+    const requestBody = {
+      integrated_number: INTEGRATED_NO,
+      content_type: 'template',
+      payload: {
+        messaging_product: 'whatsapp',
+        type: 'template',
+        template: {
+          name: 'new_registration_admin_notify',
+          language: {
+            code: 'en_US',
+            policy: 'deterministic',
+          },
+          namespace: '58a2a2fd_4239_4df3_b0e0_df0fcf3c0a53',
+          to_and_components: [
+            {
+              to: [ADMIN_TO_NUMBER],
+              components: {
+                body_1: { type: 'text', value: payload.name },
+                body_2: { type: 'text', value: payload.phoneNumber },
+                body_3: { type: 'text', value: truncatedAddress },
+                body_4: { type: 'text', value: payload.registrationDate },
+                body_5: { type: 'text', value: payload.customerId ? String(payload.customerId) : 'N/A' },
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    const response = await fetch(MSG91_WHATSAPP_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'authkey': MSG91_AUTH_KEY,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { success: false, message: data.message || 'Failed to send registration alert' };
+    }
+    return { success: true, message: 'Registration alert sent successfully' };
+  } catch (error: any) {
+    console.error('Error sending registration WhatsApp alert:', error);
+    return { success: false, message: error?.message || 'Network error' };
   }
 };
 

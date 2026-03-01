@@ -23,7 +23,8 @@ import {
   setDefaultAddress as setDefaultAddressAPI,
   getDefaultAddress,
   getUserMasterAddress,
-  submitContactUs
+  submitContactUs,
+  sendCustomerCareWhatsApp
 } from "@/services/api";
 import { isGuestSession } from "@/utils/session";
 
@@ -1020,6 +1021,29 @@ export default function AccountScreen() {
 
     setContactSubmitting(true);
     try {
+      // Get current date time in format YYYY-MM-DD HH:MM
+      const now = new Date();
+      const dateTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      // Format phone number for international format
+      let formattedPhone = contactForm.phoneNumber.trim();
+      if (!formattedPhone.startsWith('+') && !formattedPhone.startsWith('91')) {
+        formattedPhone = '91' + formattedPhone;
+      }
+
+      // Send WhatsApp notification via MSG91
+      const whatsappResult = await sendCustomerCareWhatsApp({
+        requestType: contactForm.requestType,
+        customerName: contactForm.name.trim(),
+        phone: formattedPhone,
+        address: contactForm.address.trim(),
+        message: contactForm.message.trim(),
+        dateTime: dateTime,
+      });
+
+      console.log('📞 WhatsApp Customer Care Result:', whatsappResult);
+
+      // Also submit to backend API (optional - for record keeping)
       const result = await submitContactUs({
         name: contactForm.name.trim(),
         phoneNumber: contactForm.phoneNumber.trim(),
@@ -1029,13 +1053,19 @@ export default function AccountScreen() {
         isGuest,
       });
 
-      if (result.success) {
+      // Show success if WhatsApp was sent successfully (primary notification method)
+      if (whatsappResult.success) {
         setContactModalVisible(false);
-        Alert.alert('Request sent', 'Your query has been submitted to customer care.');
+        Alert.alert('Request Sent ✅', 'Your query has been submitted to customer care. We will contact you shortly.');
+      } else if (result.success) {
+        // Fallback to backend success
+        setContactModalVisible(false);
+        Alert.alert('Request Sent', 'Your query has been submitted to customer care.');
       } else {
-        Alert.alert('Failed', result.message || 'Unable to submit request. Please try again.');
+        Alert.alert('Failed', result.message || whatsappResult.message || 'Unable to submit request. Please try again.');
       }
     } catch (error) {
+      console.error('Error submitting contact request:', error);
       Alert.alert('Error', 'Unable to submit request. Please try again.');
     } finally {
       setContactSubmitting(false);

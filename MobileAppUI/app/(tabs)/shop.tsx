@@ -37,6 +37,7 @@ import {
 } from "@/services/api";
 import { useCart } from "../context/CartContext";
 import { isGuestSession } from "@/utils/session";
+import { PriceRequestModal } from "@/components/PriceRequestModal";
 
 const { height, width } = Dimensions.get('window');
 
@@ -811,6 +812,7 @@ const ProductCard = React.memo(({
   const [showControls, setShowControls] = useState(!!cartItem);
   const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
+  const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
 
   useEffect(() => {
     if (cartItem) {
@@ -1048,9 +1050,25 @@ const ProductCard = React.memo(({
         {item.price !== null && item.price !== undefined && item.price > 0 ? (
           <Text className="font-bold text-base text-gray-900">₹{item.price}.00</Text>
         ) : (
-          <Text className="font-semibold text-sm text-gray-500 italic">Price on request</Text>
+          <TouchableOpacity
+            onPress={() => setShowPriceRequestModal(true)}
+            className="bg-orange-100 border border-orange-300 rounded-lg px-2 py-1"
+            activeOpacity={0.7}
+          >
+            <Text className="font-semibold text-xs text-orange-600 text-center">
+              Price on Request
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
+
+      {/* Price Request Modal */}
+      <PriceRequestModal
+        visible={showPriceRequestModal}
+        onClose={() => setShowPriceRequestModal(false)}
+        productId={item.productId}
+        productName={item.productName}
+      />
 
       {/* FIXED: Quantity Controls - Only show for products with pricing */}
       {(item.price !== null && item.price !== undefined && item.price > 0) && (
