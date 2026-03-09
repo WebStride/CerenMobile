@@ -36,7 +36,7 @@ const getApiUrl = (): string => {
 
   // Fallback to hardcoded URLs based on environment
   if (isDevelopment) {
-    const devUrl = 'http://192.168.0.120:3003';
+    const devUrl = 'http://192.168.0.110:3003';
     console.log('🏠 Using development API URL (fallback):', devUrl);
     console.log('📱 Environment detection - __DEV__:', __DEV__, '| appOwnership:', Constants.appOwnership);
     return devUrl;

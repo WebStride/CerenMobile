@@ -1210,7 +1210,7 @@ const GroceryCategoryCard = ({
 const HomeScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { cartCount } = useCart();
+  const { cartCount, refreshCart, isCartLoading } = useCart();
 
   const { phoneNumber, name, location, city, district, address } = params;
 
@@ -1568,13 +1568,17 @@ const HomeScreen = () => {
       setSelectedStoreName(store.CUSTOMERNAME);
       setShowStoreModal(false);
       
+      // Refresh cart with new store's cart data (await for proper sequencing)
+      console.log('🛒 Store changed, refreshing cart...');
+      await refreshCart();
+      
       // Refresh products with new store pricing
       fetchData(isCustomerExists === true);
     } catch (error) {
       console.error('Error changing store:', error);
       Alert.alert('Error', 'Failed to change store. Please try again.');
     }
-  }, [isCustomerExists]);
+  }, [isCustomerExists, refreshCart]);
 
   // Handle opening store modal - ensure stores are loaded
   const handleOpenStoreModal = useCallback(async () => {
@@ -2012,7 +2016,7 @@ const HomeScreen = () => {
           </ScrollView>
 
           {/* Fixed "Go to Cart" button */}
-          {cartCount > 0 && (
+          {(cartCount > 0 || isCartLoading) && (
             <View 
               style={{
                 position: 'absolute',
@@ -2039,6 +2043,7 @@ const HomeScreen = () => {
                 }}
                 activeOpacity={0.9}
                 onPress={() => router.push("/cart")}
+                disabled={isCartLoading}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="cart-outline" size={24} color="#fff" />
@@ -2048,7 +2053,7 @@ const HomeScreen = () => {
                     fontSize: 18, // Bigger text
                     marginLeft: 8 
                   }}>
-                    Go to Cart
+                    {isCartLoading ? 'Loading...' : 'Go to Cart'}
                   </Text>
                 </View>
                 
@@ -2062,15 +2067,19 @@ const HomeScreen = () => {
                   justifyContent: 'center',
                   paddingHorizontal: 12,
                 }}>
-                  <Text style={{ 
-                    color: 'white', 
-                    fontWeight: '700',
-                    fontSize: 16, // Bigger count text
-                    textAlign: 'center',
-                    lineHeight: 20, // Fixed line height for APK
-                  }}>
-                    {cartCount}
-                  </Text>
+                  {isCartLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={{ 
+                      color: 'white', 
+                      fontWeight: '700',
+                      fontSize: 16, // Bigger count text
+                      textAlign: 'center',
+                      lineHeight: 20, // Fixed line height for APK
+                    }}>
+                      {cartCount}
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
             </View>

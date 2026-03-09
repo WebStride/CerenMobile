@@ -19,8 +19,10 @@ export interface CartContextProps {
   increaseQuantity: (productId: number) => void;
   decreaseQuantity: (productId: number) => void;
   clearCart: () => void;
+  refreshCart: () => Promise<void>;
   cartCount: number;
   cartTotal: number;
+  isCartLoading: boolean;
 }
 
 const CartContext = createContext<CartContextProps | undefined>(undefined);
@@ -33,6 +35,7 @@ export function useCart() {
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartLoading, setIsCartLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -61,6 +64,24 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     })();
     return () => { mounted = false; };
   }, []);
+
+  // Function to refresh cart from server (used when store changes)
+  const refreshCart = async () => {
+    try {
+      setIsCartLoading(true);
+      console.log('🛒 Refreshing cart from server...');
+      const res: any = await getCart();
+      if (res?.success) {
+        setCart(res.cart || []);
+        await AsyncStorage.setItem('cart', JSON.stringify(res.cart || []));
+        console.log('✅ Cart refreshed:', res.cart?.length || 0, 'items');
+      }
+    } catch (err) {
+      console.error('Failed to refresh cart from server', err);
+    } finally {
+      setIsCartLoading(false);
+    }
+  };
 
   const addToCart = (item: Omit<CartItem, "quantity"> & { quantity?: number }, providedQuantity?: number) => {
     const quantity = providedQuantity || item.quantity || 1;
@@ -192,9 +213,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         removeFromCart, 
         increaseQuantity: increase,
         decreaseQuantity: decrease, 
-        clearCart, 
+        clearCart,
+        refreshCart,
         cartCount, 
-        cartTotal 
+        cartTotal,
+        isCartLoading
       }}
     >
       {children}
