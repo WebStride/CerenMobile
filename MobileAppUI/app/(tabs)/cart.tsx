@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useCart } from "../context/CartContext";
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { checkCustomerExists, placeOrder } from "../../services/api";
@@ -18,7 +19,7 @@ const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function CartScreen() {
   const router = useRouter();
-  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal, clearCart } = useCart();
+  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal, clearCart, refreshCart } = useCart();
   const insets = useSafeAreaInsets();
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -26,6 +27,16 @@ export default function CartScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   
+  // Refresh cart when screen is focused (handles store switching)
+  useFocusEffect(
+    useCallback(() => {
+      if (isGuest === false) {
+        console.log('🛒 Cart screen focused - refreshing cart...');
+        refreshCart();
+      }
+    }, [isGuest, refreshCart])
+  );
+
   // Check customer existence when component mounts
   useEffect(() => {
     const checkCustomer = async () => {
