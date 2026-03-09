@@ -351,20 +351,20 @@ const InvoiceDetailModal = ({
                 </Text>
               </View>
 
-              {/* Order ID */}
-              {transaction.details.orderId && (
+              {/* Order Number */}
+              {(transaction.details.orderNumber || transaction.details.orderId) && (
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
                   marginBottom: 8
                 }}>
-                  <Text style={{ color: '#6B7280', fontSize: 14 }}>Order ID:</Text>
+                  <Text style={{ color: '#6B7280', fontSize: 14 }}>Order Number:</Text>
                   <Text style={{ 
                     fontWeight: '600', 
                     color: '#111827',
                     fontSize: 14
                   }}>
-                    #{transaction.details.orderId}
+                    {transaction.details.orderNumber || `#${transaction.details.orderId}`}
                   </Text>
                 </View>
               )}
@@ -1038,6 +1038,7 @@ export default function InvoicesScreen() {
             invoiceId: inv.invoiceID,
             invoiceNo: inv.invoiceNo,
             orderId: inv.OrderID ?? inv.orderId ?? null,
+            orderNumber: inv.OrderNumber ?? inv.orderNumber ?? null,
             // Normalize various possible fields for invoice status
             invoiceStatus: (inv.InvoiceStatus ?? inv.invoiceStatus ?? inv.Status ?? inv.status ?? '').toString(),
             netInvoiceAmount: Number(inv.NetInvoiceAmount ?? inv.netInvoiceAmount ?? inv.saleAmount ?? 0),

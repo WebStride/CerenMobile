@@ -208,8 +208,29 @@ export async function getInvoicesByCustomerId(customerId: number) {
         
         console.log('📊 Found invoices count:', invoices.length);
 
+        // Get unique OrderIDs to fetch OrderNumbers
+        const orderIds = [...new Set(invoices.map(inv => inv.OrderID).filter(id => id !== null))];
+        
+        // Fetch OrderNumbers for all orders
+        let orderNumberMap = new Map<string, string>();
+        if (orderIds.length > 0) {
+            const orders = await prisma.orders.findMany({
+                where: { OrderID: { in: orderIds } },
+                select: { OrderID: true, OrderNumber: true }
+            });
+            orders.forEach(order => {
+                orderNumberMap.set(order.OrderID.toString(), order.OrderNumber);
+            });
+        }
+
+        // Add OrderNumber to each invoice
+        const invoicesWithOrderNumber = invoices.map(inv => ({
+            ...inv,
+            OrderNumber: inv.OrderID ? orderNumberMap.get(inv.OrderID.toString()) || null : null
+        }));
+
         // Convert BigInt and Date values to serializable format
-        const serializedInvoices = serializeForJson(invoices);
+        const serializedInvoices = serializeForJson(invoicesWithOrderNumber);
 
         return {
             success: true,
@@ -444,6 +465,21 @@ export async function getInvoicesByCustomerAndDateRange(
 
                 console.log('✅ Fetched', dbInvoices.length, 'invoices from local database');
 
+                // Get unique OrderIDs to fetch OrderNumbers
+                const orderIds = [...new Set(dbInvoices.map(inv => inv.OrderID).filter(id => id !== null))] as bigint[];
+                
+                // Fetch OrderNumbers for all orders
+                let orderNumberMap = new Map<string, string>();
+                if (orderIds.length > 0) {
+                    const orders = await prisma.orders.findMany({
+                        where: { OrderID: { in: orderIds } },
+                        select: { OrderID: true, OrderNumber: true }
+                    });
+                    orders.forEach(order => {
+                        orderNumberMap.set(order.OrderID.toString(), order.OrderNumber);
+                    });
+                }
+
                 // Create a map for quick lookup
                 const dbInvoiceMap = new Map(
                     dbInvoices.map(inv => [inv.InvoiceID, inv])
@@ -457,7 +493,8 @@ export async function getInvoicesByCustomerAndDateRange(
                         inv.NetInvoiceAmount = dbData.NetInvoiceAmount;
                         inv.InvoiceNumber = dbData.InvoiceNumber;
                         inv.OrderID = dbData.OrderID ? Number(dbData.OrderID) : null;
-                        console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}, OrderID=${inv.OrderID}`);
+                        inv.OrderNumber = dbData.OrderID ? orderNumberMap.get(dbData.OrderID.toString()) || null : null;
+                        console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}, OrderID=${inv.OrderID}, OrderNumber=${inv.OrderNumber}`);
                     }
                 });
             }
