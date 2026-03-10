@@ -13,7 +13,7 @@
     "projectId": "34cbcac0-891d-4910-b667-1d0762dfa52b",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.amitavpanda.MobileAppUI",
+      "bundleIdentifier": "com.ceren.ceren",
       "config": {
         "googleMapsApiKey": "process.env.GOOGLE_MAPS_API_KEY_IOS"
       }
@@ -24,7 +24,7 @@
         "backgroundColor": "#BCD042"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.amitavpanda.MobileAppUI",
+      "package": "com.ceren.ceren",
       "permissions": [
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_EXTERNAL_STORAGE"
