@@ -103,8 +103,29 @@ export default function CartScreen() {
     
     if (!currentItem) return;
     
-    if (numVal === 0 || newQuantity === "") {
-      removeFromCart(productId);
+    const minQty = currentItem.minOrderQuantity || 1;
+    
+    if (newQuantity === "") {
+      // Allow empty for typing, but don't remove — will snap on blur
+      return;
+    }
+    
+    if (numVal === 0) {
+      // Don't allow zero — snap to minimum
+      Alert.alert(
+        "Minimum Order Quantity",
+        `Minimum order quantity for ${currentItem.productName} is ${minQty}. Use the ✕ button to remove the item.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
+    if (numVal < minQty) {
+      Alert.alert(
+        "Minimum Order Quantity",
+        `Minimum order quantity for ${currentItem.productName} is ${minQty}.`,
+        [{ text: "OK" }]
+      );
       return;
     }
     
@@ -209,7 +230,18 @@ export default function CartScreen() {
                   {/* Quantity Controls */}
                   <View className="flex-row items-center mt-3 rounded-full bg-green-700 px-1 py-1 self-start">
                     <TouchableOpacity
-                      onPress={() => decreaseQuantity(item.productId)}
+                      onPress={() => {
+                        const minQty = item.minOrderQuantity || 1;
+                        if (item.quantity <= minQty) {
+                          Alert.alert(
+                            "Minimum Order Quantity",
+                            `Cannot decrease below minimum order quantity of ${minQty}. Use the ✕ button to remove this item.`,
+                            [{ text: "OK" }]
+                          );
+                          return;
+                        }
+                        decreaseQuantity(item.productId);
+                      }}
                       className="w-8 h-8 rounded-full items-center justify-center"
                     >
                       <Ionicons name="remove" size={20} color="#fff" />
@@ -240,9 +272,12 @@ export default function CartScreen() {
                       <Ionicons name="add" size={20} color="#fff" />
                     </TouchableOpacity>
                   </View>
+                  
+                  {/* Min Order Quantity hint */}
+                  {(item.minOrderQuantity && item.minOrderQuantity > 1) ? (
+                    <Text className="text-xs text-gray-400 mt-1 ml-1">Min qty: {item.minOrderQuantity}</Text>
+                  ) : null}
                 </View>
-
-                {/* Price and Remove */}
                 <View className="items-end">
                   <TouchableOpacity 
                     onPress={() => removeFromCart(item.productId)}
@@ -430,6 +465,24 @@ export default function CartScreen() {
         <TouchableOpacity
           onPress={async () => {
             if (isPlacingOrder) return;
+            
+            // Validate minimum order quantities before placing order
+            const moqViolations = cart.filter(item => {
+              const minQty = item.minOrderQuantity || 1;
+              return item.quantity < minQty;
+            });
+            
+            if (moqViolations.length > 0) {
+              const violationList = moqViolations
+                .map(item => `• ${item.productName}: min ${item.minOrderQuantity || 1}, have ${item.quantity}`)
+                .join('\n');
+              Alert.alert(
+                'Minimum Order Quantity Not Met',
+                `The following items don't meet the minimum order quantity:\n\n${violationList}\n\nPlease adjust quantities before placing the order.`,
+                [{ text: 'OK' }]
+              );
+              return;
+            }
             
             setIsPlacingOrder(true);
             

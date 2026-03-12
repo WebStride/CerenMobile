@@ -27,6 +27,7 @@ import {
   sendCustomerCareWhatsApp
 } from "@/services/api";
 import { isGuestSession } from "@/utils/session";
+import { useCart } from "@/app/context/CartContext";
 
 const { height, width } = Dimensions.get('window');
 
@@ -82,7 +83,8 @@ const LocationModal = ({
     pinCode: '',
     latitude: '',
     longitude: '',
-    saveAs: 'home'
+    saveAs: 'home',
+    isDefault: false
   });
   const insets = useSafeAreaInsets();
 
@@ -108,15 +110,6 @@ const LocationModal = ({
     }
   };
 
-  const handleUseCurrentLocation = () => {
-    onSelectAddress({
-      id: 'current',
-      label: 'Current Location',
-      address: 'Greenville'
-    });
-    onClose();
-  };
-
   const handleMenuToggle = (addressId: number) => {
     setMenuVisible(menuVisible === addressId ? null : addressId);
   };
@@ -134,7 +127,8 @@ const LocationModal = ({
       pinCode: address.PinCode || '',
       latitude: address.Latitude || '',
       longitude: address.Longitude || '',
-      saveAs: address.SaveAs || 'home'
+      saveAs: address.SaveAs || 'home',
+      isDefault: address.IsDefault || false
     });
     setMenuVisible(null);
   };
@@ -285,42 +279,6 @@ const LocationModal = ({
               paddingBottom: 20
             }}
           >
-            {/* Use Current Location */}
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 24,
-                paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: '#F3F4F6'
-              }}
-              onPress={handleUseCurrentLocation}
-              activeOpacity={0.7}
-            >
-              <View style={{
-                backgroundColor: '#DCFCE7',
-                padding: 12,
-                borderRadius: 50,
-                marginRight: 16
-              }}>
-                <Ionicons name="location" size={20} color="#16a34a" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{
-                  color: '#16a34a',
-                  fontSize: 16,
-                  fontWeight: '600',
-                  marginBottom: 4
-                }}>Use your current location</Text>
-                <Text style={{
-                  color: '#6B7280',
-                  fontSize: 14
-                }}>Greenville</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#888" />
-            </TouchableOpacity>
-
             {/* Add New Address */}
             <TouchableOpacity
               style={{
@@ -791,6 +749,7 @@ const LocationModal = ({
 
 export default function AccountScreen() {
   const router = useRouter();
+  const { clearCart } = useCart();
   
   // Modal states
   const [modalVisible, setModalVisible] = useState(false);
@@ -1086,10 +1045,18 @@ export default function AccountScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Remove tokens
+              // Clear cart state and AsyncStorage
+              clearCart();
+              
+              // Remove tokens and user data
               await Promise.all([
                 AsyncStorage.removeItem("accessToken"),
-                AsyncStorage.removeItem("refreshToken")
+                AsyncStorage.removeItem("refreshToken"),
+                AsyncStorage.removeItem("userData"),
+                AsyncStorage.removeItem("customerId"),
+                AsyncStorage.removeItem("selectedStoreId"),
+                AsyncStorage.removeItem("selectedStoreName"),
+                AsyncStorage.removeItem("cart"),
               ]);
               
               // Navigate to onboarding

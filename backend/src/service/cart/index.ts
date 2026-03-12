@@ -37,9 +37,22 @@ export async function addOrIncrementCartItem(customerId: number, product: any) {
 
 export async function updateCartQuantity(customerId: number, productId: number, quantity: number) {
   if (quantity <= 0) {
+    // Check minOrderQuantity before deleting — prevent accidental removal
+    const existing = await prisma.cart.findFirst({ where: { customerId, productId } });
+    const minQty = existing?.minOrderQuantity || 1;
+    if (quantity <= 0 && existing) {
+      // Instead of deleting, enforce minimum quantity
+      return prisma.cart.updateMany({ where: { customerId, productId }, data: { quantity: minQty, updatedAt: new Date() } });
+    }
     return prisma.cart.deleteMany({ where: { customerId, productId } });
   }
-  return prisma.cart.updateMany({ where: { customerId, productId }, data: { quantity, updatedAt: new Date() } });
+  
+  // Enforce minimum order quantity on update
+  const existing = await prisma.cart.findFirst({ where: { customerId, productId } });
+  const minQty = existing?.minOrderQuantity || 1;
+  const safeQuantity = Math.max(quantity, minQty);
+  
+  return prisma.cart.updateMany({ where: { customerId, productId }, data: { quantity: safeQuantity, updatedAt: new Date() } });
 }
 
 export async function removeCartItem(customerId: number, productId: number) {

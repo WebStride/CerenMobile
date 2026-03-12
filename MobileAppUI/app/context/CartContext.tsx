@@ -10,6 +10,7 @@ export interface CartItem {
   productUnits: number;
   unitsOfMeasurement: string;
   quantity: number;
+  minOrderQuantity?: number;
 }
 
 export interface CartContextProps {
@@ -83,19 +84,20 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const addToCart = (item: Omit<CartItem, "quantity"> & { quantity?: number }, providedQuantity?: number) => {
+  const addToCart = (item: Omit<CartItem, "quantity"> & { quantity?: number; minOrderQuantity?: number }, providedQuantity?: number) => {
     const quantity = providedQuantity || item.quantity || 1;
+    const minOrderQuantity = item.minOrderQuantity || providedQuantity || 1;
     setCart(prev => {
       const found = prev.find(x => x.productId === item.productId);
       let newCart;
       if (found) {
         newCart = prev.map(x =>
           x.productId === item.productId
-            ? { ...x, quantity: x.quantity + quantity }
+            ? { ...x, quantity: x.quantity + quantity, minOrderQuantity: x.minOrderQuantity || minOrderQuantity }
             : x
         );
       } else {
-        newCart = [...prev, { ...item, quantity }];
+        newCart = [...prev, { ...item, quantity, minOrderQuantity }];
       }
       
       // Save to AsyncStorage
@@ -159,13 +161,18 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setCart(prev => {
       const found = prev.find(x => x.productId === productId);
       if (!found) return prev;
+      
+      const minQty = found.minOrderQuantity || 1;
       newQty = found.quantity - 1;
-      let newCart;
-      if (newQty <= 0) {
-        newCart = prev.filter(x => x.productId !== productId);
-      } else {
-        newCart = prev.map(x => x.productId === productId ? { ...x, quantity: newQty } : x);
+      
+      // Prevent going below minimum order quantity
+      if (newQty < minQty) {
+        // Don't remove — keep at current quantity
+        newQty = found.quantity;
+        return prev; // No change
       }
+      
+      const newCart = prev.map(x => x.productId === productId ? { ...x, quantity: newQty } : x);
       
       // Save to AsyncStorage
       AsyncStorage.setItem('cart', JSON.stringify(newCart)).catch(err => 
@@ -176,10 +183,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     if (isNaN(newQty)) return;
-    if (newQty <= 0) {
-      removeCartApi(productId).catch(err => console.error('removeCartApi failed', err));
-      return;
-    }
+    if (newQty <= 0) return; // Should not happen with MOQ guard, but safety check
     updateCartApi(productId, newQty).catch(err => console.error('updateCartApi failed', err));
   };
 

@@ -36,7 +36,8 @@ const getApiUrl = (): string => {
 
   // Fallback to hardcoded URLs based on environment
   if (isDevelopment) {
-    const devUrl = 'http://192.168.0.110:3003';
+    // ⚠️ UPDATE THIS IP when your local network changes (run: ipconfig getifaddr en0)
+    const devUrl = 'http://192.168.1.7:3003';
     console.log('🏠 Using development API URL (fallback):', devUrl);
     console.log('📱 Environment detection - __DEV__:', __DEV__, '| appOwnership:', Constants.appOwnership);
     return devUrl;
@@ -1163,7 +1164,7 @@ export const updateUserAddress = async (addressId: number, addressData: any) => 
 
     if (!response.ok) {
       const err = await response.json();
-      return { success: false, message: err.message };
+      return { success: false, message: err.error || err.message || 'Failed to update address', fields: err.fields };
     }
 
     const data = await response.json();
