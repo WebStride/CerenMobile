@@ -1078,15 +1078,19 @@ export default function AccountScreen() {
       icon: 'heart-outline',
       onPress: async () => {
         try {
-          const { checkCustomerExists } = await import('../../services/api');
-          const customerCheck = await checkCustomerExists();
+          // Check if user has a registered store (selectedStoreId)
+          const storeId = await AsyncStorage.getItem('selectedStoreId');
           
-          if (!customerCheck.success || !customerCheck.exists) {
+          if (!storeId) {
             Alert.alert(
-              'Registration Required',
-              'Please register in the app to access your favourites and enjoy personalized shopping experience.',
+              'Store Not Registered',
+              'Please contact Admin / Customer Care to register your store before accessing favourites.',
               [
-                { text: 'OK', style: 'cancel' }
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                  text: 'Contact Customer Care', 
+                  onPress: () => openContactModal()
+                }
               ]
             );
             return;

@@ -22,6 +22,7 @@ export default function CartScreen() {
   const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal, clearCart, refreshCart } = useCart();
   const insets = useSafeAreaInsets();
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
+  const [hasStore, setHasStore] = useState<boolean | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderDate, setOrderDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -37,7 +38,7 @@ export default function CartScreen() {
     }, [isGuest, refreshCart])
   );
 
-  // Check customer existence when component mounts
+  // Check customer existence and store registration when component mounts
   useEffect(() => {
     const checkCustomer = async () => {
       try {
@@ -47,30 +48,17 @@ export default function CartScreen() {
           return;
         }
 
+        // Check if user has a store selected (registered store)
+        const storeId = await AsyncStorage.getItem('selectedStoreId');
+        setHasStore(!!storeId);
+
         const response = await checkCustomerExists();
         const isRegistered = response.success ? response.exists : false;
         setIsCustomerExists(isRegistered);
-        
-        // Show popup if user is not registered
-        if (!isRegistered) {
-          Alert.alert(
-            'Registration Required',
-            'Please register yourself to access add to cart.',
-            [
-              { text: 'OK', onPress: () => router.back() }
-            ]
-          );
-        }
       } catch (error) {
         console.error("Error checking customer existence:", error);
         setIsCustomerExists(false);
-        Alert.alert(
-          'Registration Required',
-          'Please register yourself to access add to cart.',
-          [
-            { text: 'OK', onPress: () => router.back() }
-          ]
-        );
+        setHasStore(false);
       }
     };
     
@@ -150,13 +138,38 @@ export default function CartScreen() {
   const finalAmount = itemsTotalAfterDiscount + (isDeliveryFree ? 0 : deliveryCharge) + (isHandlingFree ? 0 : handlingCharge);
   const totalSavingsPercent = ((totalSavings / itemsSubtotal) * 100).toFixed(1);
 
-  // Don't render cart content if user is not registered
-  if (isCustomerExists === false) {
-    return null; // Return null since popup is already shown and user will be navigated back
+  // Don't render cart content if user has no store registered (Price on Request users)
+  if (isCustomerExists === false || hasStore === false) {
+    return (
+      <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+        {/* Header */}
+        <View className="px-4 py-3 border-b border-gray-100">
+          <Text className="text-xl font-bold text-center text-gray-900">My Cart</Text>
+        </View>
+
+        <View className="flex-1 items-center justify-center px-6">
+          <Ionicons name="storefront-outline" size={72} color="#F59E0B" />
+          <Text className="text-xl font-bold mt-5 text-gray-900 text-center">
+            Store Not Registered
+          </Text>
+          <Text className="text-gray-500 mt-2 text-center text-base leading-6">
+            Please contact Admin / Customer Care to register your store and start placing orders.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/(tabs)/account', params: { openContact: 'true' } })}
+            className="bg-[#53B175] px-8 py-3.5 rounded-full mt-6 flex-row items-center"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="chatbubbles-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text className="text-white font-semibold text-base">Contact Customer Care</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   // Show loading state while checking registration
-  if (isCustomerExists === null) {
+  if (isCustomerExists === null || hasStore === null) {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
         <View className="flex-1 items-center justify-center">
