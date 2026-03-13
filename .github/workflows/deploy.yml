@@ -1,0 +1,135 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - develop   # → staging
+      - main      # → production
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # STAGING  (develop branch)
+  # ─────────────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies & build (CI check)
+        run: |
+          cd backend
+          npm ci
+          npm run build
+
+      - name: Deploy to Staging via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/ceren-backend
+
+            echo "→ Pulling latest develop…"
+            git pull origin develop
+
+            echo "→ Installing production dependencies…"
+            cd backend
+            npm ci --omit=dev
+
+            echo "→ Generating Prisma client…"
+            npx prisma generate
+
+            echo "→ Building TypeScript…"
+            npm run build
+
+            echo "→ Running pending DB migrations…"
+            npx prisma migrate deploy
+
+            echo "→ Creating logs directory…"
+            mkdir -p logs
+
+            echo "→ Reloading PM2 (zero-downtime)…"
+            pm2 reload ecosystem.config.js --env staging --update-env || \
+              pm2 start ecosystem.config.js --env staging
+
+            pm2 save
+            echo "✅ Staging deployment complete"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PRODUCTION  (main branch)
+  # ─────────────────────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy → Production
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies & build (CI check)
+        run: |
+          cd backend
+          npm ci
+          npm run build
+
+      - name: Deploy to Production via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_SSH_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/ceren-backend
+
+            echo "→ Pulling latest main…"
+            git pull origin main
+
+            echo "→ Installing production dependencies…"
+            cd backend
+            npm ci --omit=dev
+
+            echo "→ Generating Prisma client…"
+            npx prisma generate
+
+            echo "→ Building TypeScript…"
+            npm run build
+
+            echo "→ Running pending DB migrations…"
+            npx prisma migrate deploy
+
+            echo "→ Creating logs directory…"
+            mkdir -p logs
+
+            echo "→ Reloading PM2 (zero-downtime)…"
+            pm2 reload ecosystem.config.js --env production --update-env || \
+              pm2 start ecosystem.config.js --env production
+
+            pm2 save
+            echo "✅ Production deployment complete"
