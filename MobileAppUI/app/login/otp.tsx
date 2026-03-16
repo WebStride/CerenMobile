@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import { useLocalSearchParams,  } from "expo-router";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { verify, sendOtp, register, getStoresForUser } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
@@ -23,6 +24,7 @@ import { setAuthenticatedSession } from "@/utils/session";
 
 export default function VerificationScreen() {
   const router = useRouter();
+  const { refreshCart } = useCart();
   const [code, setCode] = useState("");
   const params = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
@@ -119,6 +121,9 @@ export default function VerificationScreen() {
           } else {
             console.log("❌ No user data in response to store");
           }
+
+          // Refresh cart from server for the newly logged-in user
+          await refreshCart();
 
           // If name param is present it means this was a new user flow
           // and we should continue to SelectLocation to collect address.
@@ -304,35 +309,35 @@ export default function VerificationScreen() {
             </View>
             {/* Resend Code with Timer */}
             <View className="mb-5">
-              <TouchableOpacity
-                style={{
-                  justifyContent: "center",
-                  alignItems: "flex-start",
-                  opacity: (!canResend || resending) ? 0.5 : 1,
-                }}
-                onPress={handleResendOTP}
-                disabled={!canResend || resending}
-                accessibilityLabel="Resend Code"
-              >
+              {canResend || resending ? (
+                <TouchableOpacity
+                  style={{
+                    justifyContent: "center",
+                    alignItems: "flex-start",
+                    opacity: resending ? 0.5 : 1,
+                  }}
+                  onPress={handleResendOTP}
+                  disabled={resending}
+                  accessibilityLabel="Resend Code"
+                >
+                  <Text
+                    style={{
+                      color: "#53B175",
+                      fontFamily: "Open Sans",
+                      fontWeight: "600",
+                      fontSize: 16,
+                    }}
+                  >
+                    {resending ? "Sending..." : "Resend Code"}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
                 <Text
                   style={{
                     color: "#53B175",
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 16,
-                  }}
-                >
-                  {resending ? "Sending..." : canResend ? "Resend Code" : `Resend Code in ${formatTime(timer)}`}
-                </Text>
-              </TouchableOpacity>
-              {!canResend && !resending && (
-                <Text
-                  style={{
-                    color: "#7C7C7C",
-                    fontFamily: "Open Sans",
-                    fontWeight: "400",
-                    fontSize: 14,
-                    marginTop: 4,
                   }}
                 >
                   Please wait {formatTime(timer)} to resend OTP

@@ -118,7 +118,8 @@ const LocationModal = ({
     city: '',
     district: '',
     pinCode: '',
-    saveAs: 'home'
+    saveAs: 'home',
+    isDefault: false
   });
   const insets = useSafeAreaInsets();
 
@@ -166,7 +167,8 @@ const LocationModal = ({
       city: address.City,
       district: address.District,
       pinCode: address.PinCode || '',
-      saveAs: address.SaveAs || 'home'
+      saveAs: address.SaveAs || 'home',
+      isDefault: address.IsDefault || false
     });
     setMenuVisible(null);
   };
