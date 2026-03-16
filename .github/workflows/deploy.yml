@@ -38,16 +38,23 @@ jobs:
 
       - name: Deploy to Staging via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: GH_TOKEN
           script: |
             set -e
             cd ~/ceren-backend
 
             echo "→ Pulling latest develop…"
+            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
+            git fetch origin
+            git checkout develop 2>/dev/null || git checkout -b develop --track origin/develop
             git pull origin develop
+            git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
 
             echo "→ Installing production dependencies…"
             cd backend
@@ -100,16 +107,23 @@ jobs:
 
       - name: Deploy to Production via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.PRODUCTION_HOST }}
           username: ${{ secrets.PRODUCTION_SSH_USER }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          envs: GH_TOKEN
           script: |
             set -e
             cd ~/ceren-backend
 
             echo "→ Pulling latest main…"
+            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
+            git fetch origin
+            git checkout main
             git pull origin main
+            git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
 
             echo "→ Installing production dependencies…"
             cd backend
