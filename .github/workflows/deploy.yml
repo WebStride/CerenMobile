@@ -44,6 +44,8 @@ jobs:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
+          port: 22
+          debug: true
           envs: GH_TOKEN
           script: |
             set -e
