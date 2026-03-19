@@ -83,7 +83,20 @@ jobs:
           fi
           echo "→ Generating Prisma client…" && npx prisma generate
           echo "→ Building TypeScript…" && npm run build
-          echo "→ Running migrations…" && npx prisma migrate deploy
+          echo "→ Running migrations…"
+          MIGRATE_OUT=\$(npx prisma migrate deploy 2>&1); MIGRATE_EXIT=\$?
+          echo "\$MIGRATE_OUT"
+          if [ \$MIGRATE_EXIT -ne 0 ]; then
+            if echo "\$MIGRATE_OUT" | grep -q 'P3005'; then
+              echo "→ DB schema exists without migration history – baselining all migrations…"
+              for m in \$(ls prisma/migrations/ | grep -v migration_lock); do
+                npx prisma migrate resolve --applied "\$m" 2>&1 || true
+              done
+              npx prisma migrate deploy
+            else
+              exit \$MIGRATE_EXIT
+            fi
+          fi
           mkdir -p logs
           pm2 reload ecosystem.config.js --env staging --update-env || pm2 start ecosystem.config.js --env staging
           pm2 save
@@ -164,7 +177,20 @@ jobs:
           fi
           echo "→ Generating Prisma client…" && npx prisma generate
           echo "→ Building TypeScript…" && npm run build
-          echo "→ Running migrations…" && npx prisma migrate deploy
+          echo "→ Running migrations…"
+          MIGRATE_OUT=\$(npx prisma migrate deploy 2>&1); MIGRATE_EXIT=\$?
+          echo "\$MIGRATE_OUT"
+          if [ \$MIGRATE_EXIT -ne 0 ]; then
+            if echo "\$MIGRATE_OUT" | grep -q 'P3005'; then
+              echo "→ DB schema exists without migration history – baselining all migrations…"
+              for m in \$(ls prisma/migrations/ | grep -v migration_lock); do
+                npx prisma migrate resolve --applied "\$m" 2>&1 || true
+              done
+              npx prisma migrate deploy
+            else
+              exit \$MIGRATE_EXIT
+            fi
+          fi
           mkdir -p logs
           pm2 reload ecosystem.config.js --env production --update-env || pm2 start ecosystem.config.js --env production
           pm2 save
