@@ -45,9 +45,21 @@ jobs:
           username: ${{ secrets.STAGING_SSH_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           envs: GH_TOKEN
-          command_timeout: 30m
+          command_timeout: 60m
           script: |
             set -e
+
+            # ── Ensure swap exists (one-time setup; persists across reboots) ──
+            if ! swapon --show | grep -q /swapfile; then
+              echo "→ Creating 2 GB swap file (first-time setup)…"
+              sudo dd if=/dev/zero of=/swapfile bs=128M count=16 status=none
+              sudo chmod 600 /swapfile
+              sudo mkswap -q /swapfile
+              sudo swapon /swapfile
+              grep -q /swapfile /etc/fstab || echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab > /dev/null
+              echo "   Swap ready: $(free -h | awk '/Swap/{print $2}')"
+            fi
+
             cd ~/ceren-backend
 
             echo "→ Pulling latest develop…"
@@ -58,9 +70,21 @@ jobs:
             git reset --hard origin/develop
             git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
 
-            echo "→ Installing production dependencies…"
             cd backend
-            npm ci --omit=dev
+
+            # ── Only reinstall when package-lock.json changes ──────────────
+            LOCK_HASH=$(md5sum package-lock.json | awk '{print $1}')
+            LAST_HASH_FILE=".last-deploy-lock-hash"
+            LAST_HASH=""
+            [ -f "$LAST_HASH_FILE" ] && LAST_HASH=$(cat "$LAST_HASH_FILE")
+
+            if [ "$LOCK_HASH" != "$LAST_HASH" ] || [ ! -d node_modules ]; then
+              echo "→ package-lock.json changed – running npm ci…"
+              npm ci --omit=dev
+              echo "$LOCK_HASH" > "$LAST_HASH_FILE"
+            else
+              echo "→ package-lock.json unchanged – skipping npm ci"
+            fi
 
             echo "→ Generating Prisma client…"
             npx prisma generate
@@ -116,9 +140,21 @@ jobs:
           username: ${{ secrets.PRODUCTION_SSH_USER }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
           envs: GH_TOKEN
-          command_timeout: 30m
+          command_timeout: 60m
           script: |
             set -e
+
+            # ── Ensure swap exists (one-time setup; persists across reboots) ──
+            if ! swapon --show | grep -q /swapfile; then
+              echo "→ Creating 2 GB swap file (first-time setup)…"
+              sudo dd if=/dev/zero of=/swapfile bs=128M count=16 status=none
+              sudo chmod 600 /swapfile
+              sudo mkswap -q /swapfile
+              sudo swapon /swapfile
+              grep -q /swapfile /etc/fstab || echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab > /dev/null
+              echo "   Swap ready: $(free -h | awk '/Swap/{print $2}')"
+            fi
+
             cd ~/ceren-backend
 
             echo "→ Pulling latest main…"
@@ -129,9 +165,21 @@ jobs:
             git reset --hard origin/main
             git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
 
-            echo "→ Installing production dependencies…"
             cd backend
-            npm ci --omit=dev
+
+            # ── Only reinstall when package-lock.json changes ──────────────
+            LOCK_HASH=$(md5sum package-lock.json | awk '{print $1}')
+            LAST_HASH_FILE=".last-deploy-lock-hash"
+            LAST_HASH=""
+            [ -f "$LAST_HASH_FILE" ] && LAST_HASH=$(cat "$LAST_HASH_FILE")
+
+            if [ "$LOCK_HASH" != "$LAST_HASH" ] || [ ! -d node_modules ]; then
+              echo "→ package-lock.json changed – running npm ci…"
+              npm ci --omit=dev
+              echo "$LOCK_HASH" > "$LAST_HASH_FILE"
+            else
+              echo "→ package-lock.json unchanged – skipping npm ci"
+            fi
 
             echo "→ Generating Prisma client…"
             npx prisma generate
