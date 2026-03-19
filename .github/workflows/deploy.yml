@@ -72,11 +72,11 @@ jobs:
           git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
           cd backend
           LOCK_HASH=\$(md5sum package-lock.json | awk '{print \$1}')
-          LAST_HASH_FILE=".last-deploy-lock-hash"
+          LAST_HASH_FILE="\$HOME/.ceren-staging-npm-hash"
           LAST_HASH=""; [ -f "\$LAST_HASH_FILE" ] && LAST_HASH=\$(cat "\$LAST_HASH_FILE")
           if [ "\$LOCK_HASH" != "\$LAST_HASH" ] || [ ! -d node_modules ]; then
             echo "→ package-lock.json changed – running npm ci…"
-            npm ci --omit=dev
+            npm ci
             echo "\$LOCK_HASH" > "\$LAST_HASH_FILE"
           else
             echo "→ package-lock.json unchanged – skipping npm ci"
@@ -166,11 +166,11 @@ jobs:
           git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
           cd backend
           LOCK_HASH=\$(md5sum package-lock.json | awk '{print \$1}')
-          LAST_HASH_FILE=".last-deploy-lock-hash"
+          LAST_HASH_FILE="\$HOME/.ceren-production-npm-hash"
           LAST_HASH=""; [ -f "\$LAST_HASH_FILE" ] && LAST_HASH=\$(cat "\$LAST_HASH_FILE")
           if [ "\$LOCK_HASH" != "\$LAST_HASH" ] || [ ! -d node_modules ]; then
             echo "→ package-lock.json changed – running npm ci…"
-            npm ci --omit=dev
+            npm ci
             echo "\$LOCK_HASH" > "\$LAST_HASH_FILE"
           else
             echo "→ package-lock.json unchanged – skipping npm ci"
