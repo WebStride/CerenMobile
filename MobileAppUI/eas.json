@@ -23,6 +23,18 @@
         "buildType": "apk"
       }
     },
+    "testflight": {
+      "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://cerenmobile.onrender.com"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "env": {
