@@ -37,73 +37,59 @@ jobs:
           npm run build
 
       - name: Deploy to Staging via SSH
-        uses: appleboy/ssh-action@v1.0.3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_SSH_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          envs: GH_TOKEN
-          command_timeout: 60m
-          script: |
-            set -e
-
-            # ── Ensure swap exists (one-time setup; persists across reboots) ──
-            if ! swapon --show | grep -q /swapfile; then
-              echo "→ Creating 2 GB swap file (first-time setup)…"
-              sudo dd if=/dev/zero of=/swapfile bs=128M count=16 status=none
-              sudo chmod 600 /swapfile
-              sudo mkswap -q /swapfile
-              sudo swapon /swapfile
-              grep -q /swapfile /etc/fstab || echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab > /dev/null
-              echo "   Swap ready: $(free -h | awk '/Swap/{print $2}')"
-            fi
-
-            cd ~/ceren-backend
-
-            echo "→ Pulling latest develop…"
-            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
-            git fetch origin
-            git clean -fd
-            git checkout develop 2>/dev/null || git checkout -b develop --track origin/develop
-            git reset --hard origin/develop
-            git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
-
-            cd backend
-
-            # ── Only reinstall when package-lock.json changes ──────────────
-            LOCK_HASH=$(md5sum package-lock.json | awk '{print $1}')
-            LAST_HASH_FILE=".last-deploy-lock-hash"
-            LAST_HASH=""
-            [ -f "$LAST_HASH_FILE" ] && LAST_HASH=$(cat "$LAST_HASH_FILE")
-
-            if [ "$LOCK_HASH" != "$LAST_HASH" ] || [ ! -d node_modules ]; then
-              echo "→ package-lock.json changed – running npm ci…"
-              npm ci --omit=dev
-              echo "$LOCK_HASH" > "$LAST_HASH_FILE"
-            else
-              echo "→ package-lock.json unchanged – skipping npm ci"
-            fi
-
-            echo "→ Generating Prisma client…"
-            npx prisma generate
-
-            echo "→ Building TypeScript…"
-            npm run build
-
-            echo "→ Running pending DB migrations…"
-            npx prisma migrate deploy
-
-            echo "→ Creating logs directory…"
-            mkdir -p logs
-
-            echo "→ Reloading PM2 (zero-downtime)…"
-            pm2 reload ecosystem.config.js --env staging --update-env || \
-              pm2 start ecosystem.config.js --env staging
-
-            pm2 save
-            echo "✅ Staging deployment complete"
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        timeout-minutes: 60
+        run: |
+          printf '%s' "$STAGING_SSH_KEY" > /tmp/deploy_key.pem
+          chmod 600 /tmp/deploy_key.pem
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          cat << DEPLOY_SCRIPT | ssh -i /tmp/deploy_key.pem \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            -o ConnectTimeout=30 \
+            -o BatchMode=yes \
+            "$STAGING_SSH_USER@$STAGING_HOST" bash
+          set -e
+          GH_TOKEN="${GH_TOKEN}"
+          if ! swapon --show | grep -q /swapfile; then
+            echo "→ Creating 2 GB swap file…"
+            sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=128M count=16 status=none
+            sudo chmod 600 /swapfile && sudo mkswap -q /swapfile && sudo swapon /swapfile
+            grep -q /swapfile /etc/fstab || echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab > /dev/null
+          fi
+          cd ~/ceren-backend
+          echo "→ Pulling latest develop…"
+          git remote set-url origin "https://x-access-token:\${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
+          git fetch origin
+          git clean -fd
+          git checkout develop 2>/dev/null || git checkout -b develop --track origin/develop
+          git reset --hard origin/develop
+          git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
+          cd backend
+          LOCK_HASH=\$(md5sum package-lock.json | awk '{print \$1}')
+          LAST_HASH_FILE=".last-deploy-lock-hash"
+          LAST_HASH=""; [ -f "\$LAST_HASH_FILE" ] && LAST_HASH=\$(cat "\$LAST_HASH_FILE")
+          if [ "\$LOCK_HASH" != "\$LAST_HASH" ] || [ ! -d node_modules ]; then
+            echo "→ package-lock.json changed – running npm ci…"
+            npm ci --omit=dev
+            echo "\$LOCK_HASH" > "\$LAST_HASH_FILE"
+          else
+            echo "→ package-lock.json unchanged – skipping npm ci"
+          fi
+          echo "→ Generating Prisma client…" && npx prisma generate
+          echo "→ Building TypeScript…" && npm run build
+          echo "→ Running migrations…" && npx prisma migrate deploy
+          mkdir -p logs
+          pm2 reload ecosystem.config.js --env staging --update-env || pm2 start ecosystem.config.js --env staging
+          pm2 save
+          echo "✅ Staging deployment complete"
+          DEPLOY_SCRIPT
+          rm -f /tmp/deploy_key.pem
 
   # ─────────────────────────────────────────────────────────────────────────
   # PRODUCTION  (main branch)
@@ -132,70 +118,56 @@ jobs:
           npm run build
 
       - name: Deploy to Production via SSH
-        uses: appleboy/ssh-action@v1.0.3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          host: ${{ secrets.PRODUCTION_HOST }}
-          username: ${{ secrets.PRODUCTION_SSH_USER }}
-          key: ${{ secrets.PRODUCTION_SSH_KEY }}
-          envs: GH_TOKEN
-          command_timeout: 60m
-          script: |
-            set -e
-
-            # ── Ensure swap exists (one-time setup; persists across reboots) ──
-            if ! swapon --show | grep -q /swapfile; then
-              echo "→ Creating 2 GB swap file (first-time setup)…"
-              sudo dd if=/dev/zero of=/swapfile bs=128M count=16 status=none
-              sudo chmod 600 /swapfile
-              sudo mkswap -q /swapfile
-              sudo swapon /swapfile
-              grep -q /swapfile /etc/fstab || echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab > /dev/null
-              echo "   Swap ready: $(free -h | awk '/Swap/{print $2}')"
-            fi
-
-            cd ~/ceren-backend
-
-            echo "→ Pulling latest main…"
-            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
-            git fetch origin
-            git clean -fd
-            git checkout main 2>/dev/null || git checkout -b main --track origin/main
-            git reset --hard origin/main
-            git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
-
-            cd backend
-
-            # ── Only reinstall when package-lock.json changes ──────────────
-            LOCK_HASH=$(md5sum package-lock.json | awk '{print $1}')
-            LAST_HASH_FILE=".last-deploy-lock-hash"
-            LAST_HASH=""
-            [ -f "$LAST_HASH_FILE" ] && LAST_HASH=$(cat "$LAST_HASH_FILE")
-
-            if [ "$LOCK_HASH" != "$LAST_HASH" ] || [ ! -d node_modules ]; then
-              echo "→ package-lock.json changed – running npm ci…"
-              npm ci --omit=dev
-              echo "$LOCK_HASH" > "$LAST_HASH_FILE"
-            else
-              echo "→ package-lock.json unchanged – skipping npm ci"
-            fi
-
-            echo "→ Generating Prisma client…"
-            npx prisma generate
-
-            echo "→ Building TypeScript…"
-            npm run build
-
-            echo "→ Running pending DB migrations…"
-            npx prisma migrate deploy
-
-            echo "→ Creating logs directory…"
-            mkdir -p logs
-
-            echo "→ Reloading PM2 (zero-downtime)…"
-            pm2 reload ecosystem.config.js --env production --update-env || \
-              pm2 start ecosystem.config.js --env production
-
-            pm2 save
-            echo "✅ Production deployment complete"
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        timeout-minutes: 60
+        run: |
+          printf '%s' "$PRODUCTION_SSH_KEY" > /tmp/deploy_key.pem
+          chmod 600 /tmp/deploy_key.pem
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$PRODUCTION_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          cat << DEPLOY_SCRIPT | ssh -i /tmp/deploy_key.pem \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            -o ConnectTimeout=30 \
+            -o BatchMode=yes \
+            "$PRODUCTION_SSH_USER@$PRODUCTION_HOST" bash
+          set -e
+          GH_TOKEN="${GH_TOKEN}"
+          if ! swapon --show | grep -q /swapfile; then
+            echo "→ Creating 2 GB swap file…"
+            sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=128M count=16 status=none
+            sudo chmod 600 /swapfile && sudo mkswap -q /swapfile && sudo swapon /swapfile
+            grep -q /swapfile /etc/fstab || echo '/swapfile swap swap defaults 0 0' | sudo tee -a /etc/fstab > /dev/null
+          fi
+          cd ~/ceren-backend
+          echo "→ Pulling latest main…"
+          git remote set-url origin "https://x-access-token:\${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
+          git fetch origin
+          git clean -fd
+          git checkout main 2>/dev/null || git checkout -b main --track origin/main
+          git reset --hard origin/main
+          git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
+          cd backend
+          LOCK_HASH=\$(md5sum package-lock.json | awk '{print \$1}')
+          LAST_HASH_FILE=".last-deploy-lock-hash"
+          LAST_HASH=""; [ -f "\$LAST_HASH_FILE" ] && LAST_HASH=\$(cat "\$LAST_HASH_FILE")
+          if [ "\$LOCK_HASH" != "\$LAST_HASH" ] || [ ! -d node_modules ]; then
+            echo "→ package-lock.json changed – running npm ci…"
+            npm ci --omit=dev
+            echo "\$LOCK_HASH" > "\$LAST_HASH_FILE"
+          else
+            echo "→ package-lock.json unchanged – skipping npm ci"
+          fi
+          echo "→ Generating Prisma client…" && npx prisma generate
+          echo "→ Building TypeScript…" && npm run build
+          echo "→ Running migrations…" && npx prisma migrate deploy
+          mkdir -p logs
+          pm2 reload ecosystem.config.js --env production --update-env || pm2 start ecosystem.config.js --env production
+          pm2 save
+          echo "✅ Production deployment complete"
+          DEPLOY_SCRIPT
+          rm -f /tmp/deploy_key.pem
