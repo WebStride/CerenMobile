@@ -102,15 +102,15 @@ Launched **2 EC2 instances** in `us-east-1`:
 | | Staging | Production |
 |---|---|---|
 | Instance ID | `i-01bd58c0d3bab9757` | `i-04b23565a43286ed5` |
-| Public IPv4 | `13.220.56.26` | `44.211.24.238` |
+| Elastic IP | `54.165.194.161` | `3.222.212.40` |
 | Private IPv4 | `172.31.26.63` | `172.31.65.112` |
 
 ```bash
 # Connect to staging
-ssh -i ~/.ssh/ceren-staging-key.pem ubuntu@13.220.56.26
+ssh -i ~/.ssh/ceren-staging-key.pem ubuntu@54.165.194.161
 
 # Connect to production
-ssh -i ~/.ssh/ceren-production-key.pem ubuntu@44.211.24.238
+ssh -i ~/.ssh/ceren-production-key.pem ubuntu@3.222.212.40
 ```
 
 ### Why
@@ -159,40 +159,38 @@ PM2 startup was configured via `pm2 startup systemd` so the process manager surv
 
 ---
 
-## Phase 5 — Domain + Nginx + SSL ⏳ (In Progress)
+## Phase 5 — Domain + Nginx + SSL ✅ (Complete)
 
-**Date completed:** *(pending — waiting for DNS propagation)*  
-**Status:** ⏳ In Progress — Nginx ✅ · Certbot installed ✅ · **DNS records needed** ⚠️
+**Date completed:** March 16, 2026  
+**Status:** ✅ Done — DNS propagated, certificates issued, HTTPS active
 
-### What was done (March 11, 2026)
+### What was done (March 11–16, 2026)
 
-#### 5a. DNS Records — ⚠️ ACTION REQUIRED
-Add these A records at your domain registrar (GoDaddy / Namecheap / Cloudflare):
+#### 5a. DNS Records — ✅ Done
+GoDaddy (or your registrar) now points to Route 53 nameservers, and the Route 53 hosted zone contains these A records:
 
 | Subdomain | Type | Value | TTL |
 |---|---|---|---|
-| `api-staging.cerenmobile.com` | A | `13.220.56.26` | 300 |
-| `api.cerenmobile.com` | A | `44.211.24.238` | 300 |
+| `api-staging.cerenmobile.com` | A | `54.165.194.161` | 300 |
+| `api.cerenmobile.com` | A | `3.222.212.40` | 300 |
 
-Once DNS propagates (usually 5–30 min for Cloudflare, up to 24h for others), run Certbot:
+> The DNS records now resolve globally (verified via `dig`).
 
-```bash
-# On STAGING server:
-ssh -i ~/.ssh/ceren-staging-key.pem ubuntu@13.220.56.26
-sudo certbot --nginx -d api-staging.cerenmobile.com --non-interactive --agree-tos -m your@email.com
+#### 5b. Certbot / HTTPS — ✅ Done
+Certbot successfully issued and deployed certificates for both domains.
 
-# On PRODUCTION server:
-ssh -i ~/.ssh/ceren-production-key.pem ubuntu@44.211.24.238
-sudo certbot --nginx -d api.cerenmobile.com --non-interactive --agree-tos -m your@email.com
-```
+- **Production:** `https://api.cerenmobile.com` (Cert expiry 2026-06-14)
+- **Staging:** `https://api-staging.cerenmobile.com` (Cert expiry 2026-06-14)
 
-Verify auto-renewal (run once per server after SSL is issued):
-```bash
-sudo certbot renew --dry-run
-```
+Certbot auto-renewal is enabled, and `sudo certbot renew --dry-run` succeeds.
 
-#### 5b. Nginx Config — ✅ Done
+#### 5c. Nginx Config — ✅ Done
+Nginx reverse proxy is configured on both servers and now serves HTTPS for both subdomains.
 
+- **Staging** (`ceren-staging`): `/etc/nginx/sites-enabled/ceren-backend`, `server_name api-staging.cerenmobile.com`
+- **Production** (`ceren-production`): same config with `server_name api.cerenmobile.com`
+
+Security headers are applied on both (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection).
 Nginx reverse proxy is configured and active on both servers:
 
 - **Staging** (`ceren-staging`): `/etc/nginx/sites-available/ceren-backend` → proxies `http://localhost:3000`

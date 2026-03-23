@@ -244,14 +244,14 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
         saveAs,
         latitude,
         longitude,
-        isDefault = false
+        isDefault
     } = req.body;
 
-    // Validate required fields
-    if (!phoneNumber || !city || !district || !houseNumber || !buildingBlock || !pinCode) {
+    // Validate required fields - only core location fields are mandatory
+    if (!city || !district || !pinCode) {
         return res.status(400).json({
             error: 'Missing required fields',
-            fields: ['phoneNumber', 'city', 'district', 'houseNumber', 'buildingBlock', 'pinCode']
+            fields: ['city', 'district', 'pinCode']
         });
     }
 
@@ -275,8 +275,11 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
             return res.status(404).json({ error: 'Address not found' });
         }
 
+        // Determine IsDefault: use provided value, or preserve existing value
+        const resolvedIsDefault = typeof isDefault === 'boolean' ? isDefault : existingAddress.IsDefault;
+
         // If setting as default, unset all other defaults first
-        if (isDefault) {
+        if (resolvedIsDefault) {
             await prisma.deliveryAddress.updateMany({
                 where: { UserID: parseInt(authenticatedUserId) },
                 data: { IsDefault: false }
@@ -287,18 +290,18 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
         const updatedAddress = await prisma.deliveryAddress.update({
             where: { DeliveryAddressID: parseInt(addressId) },
             data: {
-                Name: name,
-                PhoneNumber: phoneNumber,
-                HouseNumber: houseNumber,
-                BuildingBlock: buildingBlock,
+                Name: name || null,
+                PhoneNumber: phoneNumber || null,
+                HouseNumber: houseNumber || null,
+                BuildingBlock: buildingBlock || null,
                 PinCode: pinCode,
-                Landmark: landmark,
+                Landmark: landmark || null,
                 City: city,
                 District: district,
-                SaveAs: saveAs,
-                Latitude: latitude,
-                Longitude: longitude,
-                IsDefault: isDefault,
+                SaveAs: saveAs || null,
+                Latitude: latitude || null,
+                Longitude: longitude || null,
+                IsDefault: resolvedIsDefault,
                 UpdatedAt: new Date()
             }
         });

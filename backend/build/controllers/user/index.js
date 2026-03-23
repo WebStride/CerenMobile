@@ -225,12 +225,12 @@ function updateUserAddress(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
         const { addressId } = req.params;
-        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, latitude, longitude, isDefault = false } = req.body;
-        // Validate required fields
-        if (!phoneNumber || !city || !district || !houseNumber || !buildingBlock || !pinCode) {
+        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, latitude, longitude, isDefault } = req.body;
+        // Validate required fields - only core location fields are mandatory
+        if (!city || !district || !pinCode) {
             return res.status(400).json({
                 error: 'Missing required fields',
-                fields: ['phoneNumber', 'city', 'district', 'houseNumber', 'buildingBlock', 'pinCode']
+                fields: ['city', 'district', 'pinCode']
             });
         }
         try {
@@ -250,8 +250,10 @@ function updateUserAddress(req, res) {
             if (!existingAddress) {
                 return res.status(404).json({ error: 'Address not found' });
             }
+            // Determine IsDefault: use provided value, or preserve existing value
+            const resolvedIsDefault = typeof isDefault === 'boolean' ? isDefault : existingAddress.IsDefault;
             // If setting as default, unset all other defaults first
-            if (isDefault) {
+            if (resolvedIsDefault) {
                 yield prisma.deliveryAddress.updateMany({
                     where: { UserID: parseInt(authenticatedUserId) },
                     data: { IsDefault: false }
@@ -261,18 +263,18 @@ function updateUserAddress(req, res) {
             const updatedAddress = yield prisma.deliveryAddress.update({
                 where: { DeliveryAddressID: parseInt(addressId) },
                 data: {
-                    Name: name,
-                    PhoneNumber: phoneNumber,
-                    HouseNumber: houseNumber,
-                    BuildingBlock: buildingBlock,
+                    Name: name || null,
+                    PhoneNumber: phoneNumber || null,
+                    HouseNumber: houseNumber || null,
+                    BuildingBlock: buildingBlock || null,
                     PinCode: pinCode,
-                    Landmark: landmark,
+                    Landmark: landmark || null,
                     City: city,
                     District: district,
-                    SaveAs: saveAs,
-                    Latitude: latitude,
-                    Longitude: longitude,
-                    IsDefault: isDefault,
+                    SaveAs: saveAs || null,
+                    Latitude: latitude || null,
+                    Longitude: longitude || null,
+                    IsDefault: resolvedIsDefault,
                     UpdatedAt: new Date()
                 }
             });

@@ -56,9 +56,20 @@ function addOrIncrementCartItem(customerId, product) {
 function updateCartQuantity(customerId, productId, quantity) {
     return __awaiter(this, void 0, void 0, function* () {
         if (quantity <= 0) {
+            // Check minOrderQuantity before deleting — prevent accidental removal
+            const existing = yield prisma_1.default.cart.findFirst({ where: { customerId, productId } });
+            const minQty = (existing === null || existing === void 0 ? void 0 : existing.minOrderQuantity) || 1;
+            if (quantity <= 0 && existing) {
+                // Instead of deleting, enforce minimum quantity
+                return prisma_1.default.cart.updateMany({ where: { customerId, productId }, data: { quantity: minQty, updatedAt: new Date() } });
+            }
             return prisma_1.default.cart.deleteMany({ where: { customerId, productId } });
         }
-        return prisma_1.default.cart.updateMany({ where: { customerId, productId }, data: { quantity, updatedAt: new Date() } });
+        // Enforce minimum order quantity on update
+        const existing = yield prisma_1.default.cart.findFirst({ where: { customerId, productId } });
+        const minQty = (existing === null || existing === void 0 ? void 0 : existing.minOrderQuantity) || 1;
+        const safeQuantity = Math.max(quantity, minQty);
+        return prisma_1.default.cart.updateMany({ where: { customerId, productId }, data: { quantity: safeQuantity, updatedAt: new Date() } });
     });
 }
 function removeCartItem(customerId, productId) {
