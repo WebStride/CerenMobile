@@ -39,3 +39,14 @@ export declare function resendOtp(phoneNumber: string, retryType?: 'text' | 'voi
     success: boolean;
     message: string;
 }>;
+export declare function sendAdminContactAlert(payload: {
+    name: string;
+    phoneNumber: string;
+    address: string;
+    message: string;
+    requestType: string;
+    isGuest: boolean;
+}): Promise<{
+    success: boolean;
+    message: string;
+}>;

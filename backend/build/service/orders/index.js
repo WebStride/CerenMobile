@@ -198,8 +198,23 @@ function getInvoicesByCustomerId(customerId) {
                 }
             });
             console.log('📊 Found invoices count:', invoices.length);
+            // Get unique OrderIDs to fetch OrderNumbers
+            const orderIds = [...new Set(invoices.map(inv => inv.OrderID).filter(id => id !== null))];
+            // Fetch OrderNumbers for all orders
+            let orderNumberMap = new Map();
+            if (orderIds.length > 0) {
+                const orders = yield prisma.orders.findMany({
+                    where: { OrderID: { in: orderIds } },
+                    select: { OrderID: true, OrderNumber: true }
+                });
+                orders.forEach(order => {
+                    orderNumberMap.set(order.OrderID.toString(), order.OrderNumber);
+                });
+            }
+            // Add OrderNumber to each invoice
+            const invoicesWithOrderNumber = invoices.map(inv => (Object.assign(Object.assign({}, inv), { OrderNumber: inv.OrderID ? orderNumberMap.get(inv.OrderID.toString()) || null : null })));
             // Convert BigInt and Date values to serializable format
-            const serializedInvoices = serializeForJson(invoices);
+            const serializedInvoices = serializeForJson(invoicesWithOrderNumber);
             return {
                 success: true,
                 invoices: serializedInvoices
@@ -387,7 +402,7 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
                     .map((inv) => inv.invoiceID)
                     .filter((id) => id !== null && id !== undefined);
                 if (invoiceIds.length > 0) {
-                    // Fetch InvoiceStatus and NetInvoiceAmount from our database
+                    // Fetch InvoiceStatus, NetInvoiceAmount, and OrderID from our database
                     const dbInvoices = yield prisma.invoices.findMany({
                         where: {
                             InvoiceID: { in: invoiceIds }
@@ -396,10 +411,24 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
                             InvoiceID: true,
                             InvoiceStatus: true,
                             NetInvoiceAmount: true,
-                            InvoiceNumber: true
+                            InvoiceNumber: true,
+                            OrderID: true
                         }
                     });
                     console.log('✅ Fetched', dbInvoices.length, 'invoices from local database');
+                    // Get unique OrderIDs to fetch OrderNumbers
+                    const orderIds = [...new Set(dbInvoices.map(inv => inv.OrderID).filter(id => id !== null))];
+                    // Fetch OrderNumbers for all orders
+                    let orderNumberMap = new Map();
+                    if (orderIds.length > 0) {
+                        const orders = yield prisma.orders.findMany({
+                            where: { OrderID: { in: orderIds } },
+                            select: { OrderID: true, OrderNumber: true }
+                        });
+                        orders.forEach(order => {
+                            orderNumberMap.set(order.OrderID.toString(), order.OrderNumber);
+                        });
+                    }
                     // Create a map for quick lookup
                     const dbInvoiceMap = new Map(dbInvoices.map(inv => [inv.InvoiceID, inv]));
                     // Enrich each invoice with database data
@@ -409,7 +438,9 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
                             inv.InvoiceStatus = dbData.InvoiceStatus;
                             inv.NetInvoiceAmount = dbData.NetInvoiceAmount;
                             inv.InvoiceNumber = dbData.InvoiceNumber;
-                            console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}`);
+                            inv.OrderID = dbData.OrderID ? Number(dbData.OrderID) : null;
+                            inv.OrderNumber = dbData.OrderID ? orderNumberMap.get(dbData.OrderID.toString()) || null : null;
+                            console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}, OrderID=${inv.OrderID}, OrderNumber=${inv.OrderNumber}`);
                         }
                     });
                 }

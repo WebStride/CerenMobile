@@ -1,8 +1,23 @@
 import express, {Request, Response} from  "express";
 import cors from "cors";
 import dotenv from 'dotenv';
-// import routes from "./routes";
-dotenv.config();
+import fs from 'fs';
+import path from 'path';
+
+// Load environment variables based on NODE_ENV
+const nodeEnv = (process.env.NODE_ENV || 'development').trim();
+const envPath = path.resolve(process.cwd(), `.env.${nodeEnv}`);
+
+if (fs.existsSync(envPath)) {
+  console.log(`🛠️  Loading env file: ${envPath}`);
+  dotenv.config({ path: envPath });
+} else if (fs.existsSync(path.resolve(process.cwd(), '.env'))) {
+  console.log('🛠️  Loading default .env file');
+  dotenv.config();
+} else {
+  console.warn(`⚠️  No .env file found for NODE_ENV=${nodeEnv}. Falling back to process env values.`);
+}
+
 import routes from "./routes";
 
 const app = express();

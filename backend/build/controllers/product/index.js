@@ -22,21 +22,32 @@ exports.similarProductsList = similarProductsList;
 const product_1 = require("../../service/product");
 const product_2 = require("../../service/product");
 const product_3 = require("../../service/product");
-function getExclusiveProductsList(req, res) {
+function resolvePricingContext(req) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
+        const selectedCustomerId = req.query.customerId
+            ? parseInt(req.query.customerId)
+            : req.headers['x-customer-id']
+                ? parseInt(req.headers['x-customer-id'])
+                : null;
+        if ((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId) {
+            return (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+        }
+        if (selectedCustomerId) {
+            return (0, product_1.getCustomerPricingInfo)(0, selectedCustomerId);
+        }
+        return {
+            customerPresent: false,
+            customerId: null,
+            priceColumn: null,
+            showPricing: false,
+        };
+    });
+}
+function getExclusiveProductsList(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
-            // Get selected customerID from query param or header (from store selection)
-            const selectedCustomerId = req.query.customerId
-                ? parseInt(req.query.customerId)
-                : req.headers['x-customer-id']
-                    ? parseInt(req.headers['x-customer-id'])
-                    : null;
-            console.log(`[getExclusiveProductsList] userId: ${req.user.userId}, selectedCustomerId: ${selectedCustomerId}`);
-            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const { customerId, priceColumn, showPricing } = yield resolvePricingContext(req);
             const products = yield (0, product_1.getExclusiveProducts)(customerId, priceColumn, showPricing);
             res.json({
                 success: true,
@@ -56,17 +67,8 @@ function getExclusiveProductsList(req, res) {
 }
 function newProductsList(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
-            const selectedCustomerId = req.query.customerId
-                ? parseInt(req.query.customerId)
-                : req.headers['x-customer-id']
-                    ? parseInt(req.headers['x-customer-id'])
-                    : null;
-            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const { customerId, priceColumn, showPricing } = yield resolvePricingContext(req);
             const products = yield (0, product_1.getNewProducts)(customerId, priceColumn, showPricing);
             res.json({
                 success: true,
@@ -86,17 +88,8 @@ function newProductsList(req, res) {
 }
 function allProductsList(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
-            const selectedCustomerId = req.query.customerId
-                ? parseInt(req.query.customerId)
-                : req.headers['x-customer-id']
-                    ? parseInt(req.headers['x-customer-id'])
-                    : null;
-            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const { customerId, priceColumn, showPricing } = yield resolvePricingContext(req);
             const products = yield (0, product_1.getAllProducts)(customerId, priceColumn, showPricing);
             res.json({
                 success: true,
@@ -146,18 +139,9 @@ function buyAgainProductsList(req, res) {
 }
 function getBestSelling(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
             const sortOrderLimit = parseInt(req.query.limit) || 10;
-            const selectedCustomerId = req.query.customerId
-                ? parseInt(req.query.customerId)
-                : req.headers['x-customer-id']
-                    ? parseInt(req.headers['x-customer-id'])
-                    : null;
-            const { customerId, priceColumn, showPricing } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId), selectedCustomerId);
+            const { customerId, priceColumn, showPricing } = yield resolvePricingContext(req);
             const products = yield (0, product_1.getBestSellingProducts)(customerId, priceColumn, sortOrderLimit, showPricing);
             res.json({
                 success: true,
@@ -177,11 +161,7 @@ function getBestSelling(req, res) {
 }
 function getCategoryList(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
             const categories = yield (0, product_1.getCategories)();
             res.json({
                 success: true,
@@ -221,16 +201,12 @@ function getSubCategories(req, res) {
 }
 function productsBySubCategory(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
             const subCategoryId = parseInt(req.params.subCategoryId);
             if (isNaN(subCategoryId)) {
                 return res.status(400).json({ error: 'Invalid subCategoryId' });
             }
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const { priceColumn } = yield resolvePricingContext(req);
             const products = yield (0, product_1.getProductsBySubCategory)(subCategoryId, priceColumn);
             res.json({
                 success: true,
@@ -248,15 +224,11 @@ function productsBySubCategory(req, res) {
 }
 function productsByCatalog(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
             const productId = parseInt(req.params.productId);
             if (isNaN(productId))
                 return res.status(400).json({ error: 'Invalid productId' });
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const { priceColumn } = yield resolvePricingContext(req);
             const products = yield (0, product_2.getProductsByCatalogOfProduct)(productId, priceColumn);
             res.json({ success: true, products });
         }
@@ -268,15 +240,11 @@ function productsByCatalog(req, res) {
 }
 function similarProductsList(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
         try {
-            if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
-                return res.status(401).json({ error: 'User not authenticated' });
-            }
             const productId = parseInt(req.params.productId);
             if (isNaN(productId))
                 return res.status(400).json({ error: 'Invalid productId' });
-            const { customerId, priceColumn } = yield (0, product_1.getCustomerPricingInfo)(parseInt(req.user.userId));
+            const { priceColumn } = yield resolvePricingContext(req);
             const products = yield (0, product_3.getSimilarProducts)(productId, priceColumn);
             res.json({ success: true, products });
         }

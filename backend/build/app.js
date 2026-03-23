@@ -15,8 +15,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
-// import routes from "./routes";
-dotenv_1.default.config();
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
+// Load environment variables based on NODE_ENV
+const nodeEnv = (process.env.NODE_ENV || 'development').trim();
+const envPath = path_1.default.resolve(process.cwd(), `.env.${nodeEnv}`);
+if (fs_1.default.existsSync(envPath)) {
+    console.log(`🛠️  Loading env file: ${envPath}`);
+    dotenv_1.default.config({ path: envPath });
+}
+else if (fs_1.default.existsSync(path_1.default.resolve(process.cwd(), '.env'))) {
+    console.log('🛠️  Loading default .env file');
+    dotenv_1.default.config();
+}
+else {
+    console.warn(`⚠️  No .env file found for NODE_ENV=${nodeEnv}. Falling back to process env values.`);
+}
 const routes_1 = __importDefault(require("./routes"));
 const app = (0, express_1.default)();
 console.log("cors enabled");
