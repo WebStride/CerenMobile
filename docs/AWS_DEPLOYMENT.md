@@ -19,6 +19,175 @@ We are migrating the CerenMobile backend from **Render** to **AWS EC2** with:
 
 ---
 
+## Mobile App Environment Runbook ✅
+
+**Date verified:** March 23, 2026  
+**Status:** ✅ Current reference for running the mobile app against staging and production correctly
+
+This section is the operational guide for choosing the correct backend from the mobile app.
+
+### Environment Matrix
+
+| Use case | Mobile env source | Expected backend URL | How to run |
+|---|---|---|---|
+| Daily staging testing on phone | `MobileAppUI/.env.development` | `https://api-staging.cerenmobile.com` | `npx expo start --host lan --clear --go` |
+| Daily staging testing on Android emulator/dev client | `MobileAppUI/.env.development` | `https://api-staging.cerenmobile.com` | `npm run android` or `npx expo start --dev-client --clear` |
+| Local backend testing on Android emulator | `MobileAppUI/.env.development` | `http://10.0.2.2:3002` | start local backend, then `npm run android` |
+| Local backend testing on physical device | `MobileAppUI/.env.development` | `http://<your-mac-lan-ip>:3002` | start local backend, then `npx expo start --host lan --clear --go` |
+| Production APK / AAB build | `MobileAppUI/.env.production` and `MobileAppUI/eas.json` production profiles | `https://api.cerenmobile.com` | `eas build --platform android --profile production` |
+| Internal production-like QA build | `MobileAppUI/eas.json` preview / testflight profile | `https://api.cerenmobile.com` | `eas build --platform android --profile preview` or `eas build --platform ios --profile testflight` |
+
+### Critical Rule: Which config actually wins
+
+The mobile app does **not** use one single source for environment configuration. The correct backend depends on how the app is launched:
+
+1. **Expo / Metro local runs** use `MobileAppUI/.env.development` through `app.config.js`.
+2. **Production-style EAS builds** use the `env` block from `MobileAppUI/eas.json` for the selected profile.
+3. **Fallback values in code** should only be a last resort and must not be relied on for environment switching.
+
+Because of this, changing only one file is not enough. To avoid sending traffic to the wrong backend, keep these files aligned:
+
+```text
+MobileAppUI/.env.development
+MobileAppUI/.env.production
+MobileAppUI/eas.json
+```
+
+### Verified staging setup
+
+For staging, the frontend should resolve to:
+
+```env
+EXPO_PUBLIC_API_URL=https://api-staging.cerenmobile.com
+```
+
+This value is already the correct target for local development flows.
+
+### Correct way to run staging on a phone with Expo Go
+
+From `MobileAppUI/`:
+
+```bash
+npm install
+npx expo start --host lan --clear --go
+```
+
+Then:
+
+1. Connect the phone to the same Wi-Fi as the Mac.
+2. Open **Expo Go**.
+3. Scan the QR shown by Metro, or open the `exp://...` URL printed in the terminal.
+
+Use this mode when you want fast staging verification from a real device without creating a new build.
+
+### Correct way to run staging on Android emulator / development build
+
+From `MobileAppUI/`:
+
+```bash
+npm install
+npx expo start --dev-client --clear
+```
+
+In another terminal:
+
+```bash
+npm run android
+```
+
+Use this mode when testing native modules, dev-client features, or emulator-only workflows.
+
+### Correct way to run against local backend
+
+For **Android emulator**, set:
+
+```env
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3002
+```
+
+For **iPhone simulator**, use:
+
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3002
+```
+
+For a **real phone on the same Wi-Fi**, use your Mac LAN IP:
+
+```env
+EXPO_PUBLIC_API_URL=http://<your-mac-lan-ip>:3002
+```
+
+Then start the backend locally:
+
+```bash
+cd backend
+npm run dev
+```
+
+### Correct way to build production
+
+Before creating preview, TestFlight, or production builds, make sure both `.env.production` and the relevant `eas.json` profiles point to production:
+
+```env
+EXPO_PUBLIC_API_URL=https://api.cerenmobile.com
+```
+
+Recommended commands:
+
+```bash
+cd MobileAppUI
+
+# Android internal QA build
+eas build --platform android --profile preview
+
+# iOS TestFlight build
+eas build --platform ios --profile testflight
+
+# Android production store build
+eas build --platform android --profile production
+```
+
+### Important note about current repository state
+
+At the time of this update, the documented **correct** production target is `https://api.cerenmobile.com`, but old Render URLs may still exist in historical build profiles or fallback values.
+
+Before any production or preview release, verify and update all of the following if needed:
+
+1. `MobileAppUI/.env.production`
+2. `MobileAppUI/eas.json` (`preview`, `testflight`, `production` profiles)
+3. Any hardcoded fallback production URL in frontend service files
+
+### How to verify the app is hitting the expected backend
+
+When the app boots, check device or Metro logs for:
+
+```text
+🌍 Using environment API URL: https://api-staging.cerenmobile.com
+```
+
+or:
+
+```text
+🌍 Using environment API URL: https://api.cerenmobile.com
+```
+
+If the app is supposed to hit staging but CloudWatch stays empty, verify these in order:
+
+1. Metro / device logs show the correct `EXPO_PUBLIC_API_URL`.
+2. The app was reloaded or rebuilt after changing env values.
+3. The device is not running an older signed build with stale configuration.
+4. The frontend is not crashing before the API calls are made.
+
+### Safe operator checklist before every test session
+
+- Confirm the intended backend: local, staging, or production.
+- Confirm the correct env file or EAS profile is being used.
+- Reload or reinstall the app after changing the backend URL.
+- Check the first frontend log line that prints `Using environment API URL`.
+- Only then verify backend logs in PM2 / CloudWatch.
+
+---
+
 ## Phase 1 — AWS Free Tier Account Setup ✅
 
 **Date completed:** March 11, 2026  
@@ -429,8 +598,10 @@ mysql -u root -p ceren_production < ~/ceren_backup_*.sql
 #### 8c. Switch mobile app API_BASE_URL
 In `MobileAppUI/.env.production`:
 ```
-API_BASE_URL=https://api.cerenmobile.com
+EXPO_PUBLIC_API_URL=https://api.cerenmobile.com
 ```
+
+Also update the matching `production`, `preview`, and `testflight` profile values in `MobileAppUI/eas.json` before building.
 
 Rebuild and release the app via EAS.
 
@@ -491,4 +662,4 @@ sudo systemctl reload nginx
 
 ---
 
-*Last updated: March 11, 2026 — Phase 5 in progress (Nginx ✅, Certbot installed ✅, DNS pending ⚠️)*
+*Last updated: March 23, 2026 — added verified mobile app runbook for staging, local, Expo Go, dev client, and production builds.*
