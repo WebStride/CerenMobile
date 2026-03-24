@@ -1,5 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import prisma from '../../lib/prisma';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -120,43 +119,23 @@ export async function verifyOTP(phoneNumber: string, code: string) {
         throw new Error(`Verification failed: ${error.message}`);
     }
 }
-export async function saveUserAndGenerateTokens(name: string, phoneNumber: string) {
-    console.log("🔧 Creating/updating user (UserCustomerMaster):", { name, phoneNumber });
-
-    // Normalize phone number before any DB operations
+export async function saveUserAndGenerateTokens(name: string | undefined, phoneNumber: string) {
     const formattedPhone = formatPhoneNumber(phoneNumber);
-    console.log('📱 saveUserAndGenerateTokens - Input:', phoneNumber, '→ Formatted:', formattedPhone);
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
 
-    // Check if user already exists in USERCUSTOMERMASTER
-    let user = await prisma.uSERCUSTOMERMASTER.findFirst({
-        where: { phoneNumber: formattedPhone }
+    const user = await prisma.uSERCUSTOMERMASTER.upsert({
+        where: { phoneNumber: formattedPhone },
+        update: normalizedName ? { name: normalizedName } : {},
+        create: {
+            name: normalizedName || `User ${formattedPhone.slice(-4)}`,
+            phoneNumber: formattedPhone
+        }
     });
 
-    if (user) {
-        // Update existing user
-        user = await prisma.uSERCUSTOMERMASTER.update({
-            where: { id: user.id },
-            data: { name }
-        });
-        console.log("✅ UserCustomer updated:", user);
-    } else {
-        // Create new user in USERCUSTOMERMASTER with normalized phone
-        user = await prisma.uSERCUSTOMERMASTER.create({
-            data: {
-                name,
-                phoneNumber: formattedPhone,
-            }
-        });
-        console.log("✅ UserCustomer created:", user);
-    }
-
-    // Generate tokens using the user table id (not the legacy CUSTOMERID)
     const tokens = generateTokens({
         userId: user.id,
         phoneNumber: user.phoneNumber || formattedPhone
     });
-
-    console.log("🎫 Tokens generated for user (id):", user.id);
 
     return { user, tokens };
 }
@@ -183,16 +162,6 @@ export async function checkCustomerExists(phoneNumber: string) {
         });
 
         if (user) {
-            // If found with old format, update to normalized format
-            if (user.phoneNumber !== formattedPhone) {
-                console.log('🔄 Normalizing phone format in DB:', user.phoneNumber, '→', formattedPhone);
-                await prisma.uSERCUSTOMERMASTER.update({
-                    where: { id: user.id },
-                    data: { phoneNumber: formattedPhone }
-                });
-                user.phoneNumber = formattedPhone;
-            }
-
             // If a legacy CUSTOMERMASTER record has been linked to this user (via USERID), return that id too
             const customer = await prisma.cUSTOMERMASTER.findFirst({
                 where: { USERID: user.id }

@@ -8,6 +8,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInvoicesByCustomer = getInvoicesByCustomer;
 exports.getOrdersByCustomer = getOrdersByCustomer;
@@ -15,18 +18,30 @@ exports.getOrderItemsByOrder = getOrderItemsByOrder;
 exports.getInvoiceItemsByInvoice = getInvoiceItemsByInvoice;
 exports.getInvoicesForCustomer = getInvoicesForCustomer;
 const orders_1 = require("../../service/orders");
+const prisma_1 = __importDefault(require("../../lib/prisma"));
 function getInvoicesByCustomer(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
+        var _a, _b;
         try {
             const queryCustomerId = req.query.customerid;
             let customerId;
             if (queryCustomerId) {
-                customerId = parseInt(queryCustomerId);
+                const parsed = parseInt(queryCustomerId);
+                if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                    return res.status(401).json({ error: 'User not authenticated' });
+                }
+                const owned = yield prisma_1.default.cUSTOMERMASTER.findFirst({
+                    where: { CUSTOMERID: parsed, USERID: parseInt(req.user.userId) },
+                    select: { CUSTOMERID: true },
+                });
+                if (!owned) {
+                    return res.status(403).json({ success: false, error: 'Access denied.' });
+                }
+                customerId = parsed;
                 console.log('🔍 Using query customerId for invoices:', customerId);
             }
             else {
-                if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                if (!((_b = req.user) === null || _b === void 0 ? void 0 : _b.userId)) {
                     return res.status(401).json({ error: 'User not authenticated' });
                 }
                 customerId = parseInt(req.user.userId);
@@ -46,17 +61,28 @@ function getInvoicesByCustomer(req, res) {
 }
 function getOrdersByCustomer(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
+        var _a, _b;
         try {
             // Allow customerid query parameter for testing, otherwise use JWT
             const queryCustomerId = req.query.customerid;
             let customerId;
             if (queryCustomerId) {
-                customerId = parseInt(queryCustomerId);
+                const parsed = parseInt(queryCustomerId);
+                if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                    return res.status(401).json({ error: 'User not authenticated' });
+                }
+                const owned = yield prisma_1.default.cUSTOMERMASTER.findFirst({
+                    where: { CUSTOMERID: parsed, USERID: parseInt(req.user.userId) },
+                    select: { CUSTOMERID: true },
+                });
+                if (!owned) {
+                    return res.status(403).json({ success: false, error: 'Access denied.' });
+                }
+                customerId = parsed;
                 console.log('🔍 Using query customerId:', customerId);
             }
             else {
-                if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId)) {
+                if (!((_b = req.user) === null || _b === void 0 ? void 0 : _b.userId)) {
                     return res.status(401).json({ error: 'User not authenticated' });
                 }
                 customerId = parseInt(req.user.userId);
@@ -165,6 +191,14 @@ function getInvoicesForCustomer(req, res) {
                     success: false,
                     error: 'Missing required fields: FromDateTime, ToDateTime, CustomerID'
                 });
+            }
+            // Verify the requesting user owns the CustomerID
+            const owned = yield prisma_1.default.cUSTOMERMASTER.findFirst({
+                where: { CUSTOMERID: parseInt(CustomerID), USERID: parseInt(req.user.userId) },
+                select: { CUSTOMERID: true },
+            });
+            if (!owned) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             console.log('🔍 Fetching invoices for CustomerID:', CustomerID, 'from:', FromDateTime, 'to:', ToDateTime);
             const result = yield (0, orders_1.getInvoicesByCustomerAndDateRange)(parseInt(CustomerID), FromDateTime.toString(), ToDateTime.toString());

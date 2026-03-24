@@ -5,23 +5,13 @@ export async function getCart(customerId: number) {
 }
 
 export async function addOrIncrementCartItem(customerId: number, product: any) {
-  const whereAny = { customerId_productId: { customerId, productId: product.productId } } as any;
-  const existing = await prisma.cart.findUnique({ where: whereAny }).catch(() => null);
-  
-  if (existing) {
-    // If item exists, add the new quantity to existing quantity
-    const newQuantity = existing.quantity + (product.quantity || 1);
-    return prisma.cart.update({ 
-      where: { id: existing.id }, 
-      data: { 
-        quantity: newQuantity, 
-        updatedAt: new Date() 
-      } 
-    });
-  }
-
-  return prisma.cart.create({
-    data: {
+  return prisma.cart.upsert({
+    where: { customerId_productId: { customerId, productId: product.productId } } as any,
+    update: {
+      quantity: { increment: product.quantity || 1 },
+      updatedAt: new Date(),
+    },
+    create: {
       customerId,
       productId: product.productId,
       productName: product.productName,
@@ -30,8 +20,8 @@ export async function addOrIncrementCartItem(customerId: number, product: any) {
       productUnits: product.productUnits || null,
       unitsOfMeasurement: product.unitsOfMeasurement || null,
       minOrderQuantity: product.minOrderQuantity || product.quantity || 1,
-      quantity: product.quantity || 1
-    }
+      quantity: product.quantity || 1,
+    },
   });
 }
 

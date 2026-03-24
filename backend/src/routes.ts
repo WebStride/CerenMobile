@@ -1,5 +1,4 @@
 import { Express, Request, Response } from "express";
-import { PrismaClient } from '@prisma/client';
 import { register, verifyPhoneNumber, refreshToken, logout, validateToken, testOTP, checkCustomerPublic, sendOtpController } from "./controllers/auth";
 import { submitUserAddress, getUserAddresses, setDefaultAddress, getDefaultAddress, updateUserAddress, deleteUserAddress, getUserMasterAddress } from "./controllers/user";
 import {
@@ -22,38 +21,19 @@ import { getStores } from "./controllers/customer";
 import { getOrdersByCustomer, getOrderItemsByOrder, getInvoicesByCustomer, getInvoiceItemsByInvoice, getInvoicesForCustomer } from "./controllers/orders";
 import { placeOrder } from "./controllers/orders/placeOrder";
 import { submitContactUs } from "./controllers/support";
-const prisma = new PrismaClient();
 
 function routes(app: Express) {
 
     app.get('/healthcheck', (req: Request, res: Response) => res.sendStatus(200));
-
-    app.use((req: Request, res: Response, next) => {
-        console.log("CORS Headers:", res.getHeaders()); // Log headers for each route
-        next();
-    });
-
-    // Test route for DB connection and Prisma
-    app.get('/test-db', async (req: Request, res: Response) => {
-        try {
-            const customers = await prisma.cUSTOMERMASTER.findMany({
-                take: 10
-            });
-            console.log("Customers:", customers); // Log the fetched customers
-            res.json({ customers });
-        } catch (error) {
-            console.error("Error fetching customers:", error);
-            res.status(500).json({ error: "Database error" });
-        }
-    });
-
 
     // Auth routes
     app.post("/auth/register", register);
     // Public send-otp endpoint for frontend (no auth)
     app.post('/auth/send-otp', sendOtpController);
     app.post("/auth/verify", verifyPhoneNumber);
-    app.post("/auth/test-otp", testOTP); // Debug route
+    if (process.env.NODE_ENV === 'development') {
+      app.post("/auth/test-otp", testOTP); // Debug route — dev only
+    }
     // Public check-customer endpoint used by frontend before registration/login
     app.get('/auth/check-customer', checkCustomerPublic);
     app.post("/auth/refresh", refreshToken);

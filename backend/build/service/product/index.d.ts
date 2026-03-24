@@ -1,21 +1,4 @@
-/**
- * Get customer pricing info based on userId and optional selectedCustomerId
- * Priority: selectedCustomerId > userId lookup
- * @param userId - User ID from token
- * @param selectedCustomerId - Optional selected customer/store ID
- * @returns Pricing information including whether to show prices
- */
-export declare function getCustomerPricingInfo(userId: number, selectedCustomerId?: number | null): Promise<{
-    customerPresent: boolean;
-    customerId: number;
-    priceColumn: string;
-    showPricing: boolean;
-} | {
-    customerPresent: boolean;
-    customerId: null;
-    priceColumn: null;
-    showPricing: boolean;
-}>;
+export declare function getCustomerPricingInfo(userId: number, selectedCustomerId?: number | null): Promise<any>;
 export declare function getExclusiveProducts(customerId: number | null, priceColumn: string | null, showPricing?: boolean): Promise<{
     productId: any;
     productName: any;
@@ -36,7 +19,7 @@ export declare function getCustomerPreferredProducts(customerId: number | null, 
     minimumOrderQuantity: any;
     showPricing: boolean;
 }[]>;
-export declare function getAllProducts(customerId: number | null, priceColumn: string | null, showPricing?: boolean): Promise<{
+export declare function getAllProducts(customerId: number | null, priceColumn: string | null, showPricing?: boolean, take?: number, skip?: number): Promise<{
     productId: any;
     productName: any;
     productUnits: any;

@@ -1,6 +1,15 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../../middleware/auth';
 import { getCart, addOrIncrementCartItem, updateCartQuantity, removeCartItem, clearCart } from '../../service/cart';
+import prisma from '../../lib/prisma';
+
+async function verifyCustomerOwnership(userId: string, customerId: number): Promise<boolean> {
+  const owned = await prisma.cUSTOMERMASTER.findFirst({
+    where: { CUSTOMERID: customerId, USERID: parseInt(userId) },
+    select: { CUSTOMERID: true },
+  });
+  return !!owned;
+}
 
 export async function getCartList(req: AuthRequest, res: Response) {
   try {
@@ -13,6 +22,10 @@ export async function getCartList(req: AuthRequest, res: Response) {
     
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
+    }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
     }
     
     const cart = await getCart(customerId);
@@ -34,6 +47,10 @@ export async function postCart(req: AuthRequest, res: Response) {
     
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
+    }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
     }
     
     const body = req.body;
@@ -57,6 +74,10 @@ export async function putCartItem(req: AuthRequest, res: Response) {
     
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
+    }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
     }
     
     const productId = parseInt(req.params.productId);
@@ -82,6 +103,10 @@ export async function deleteCartItem(req: AuthRequest, res: Response) {
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
     }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
+    }
     
     const productId = parseInt(req.params.productId);
     if (isNaN(productId)) return res.status(400).json({ error: 'Invalid productId' });
@@ -104,6 +129,10 @@ export async function postClearCart(req: AuthRequest, res: Response) {
     
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
+    }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
     }
     
     await clearCart(customerId);

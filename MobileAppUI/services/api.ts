@@ -36,13 +36,12 @@ const getApiUrl = (): string => {
 
   // Fallback to hardcoded URLs based on environment
   if (isDevelopment) {
-    // ⚠️ UPDATE THIS IP when your local network changes (run: ipconfig getifaddr en0)
-    const devUrl = 'http://192.168.1.7:3003';
+    const devUrl = 'https://api-staging.cerenmobile.com';
     console.log('🏠 Using development API URL (fallback):', devUrl);
     console.log('📱 Environment detection - __DEV__:', __DEV__, '| appOwnership:', Constants.appOwnership);
     return devUrl;
   } else {
-    const prodUrl = 'https://cerenmobile.onrender.com';
+    const prodUrl = 'https://api.cerenmobile.com';
     console.log('🚀 Using production API URL (fallback):', prodUrl);
     console.log('📱 Environment detection - __DEV__:', __DEV__, '| appOwnership:', Constants.appOwnership);
     return prodUrl;

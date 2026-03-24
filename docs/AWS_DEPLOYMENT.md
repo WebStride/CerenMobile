@@ -21,8 +21,8 @@ We are migrating the CerenMobile backend from **Render** to **AWS EC2** with:
 
 ## Mobile App Environment Runbook ✅
 
-**Date verified:** March 23, 2026  
-**Status:** ✅ Current reference for running the mobile app against staging and production correctly
+**Date verified:** March 24, 2026  
+**Status:** ✅ Current reference for running the mobile app against local, staging, and production correctly
 
 This section is the operational guide for choosing the correct backend from the mobile app.
 
@@ -30,10 +30,10 @@ This section is the operational guide for choosing the correct backend from the 
 
 | Use case | Mobile env source | Expected backend URL | How to run |
 |---|---|---|---|
-| Daily staging testing on phone | `MobileAppUI/.env.development` | `https://api-staging.cerenmobile.com` | `npx expo start --host lan --clear --go` |
-| Daily staging testing on Android emulator/dev client | `MobileAppUI/.env.development` | `https://api-staging.cerenmobile.com` | `npm run android` or `npx expo start --dev-client --clear` |
-| Local backend testing on Android emulator | `MobileAppUI/.env.development` | `http://10.0.2.2:3002` | start local backend, then `npm run android` |
-| Local backend testing on physical device | `MobileAppUI/.env.development` | `http://<your-mac-lan-ip>:3002` | start local backend, then `npx expo start --host lan --clear --go` |
+| Daily local backend testing on phone with Expo Go | `MobileAppUI/.env.local` | `http://<your-mac-lan-ip>:3002` | `npm run start:local` |
+| Daily staging testing on phone with Expo Go | `MobileAppUI/.env.development` | `https://api-staging.cerenmobile.com` | `npm run start:staging` |
+| Local backend testing on Android emulator/dev client | `MobileAppUI/.env.local` or EAS `development` profile | `http://10.0.2.2:3002` | `npm run start:local:dev-client` then `npm run android:local` |
+| Daily staging testing on Android emulator/dev client | `MobileAppUI/.env.development` | `https://api-staging.cerenmobile.com` | `npm run start:staging:dev-client` then `npm run android` |
 | Production APK / AAB build | `MobileAppUI/.env.production` and `MobileAppUI/eas.json` production profiles | `https://api.cerenmobile.com` | `eas build --platform android --profile production` |
 | Internal production-like QA build | `MobileAppUI/eas.json` preview / testflight profile | `https://api.cerenmobile.com` | `eas build --platform android --profile preview` or `eas build --platform ios --profile testflight` |
 
@@ -41,17 +41,54 @@ This section is the operational guide for choosing the correct backend from the 
 
 The mobile app does **not** use one single source for environment configuration. The correct backend depends on how the app is launched:
 
-1. **Expo / Metro local runs** use `MobileAppUI/.env.development` through `app.config.js`.
+1. **Expo / Metro local runs** use `MobileAppUI/.env.<APP_ENV>` through `app.config.js`.
 2. **Production-style EAS builds** use the `env` block from `MobileAppUI/eas.json` for the selected profile.
 3. **Fallback values in code** should only be a last resort and must not be relied on for environment switching.
+
+`app.config.js` now prefers `APP_ENV` first, then falls back to `NODE_ENV`. This is important because Expo local runs are easiest to control with explicit commands like `APP_ENV=local` or `APP_ENV=development`.
 
 Because of this, changing only one file is not enough. To avoid sending traffic to the wrong backend, keep these files aligned:
 
 ```text
+MobileAppUI/.env.local
 MobileAppUI/.env.development
 MobileAppUI/.env.production
 MobileAppUI/eas.json
 ```
+
+### Recommended environment layout
+
+- `MobileAppUI/.env.local`: local backend on your Mac or local machine
+- `MobileAppUI/.env.development`: shared staging backend
+- `MobileAppUI/.env.production`: production backend
+
+This removes the old ambiguity where `.env.development` was sometimes edited to local and sometimes edited to staging.
+
+### Verified local setup
+
+Create or maintain `MobileAppUI/.env.local` with your current Mac LAN IP:
+
+```env
+EXPO_PUBLIC_API_URL=http://<your-mac-lan-ip>:3002
+```
+
+Example on macOS:
+
+```bash
+ipconfig getifaddr en0
+```
+
+Then run:
+
+```bash
+cd backend
+npm run dev
+
+cd ../MobileAppUI
+npm run start:local
+```
+
+Use this mode for Expo Go on a real phone when the backend is running locally on your Mac.
 
 ### Verified staging setup
 
@@ -61,7 +98,7 @@ For staging, the frontend should resolve to:
 EXPO_PUBLIC_API_URL=https://api-staging.cerenmobile.com
 ```
 
-This value is already the correct target for local development flows.
+This value is the correct target for shared testing against AWS staging.
 
 ### Correct way to run staging on a phone with Expo Go
 
@@ -69,7 +106,7 @@ From `MobileAppUI/`:
 
 ```bash
 npm install
-npx expo start --host lan --clear --go
+npm run start:staging
 ```
 
 Then:
@@ -86,7 +123,7 @@ From `MobileAppUI/`:
 
 ```bash
 npm install
-npx expo start --dev-client --clear
+npm run start:staging:dev-client
 ```
 
 In another terminal:
@@ -99,7 +136,18 @@ Use this mode when testing native modules, dev-client features, or emulator-only
 
 ### Correct way to run against local backend
 
-For **Android emulator**, set:
+For **Expo Go on a physical device**, set `MobileAppUI/.env.local` to your Mac LAN IP:
+
+```env
+EXPO_PUBLIC_API_URL=http://<your-mac-lan-ip>:3002
+```
+
+For **Android emulator / dev client**, either:
+
+1. Keep `.env.local` pointed at your LAN IP for phone testing, and use the EAS `development` profile for emulator builds, or
+2. Temporarily switch `.env.local` to emulator mode before running `npm run android:local`
+
+Emulator mode value:
 
 ```env
 EXPO_PUBLIC_API_URL=http://10.0.2.2:3002
@@ -122,6 +170,17 @@ Then start the backend locally:
 ```bash
 cd backend
 npm run dev
+
+cd ../MobileAppUI
+npm run start:local
+```
+
+If you are using a dev client instead of Expo Go, run:
+
+```bash
+cd MobileAppUI
+npm run start:local:dev-client
+npm run android:local
 ```
 
 ### Correct way to build production
@@ -149,7 +208,7 @@ eas build --platform android --profile production
 
 ### Important note about current repository state
 
-At the time of this update, the documented **correct** production target is `https://api.cerenmobile.com`, but old Render URLs may still exist in historical build profiles or fallback values.
+At the time of this update, the documented **correct** production target is `https://api.cerenmobile.com`, and the repository should no longer rely on historical Render fallback URLs.
 
 Before any production or preview release, verify and update all of the following if needed:
 
@@ -160,6 +219,12 @@ Before any production or preview release, verify and update all of the following
 ### How to verify the app is hitting the expected backend
 
 When the app boots, check device or Metro logs for:
+
+```text
+🌍 Using environment API URL: http://<your-mac-lan-ip>:3002
+```
+
+or:
 
 ```text
 🌍 Using environment API URL: https://api-staging.cerenmobile.com
@@ -181,7 +246,7 @@ If the app is supposed to hit staging but CloudWatch stays empty, verify these i
 ### Safe operator checklist before every test session
 
 - Confirm the intended backend: local, staging, or production.
-- Confirm the correct env file or EAS profile is being used.
+- Confirm the correct `APP_ENV` or EAS profile is being used.
 - Reload or reinstall the app after changing the backend URL.
 - Check the first frontend log line that prints `Using environment API URL`.
 - Only then verify backend logs in PM2 / CloudWatch.
@@ -662,4 +727,4 @@ sudo systemctl reload nginx
 
 ---
 
-*Last updated: March 23, 2026 — added verified mobile app runbook for staging, local, Expo Go, dev client, and production builds.*
+*Last updated: March 24, 2026 — added explicit APP_ENV-based local/staging split for Expo Go and dev-client runs, and aligned production URLs to api.cerenmobile.com.*
