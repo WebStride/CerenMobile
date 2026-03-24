@@ -1491,15 +1491,11 @@ const HomeScreen = () => {
   // Load store data and current selection
   const loadStoreData = useCallback(async () => {
     try {
-      console.log('🏪 [loadStoreData] Starting to load store data...');
-      
       // Load current store selection from AsyncStorage
       const storedStoreId = await AsyncStorage.getItem('selectedStoreId');
       const storedStoreName = await AsyncStorage.getItem('selectedStoreName');
       const storedHasMultiple = await AsyncStorage.getItem('hasMultipleStores');
-      
-      console.log('🏪 [loadStoreData] Stored values:', { storedStoreId, storedStoreName, storedHasMultiple });
-      
+
       if (storedStoreId) {
         setSelectedStoreId(Number(storedStoreId));
       }
@@ -1512,18 +1508,13 @@ const HomeScreen = () => {
 
       // Fetch all available stores
       setStoresLoading(true);
-      console.log('🏪 [loadStoreData] Fetching stores from API...');
       const res = await getStoresForUser();
-      console.log('🏪 [loadStoreData] API response:', res);
-      
+
       if (res.success && Array.isArray(res.stores)) {
-        console.log('🏪 [loadStoreData] Setting stores:', res.stores.length, 'stores found');
         setStores(res.stores);
         const multipleStores = res.stores.length > 1;
         setHasMultipleStores(multipleStores);
         await AsyncStorage.setItem('hasMultipleStores', String(multipleStores));
-      } else {
-        console.log('🏪 [loadStoreData] No stores in response or API failed');
       }
     } catch (error) {
       console.error('Error loading store data:', error);
@@ -1587,7 +1578,6 @@ const HomeScreen = () => {
     setShowStoreModal(true);
     // If stores haven't been loaded yet, load them now
     if (stores.length === 0 && !storesLoading) {
-      console.log('🏪 [handleOpenStoreModal] Stores not loaded, fetching...');
       loadStoreData();
     }
   }, [stores.length, storesLoading, loadStoreData]);
@@ -1642,7 +1632,6 @@ const HomeScreen = () => {
 
   // Debug effect to check user data loading
   useEffect(() => {
-    console.log("🔍 User data state changed:", userData);
   }, [userData]);
 
   useEffect(() => {
@@ -1654,13 +1643,6 @@ const HomeScreen = () => {
 
   const fetchData = async (shouldFetchBuyAgain: boolean = true) => {
     try {
-      console.log('🏪 [Shop.fetchData] Starting to fetch products...');
-      console.log('🏪 [Shop.fetchData] shouldFetchBuyAgain:', shouldFetchBuyAgain);
-      
-      // DEBUG: Check AsyncStorage state
-      const storedStoreId = await AsyncStorage.getItem('selectedStoreId');
-      console.log('🏪 [Shop.fetchData] selectedStoreId from AsyncStorage:', storedStoreId);
-      
       setLoading(true);
       
       // Conditionally fetch Buy Again products only for registered users
@@ -1677,10 +1659,6 @@ const HomeScreen = () => {
       
       const results = await Promise.all(apiCalls);
       const [exclusiveRes, bestSellingRes, categoriesRes, newProductsRes, buyAgainProductsRes] = results;
-      
-      console.log('🏪 [Shop.fetchData] API responses received');
-      console.log('🏪 [Shop.fetchData] bestSellingRes.showPricing:', bestSellingRes.showPricing);
-      console.log('🏪 [Shop.fetchData] bestSellingRes.customerId:', bestSellingRes.customerId);
 
       const normalize = (p: any, idx: number): Product => {
         const id = p.productId ?? p.id ?? p.product_id ?? (idx + 1);
@@ -1695,8 +1673,6 @@ const HomeScreen = () => {
         
         const img = p.image ?? p.imageUrl ?? p.productImage ?? null;
         const minOrder = p.minimumOrderQuantity ?? p.minOrderQuantity ?? p.minOrder ?? 1;
-        
-        console.log(`📦 [normalize] Product: ${name}, rawPrice: ${rawPrice}, finalPrice: ${price}`);
 
         return {
           productId: Number(id),
@@ -1868,7 +1844,7 @@ const HomeScreen = () => {
                   horizontal={false}
                   numColumns={2}
                   showsVerticalScrollIndicator={false}
-                  keyExtractor={(item, index) => `search_${item.productId}_${index}_${Math.random()}`}
+                  keyExtractor={(item, index) => `search_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <View className="flex-1 m-2">
                       <ProductCard
@@ -1880,6 +1856,10 @@ const HomeScreen = () => {
                     </View>
                   )}
                   contentContainerStyle={{ paddingHorizontal: 12 }}
+                  removeClippedSubviews={true}
+                  initialNumToRender={8}
+                  maxToRenderPerBatch={8}
+                  windowSize={7}
                   ListEmptyComponent={() => (
                     <Text className="text-center text-gray-500 mt-4">No products found</Text>
                   )}
@@ -1898,7 +1878,7 @@ const HomeScreen = () => {
                   data={exclusiveOffers}
                   horizontal
                   showsVerticalScrollIndicator={false}
-                  keyExtractor={(item, index) => `exclusive_${item.productId}_${index}_${Math.random()}`}
+                  keyExtractor={(item, index) => `exclusive_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
                       item={item}
@@ -1908,6 +1888,9 @@ const HomeScreen = () => {
                     />
                   )}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
+                  initialNumToRender={4}
+                  maxToRenderPerBatch={6}
+                  windowSize={5}
                   ListEmptyComponent={() => (
                     <Text className="text-center text-gray-500 mx-4">No exclusive offers available</Text>
                   )}
@@ -1924,7 +1907,7 @@ const HomeScreen = () => {
                   data={bestSelling}
                   horizontal
                   showsVerticalScrollIndicator={false}
-                  keyExtractor={(item, index) => `bestselling_${item.productId}_${index}_${Math.random()}`}
+                  keyExtractor={(item, index) => `bestselling_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
                       item={item}
@@ -1934,6 +1917,9 @@ const HomeScreen = () => {
                     />
                   )}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
+                  initialNumToRender={4}
+                  maxToRenderPerBatch={6}
+                  windowSize={5}
                   ListEmptyComponent={() => (
                     <Text className="text-center text-gray-500 mx-4">No best selling products available</Text>
                   )}
@@ -1950,7 +1936,7 @@ const HomeScreen = () => {
                   data={newProducts}
                   horizontal
                   showsVerticalScrollIndicator={false}
-                  keyExtractor={(item, index) => `newproducts_${item.productId}_${index}_${Math.random()}`}
+                  keyExtractor={(item, index) => `newproducts_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
                       item={item}
@@ -1960,6 +1946,9 @@ const HomeScreen = () => {
                     />
                   )}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
+                  initialNumToRender={4}
+                  maxToRenderPerBatch={6}
+                  windowSize={5}
                   ListEmptyComponent={() => (
                     <Text className="text-center text-gray-500 mx-4">No new products available</Text>
                   )}
@@ -1978,7 +1967,7 @@ const HomeScreen = () => {
                       data={buyAgainProducts}
                       horizontal
                       showsVerticalScrollIndicator={false}
-                      keyExtractor={(item, index) => `buyagain_${item.productId}_${index}_${Math.random()}`}
+                      keyExtractor={(item, index) => `buyagain_${item.productId ?? index}`}
                       renderItem={({ item, index }) => (
                         <ProductCard
                           item={item}
@@ -1988,6 +1977,9 @@ const HomeScreen = () => {
                         />
                       )}
                       contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={6}
+                      windowSize={5}
                       ListEmptyComponent={() => (
                         <Text className="text-center text-gray-500 mx-4">No buy again products available</Text>
                       )}

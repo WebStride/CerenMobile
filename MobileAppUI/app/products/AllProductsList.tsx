@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { 
   View, 
   Text, 
@@ -439,7 +439,7 @@ const AllProductsList = () => {
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
 
   const ITEMS_PER_PAGE = 20;
-  const mockData = generateMockProducts(100);
+  const mockData = useMemo(() => generateMockProducts(100), []);
   const fullFeedRef = React.useRef<Product[] | null>(null);
 
   const getFallbackImageFor = (id: number) => fallbackImages[id % fallbackImages.length];
@@ -478,9 +478,6 @@ const AllProductsList = () => {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      // show quick spinner
-      await new Promise(resolve => setTimeout(resolve, 300));
-
       let apiProducts: any[] | null = null;
       try {
         if (feedType === "exclusive") {
@@ -553,8 +550,6 @@ const AllProductsList = () => {
 
     setLoadingMore(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
       const nextPage = currentPage + 1;
       const startIndex = (nextPage - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;
@@ -655,7 +650,7 @@ const AllProductsList = () => {
       <FlatList
         data={filteredProducts}
         renderItem={renderProduct}
-        keyExtractor={(item, index) => `allproducts_${item.productId}_${index}_${Math.random()}`}
+        keyExtractor={(item, index) => `allproducts_${item.productId ?? index}`}
         numColumns={2}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ 
@@ -668,9 +663,9 @@ const AllProductsList = () => {
         onEndReachedThreshold={0.1}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-        initialNumToRender={20}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        initialNumToRender={8}
         removeClippedSubviews={true}
       />
 

@@ -18,6 +18,8 @@ import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendAddressDetails, getStoresForUser } from "@/services/api";
 
+const TEXT_SCALE_LIMIT = 1.1;
+
 const SAVE_AS_OPTIONS = [
   {
     label: "Home",
@@ -245,6 +247,8 @@ export default function AddAddressDetailsScreen() {
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 }}
           >
             <Text
+              allowFontScaling={false}
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "700",
@@ -265,7 +269,10 @@ export default function AddAddressDetailsScreen() {
               borderWidth: 1,
               borderColor: "#BCD042"
             }}>
-              <Text style={{
+              <Text
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                style={{
                 fontFamily: "Open Sans",
                 fontWeight: "700",
                 fontSize: 16,
@@ -277,7 +284,10 @@ export default function AddAddressDetailsScreen() {
               
               {name && (
                 <View style={{ flexDirection: "row", marginBottom: 8 }}>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -286,7 +296,10 @@ export default function AddAddressDetailsScreen() {
                   }}>
                     Name:
                   </Text>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -300,7 +313,10 @@ export default function AddAddressDetailsScreen() {
 
               {phoneNumber && (
                 <View style={{ flexDirection: "row", marginBottom: 8 }}>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -309,7 +325,10 @@ export default function AddAddressDetailsScreen() {
                   }}>
                     Phone:
                   </Text>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -323,7 +342,10 @@ export default function AddAddressDetailsScreen() {
 
               {location && (
                 <View style={{ flexDirection: "row", marginBottom: 8 }}>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -332,7 +354,10 @@ export default function AddAddressDetailsScreen() {
                   }}>
                     Location:
                   </Text>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -346,7 +371,10 @@ export default function AddAddressDetailsScreen() {
 
               {address && (
                 <View style={{ flexDirection: "row", marginBottom: 8 }}>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -355,7 +383,10 @@ export default function AddAddressDetailsScreen() {
                   }}>
                     Address:
                   </Text>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -369,7 +400,10 @@ export default function AddAddressDetailsScreen() {
 
               {district && (
                 <View style={{ flexDirection: "row", marginBottom: 8 }}>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -378,7 +412,10 @@ export default function AddAddressDetailsScreen() {
                   }}>
                     District:
                   </Text>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -392,7 +429,10 @@ export default function AddAddressDetailsScreen() {
 
               {city && (
                 <View style={{ flexDirection: "row" }}>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -401,7 +441,10 @@ export default function AddAddressDetailsScreen() {
                   }}>
                     City:
                   </Text>
-                  <Text style={{
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
                     fontFamily: "Open Sans",
                     fontWeight: "600",
                     fontSize: 14,
@@ -416,6 +459,8 @@ export default function AddAddressDetailsScreen() {
 
             {/* Save Address As */}
             <Text
+              allowFontScaling={false}
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "700",
@@ -456,6 +501,8 @@ export default function AddAddressDetailsScreen() {
                     resizeMode="contain"
                   />
                   <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                     style={{
                       color: saveAs === option.value ? "#BCD042" : "#7C7C7C",
                       fontFamily: "Open Sans",
@@ -470,6 +517,8 @@ export default function AddAddressDetailsScreen() {
             </View>
             {/* Address fields (all optional) */}
             <Text
+              allowFontScaling={false}
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -481,6 +530,7 @@ export default function AddAddressDetailsScreen() {
               House/Shop No. *
             </Text>
             <TextInput
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -499,6 +549,8 @@ export default function AddAddressDetailsScreen() {
             />
 
             <Text
+              allowFontScaling={false}
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -510,6 +562,7 @@ export default function AddAddressDetailsScreen() {
               Building & Block No. *
             </Text>
             <TextInput
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -528,6 +581,8 @@ export default function AddAddressDetailsScreen() {
             />
 
             <Text
+              allowFontScaling={false}
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -539,6 +594,7 @@ export default function AddAddressDetailsScreen() {
               Pin code *
             </Text>
             <TextInput
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -558,6 +614,8 @@ export default function AddAddressDetailsScreen() {
             />
 
             <Text
+              allowFontScaling={false}
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -569,6 +627,7 @@ export default function AddAddressDetailsScreen() {
               Landmark
             </Text>
             <TextInput
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -588,6 +647,8 @@ export default function AddAddressDetailsScreen() {
 
             {/* Agreement */}
             <Text
+              allowFontScaling={false}
+              maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
               style={{
                 fontFamily: "Open Sans",
                 fontWeight: "600",
@@ -600,6 +661,8 @@ export default function AddAddressDetailsScreen() {
             >
               By continuing you agree to our{" "}
               <Text
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                 style={{ color: "#53B175" }}
                 onPress={() => Linking.openURL("https://your.terms.url")}
               >
@@ -607,6 +670,8 @@ export default function AddAddressDetailsScreen() {
               </Text>
               {" and "}
               <Text
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                 style={{ color: "#53B175" }}
                 onPress={() => Linking.openURL("https://your.privacy.url")}
               >
@@ -629,6 +694,8 @@ export default function AddAddressDetailsScreen() {
               activeOpacity={0.85}
             >
               <Text
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                 style={{
                   color: "#fff",
                   fontFamily: "Open Sans",
