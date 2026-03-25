@@ -1,9 +1,43 @@
-import { Tabs } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Tabs, usePathname, useRouter } from "expo-router";
+import { useEffect, useState } from 'react';
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
-  const insets = useSafeAreaInsets(); // Get safe area insets
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [hasSelectedStore, setHasSelectedStore] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncSelectedStore = async () => {
+      const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
+      const storeSelected = Boolean(selectedStoreId);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setHasSelectedStore(storeSelected);
+
+      if (!storeSelected && pathname === '/(tabs)/invoices') {
+        router.replace('/(tabs)/shop');
+      }
+    };
+
+    syncSelectedStore();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname, router]);
+
+  if (hasSelectedStore === null) {
+    return null;
+  }
 
   return (
     <Tabs
@@ -58,6 +92,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="invoices"
         options={{
+          href: hasSelectedStore ? '/(tabs)/invoices' : null,
           title: "Invoices",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="receipt-outline" size={24} color={color} />

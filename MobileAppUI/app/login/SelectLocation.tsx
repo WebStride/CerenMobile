@@ -4,13 +4,12 @@ import {
   Text,
   Image,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   TouchableWithoutFeedback,
   Keyboard,
   Modal,
   FlatList,
   Pressable,
+  ScrollView,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { images } from "@/constants/images";
@@ -28,6 +27,8 @@ const cityDistricts: Record<string, string[]> = {
   Pune: ["Haveli", "Shirur", "Mulshi", "Baramati", "Junnar"],
   Hyderabad: ["Secunderabad", "Shamshabad", "Gachibowli", "Malkajgiri", "LB Nagar"],
 };
+
+const TEXT_SCALE_LIMIT = 1.1;
 
 export default function SelectRegionScreen() {
   const router = useRouter();
@@ -76,116 +77,166 @@ export default function SelectRegionScreen() {
               />
             </TouchableOpacity>
           </View>
-          {/* Illustration */}
-          <View className="items-center mt-6">
-            <Image
-              // Make sure to add this illustration to your images constants
-              source={images.LocationIllustration}
-              style={{ width: 172, height: 126 }}
-              resizeMode="contain"
-            />
-          </View>
-          {/* Title and Subtitle */}
-          <View className="items-center mt-6 px-6 mb-20">
-            <Text
-              style={{
-                fontFamily: "Open Sans",
-                fontWeight: "600",
-                fontSize: 26,
-                color: "#181725",
-                marginBottom: 8,
-              }}
-            >
-              Select Your Region
-            </Text>
-            <Text
-              style={{
-                fontFamily: "Open Sans",
-                fontWeight: "600",
-                fontSize: 16,
-                color: "#7C7C7C",
-                textAlign: "center",
-              }}
-            >
-              Select your business region to view
-              accurate wholesale rates and ensure
-              timely delivery to your doorstep
-            </Text>
-          </View>
-          {/* City Dropdown */}
-          <View className="mt-8 px-6">
-            <Text
-              style={{
-                fontFamily: "Open Sans",
-                fontWeight: "600",
-                fontSize: 16,
-                color: "#7C7C7C",
-                marginBottom: 4,
-              }}
-            >
-              Your City
-            </Text>
-            <TouchableOpacity
-              className="flex-row justify-between items-center border-b border-[#EAEAEA] py-3"
-              onPress={() => setCityDropdownVisible(true)}
-              style={{ minHeight: 40 }}
-              accessibilityLabel="Select Your City"
-            >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Illustration */}
+            <View className="items-center mt-6">
+              <Image
+                source={images.LocationIllustration}
+                style={{ width: 172, height: 126 }}
+                resizeMode="contain"
+              />
+            </View>
+            {/* Title and Subtitle */}
+            <View className="items-center mt-6 px-6 mb-10">
               <Text
-                className="text-base"
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                 style={{
-                  color: "#24262B",
+                  fontFamily: "Open Sans",
+                  fontWeight: "600",
+                  fontSize: 26,
+                  color: "#181725",
+                  marginBottom: 8,
+                  textAlign: "center",
+                }}
+              >
+                Select Your Region
+              </Text>
+              <Text
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                style={{
                   fontFamily: "Open Sans",
                   fontWeight: "600",
                   fontSize: 16,
+                  color: "#7C7C7C",
+                  textAlign: "center",
+                  lineHeight: 22,
                 }}
               >
-                {city}
+                Select your business region to view
+                accurate wholesale rates and ensure
+                timely delivery to your doorstep
               </Text>
-              <Image
-                source={images.DropdownArrow}
-                style={{ width: 16, height: 16 }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
-          {/* District Dropdown */}
-          <View className="mt-8 px-6">
-            <Text
-              style={{
-                fontFamily: "Open Sans",
-                fontWeight: "600",
-                fontSize: 16,
-                color: "#7C7C7C",
-                marginBottom: 4,
-              }}
-            >
-              Your District
-            </Text>
-            <TouchableOpacity
-              className="flex-row justify-between items-center border-b border-[#EAEAEA] py-3"
-              onPress={() => setDistrictDropdownVisible(true)}
-              style={{ minHeight: 40 }}
-              accessibilityLabel="Select Your District"
-            >
+            </View>
+            {/* City Dropdown */}
+            <View className="mt-6 px-6">
               <Text
-                className="text-base"
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                 style={{
-                  color: district ? "#24262B" : "#A3A3A3",
                   fontFamily: "Open Sans",
-                  fontWeight: district ? "600" : "400",
+                  fontWeight: "600",
                   fontSize: 16,
+                  color: "#7C7C7C",
+                  marginBottom: 4,
                 }}
               >
-                {district ? district : "Select Your District"}
+                Your City
               </Text>
-              <Image
-                source={images.DropdownArrow}
-                style={{ width: 16, height: 16 }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                className="flex-row justify-between items-center border-b border-[#EAEAEA] py-3"
+                onPress={() => setCityDropdownVisible(true)}
+                style={{ minHeight: 48 }}
+                accessibilityLabel="Select Your City"
+              >
+                <Text
+                  allowFontScaling={false}
+                  maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                  className="text-base"
+                  style={{
+                    color: "#24262B",
+                    fontFamily: "Open Sans",
+                    fontWeight: "600",
+                    fontSize: 16,
+                    flex: 1,
+                    paddingRight: 12,
+                  }}
+                >
+                  {city}
+                </Text>
+                <Image
+                  source={images.DropdownArrow}
+                  style={{ width: 16, height: 16 }}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+            {/* District Dropdown */}
+            <View className="mt-6 px-6">
+              <Text
+                allowFontScaling={false}
+                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                style={{
+                  fontFamily: "Open Sans",
+                  fontWeight: "600",
+                  fontSize: 16,
+                  color: "#7C7C7C",
+                  marginBottom: 4,
+                }}
+              >
+                Your District
+              </Text>
+              <TouchableOpacity
+                className="flex-row justify-between items-center border-b border-[#EAEAEA] py-3"
+                onPress={() => setDistrictDropdownVisible(true)}
+                style={{ minHeight: 48 }}
+                accessibilityLabel="Select Your District"
+              >
+                <Text
+                  allowFontScaling={false}
+                  maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                  className="text-base"
+                  style={{
+                    color: district ? "#24262B" : "#A3A3A3",
+                    fontFamily: "Open Sans",
+                    fontWeight: district ? "600" : "400",
+                    fontSize: 16,
+                    flex: 1,
+                    paddingRight: 12,
+                  }}
+                >
+                  {district ? district : "Select Your District"}
+                </Text>
+                <Image
+                  source={images.DropdownArrow}
+                  style={{ width: 16, height: 16 }}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+            {/* Add Address Button */}
+            <View className="px-6 mt-8">
+              <TouchableOpacity
+                className="h-12 rounded-xl bg-[#BCD042] items-center justify-center"
+                onPress={() => {
+                  console.log("🏙️ Navigating to PinLocation with:", { city, district, name, phoneNumber, fromLocationModal });
+                  router.push({
+                    pathname: "/login/PinLocation",
+                    params: { city, district, name, phoneNumber, fromLocationModal },
+                  });
+                }}
+                accessibilityLabel="Add Address"
+              >
+                <Text
+                  allowFontScaling={false}
+                  maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                  style={{
+                    color: "#fff",
+                    fontFamily: "Open Sans",
+                    fontWeight: "700",
+                    fontSize: 18,
+                  }}
+                >
+                  Add Address
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
           {/* City Dropdown Modal */}
           <Modal
             visible={cityDropdownVisible}
@@ -212,6 +263,8 @@ export default function SelectRegionScreen() {
                       }}
                     >
                       <Text
+                        allowFontScaling={false}
+                        maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                         style={{
                           color: "#24262B",
                           fontFamily: "Open Sans",
@@ -265,6 +318,8 @@ export default function SelectRegionScreen() {
                   )}
                   ListEmptyComponent={
                     <Text
+                      allowFontScaling={false}
+                      maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                       style={{
                         color: "#A3A3A3",
                         fontFamily: "Open Sans",
@@ -281,31 +336,6 @@ export default function SelectRegionScreen() {
               </View>
             </TouchableOpacity>
           </Modal>
-          {/* Add Address Button */}
-          <View className="px-6 mt-8">
-            <TouchableOpacity
-              className="h-12 rounded-xl bg-[#BCD042] items-center justify-center"
-              onPress={() => {
-                console.log("🏙️ Navigating to PinLocation with:", { city, district, name, phoneNumber, fromLocationModal });
-                router.push({
-                  pathname: "/login/PinLocation",
-                  params: { city, district, name, phoneNumber, fromLocationModal },
-                });
-              }}
-              accessibilityLabel="Add Address"
-            >
-              <Text
-                style={{
-                  color: "#fff",
-                  fontFamily: "Open Sans",
-                  fontWeight: "700",
-                  fontSize: 18,
-                }}
-              >
-                Add Address
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingAnimatedView>

@@ -25,21 +25,13 @@ function getCart(customerId) {
 }
 function addOrIncrementCartItem(customerId, product) {
     return __awaiter(this, void 0, void 0, function* () {
-        const whereAny = { customerId_productId: { customerId, productId: product.productId } };
-        const existing = yield prisma_1.default.cart.findUnique({ where: whereAny }).catch(() => null);
-        if (existing) {
-            // If item exists, add the new quantity to existing quantity
-            const newQuantity = existing.quantity + (product.quantity || 1);
-            return prisma_1.default.cart.update({
-                where: { id: existing.id },
-                data: {
-                    quantity: newQuantity,
-                    updatedAt: new Date()
-                }
-            });
-        }
-        return prisma_1.default.cart.create({
-            data: {
+        return prisma_1.default.cart.upsert({
+            where: { customerId_productId: { customerId, productId: product.productId } },
+            update: {
+                quantity: { increment: product.quantity || 1 },
+                updatedAt: new Date(),
+            },
+            create: {
                 customerId,
                 productId: product.productId,
                 productName: product.productName,
@@ -48,8 +40,8 @@ function addOrIncrementCartItem(customerId, product) {
                 productUnits: product.productUnits || null,
                 unitsOfMeasurement: product.unitsOfMeasurement || null,
                 minOrderQuantity: product.minOrderQuantity || product.quantity || 1,
-                quantity: product.quantity || 1
-            }
+                quantity: product.quantity || 1,
+            },
         });
     });
 }

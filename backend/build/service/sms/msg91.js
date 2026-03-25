@@ -136,9 +136,9 @@ function verifyOtp(phoneNumber, otp) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g;
         const formattedPhone = formatPhoneForMsg91(phoneNumber);
-        // Test bypass: Accept '123456' OTP for any phone in development
-        if (otp === '123456') {
-            console.log('🎯 Test OTP 123456 accepted - bypassing MSG91 verification');
+        // Test bypass: Accept '123456' OTP only in development environment
+        if (process.env.NODE_ENV === 'development' && otp === '123456') {
+            console.log('🎯 Dev test OTP 123456 accepted - bypassing MSG91 verification');
             return {
                 success: true,
                 message: 'Test OTP verified'

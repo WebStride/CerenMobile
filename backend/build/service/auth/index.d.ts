@@ -12,7 +12,7 @@ export declare function generateTokens(payload: TokenPayload): {
     refreshToken: string;
 };
 export declare function verifyOTP(phoneNumber: string, code: string): Promise<boolean>;
-export declare function saveUserAndGenerateTokens(name: string, phoneNumber: string): Promise<{
+export declare function saveUserAndGenerateTokens(name: string | undefined, phoneNumber: string): Promise<{
     user: {
         id: number;
         name: string;

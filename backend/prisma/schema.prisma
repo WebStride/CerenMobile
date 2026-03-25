@@ -101,6 +101,8 @@ model DeliveryAddress {
   UpdatedAt         DateTime @db.Timestamp(0)
   Active            Boolean  @default(dbgenerated("b'1'")) @db.Bit(1)
   IsDefault         Boolean? @default(dbgenerated("b'0'")) @db.Bit(1)
+  @@index([UserID], map: "IDX_da_user_id")
+  @@index([CustomerID], map: "IDX_da_customer_id")
 }
 
 model CUSTOMERMASTER {
@@ -124,6 +126,7 @@ model CUSTOMERMASTER {
   PINCODE           Int?
   CITY              String?   @db.VarChar(100)
   USERID            Int?
+  @@index([USERID], map: "IDX_customermaster_userid")
 }
 
 model CUSTOMERTYPEMASTER {
@@ -576,6 +579,7 @@ model ProductCategoryImages {
   Active                 Int      @default(1) @db.TinyInt
   AddedDate              DateTime @default(now()) @db.DateTime(0)
   LastUpdateDate         DateTime @default(now()) @db.DateTime(0)
+  @@index([CategoryID], map: "IDX_pci_category_id")
 }
 
 model ProductCategoryMaster {
@@ -593,6 +597,7 @@ model ProductImages {
   Active         Int      @default(1) @db.TinyInt
   AddedDate      DateTime @default(now()) @db.DateTime(0)
   LastUpdateDate DateTime @default(now()) @db.DateTime(0)
+  @@index([ProductID], map: "IDX_product_images_product_id")
 }
 
 model ProductInventory {
@@ -683,6 +688,13 @@ model ProductMaster {
   Measure                  String?   @db.VarChar(20)
 
   @@map("ProductMaster")
+  @@index([CatalogDefault], map: "IDX_pm_catalog_default")
+  @@index([SubCategoryID, CatalogDefault], map: "IDX_pm_subcat_catalog")
+  @@index([CategoryID, CatalogDefault], map: "IDX_pm_cat_catalog")
+  @@index([CatalogID, CatalogDefault], map: "IDX_pm_catalogid_default")
+  @@index([Active, SortOrder], map: "IDX_pm_active_sortorder")
+  @@index([IsNewProduct, CatalogDefault], map: "IDX_pm_new_catalog")
+  @@index([OfferEnabled, CatalogDefault], map: "IDX_pm_offer_catalog")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
@@ -760,6 +772,7 @@ model ProductSubCategoryImages {
   Active                    Int      @default(1) @db.TinyInt
   AddedDate                 DateTime @default(now()) @db.DateTime(0)
   LastUpdateDate            DateTime @default(now()) @db.DateTime(0)
+  @@index([SubCategoryID], map: "IDX_psci_subcategory_id")
 }
 
 model ProductSubCategoryMaster {

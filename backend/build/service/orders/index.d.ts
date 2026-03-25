@@ -1,4 +1,4 @@
-export declare function getOrdersByCustomerId(customerId: number): Promise<{
+export declare function getOrdersByCustomerId(customerId: number, take?: number, skip?: number): Promise<{
     success: boolean;
     orders: any;
     message?: undefined;
@@ -16,7 +16,7 @@ export declare function getOrderItemsByOrderId(orderId: number): Promise<{
     orderItems: never[];
     message: string;
 }>;
-export declare function getInvoicesByCustomerId(customerId: number): Promise<{
+export declare function getInvoicesByCustomerId(customerId: number, take?: number, skip?: number): Promise<{
     success: boolean;
     invoices: any;
     message?: undefined;

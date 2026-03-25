@@ -91,6 +91,26 @@ For real-time, up-to-date ABP or other library docs:
 
 ***
 
+## Skills
+
+### Available Skills
+
+| Skill | File | When to Use |
+|---|---|---|
+| `aws-ec2-deploy` | `.github/skills/aws-ec2-deploy/SKILL.md` | AWS EC2 deployment, Nginx, PM2, GitHub Actions CI/CD |
+| `mobile-feature-ship` | `.github/skills/mobile-feature-ship/SKILL.md` | After building any feature — API performance audit, loading states, error handling, security, backend query review, ship checklist |
+
+### When to Auto-Load `mobile-feature-ship`
+
+Load this skill whenever a developer says any of:
+- "feature is done", "I'm done with this screen", "ready to push", "review this feature"
+- "the screen is slow", "page takes too long", "API is slow", "form submit is slow"
+- "vibe code this feature" / "ship this"
+- Adding a new screen, form, list, or any component that calls an API
+- Asking for a code review on any mobile screen file
+
+***
+
 If you want, this file can be extended with templates for prompts, testing checklists, or team best practices summaries.
 
 ***

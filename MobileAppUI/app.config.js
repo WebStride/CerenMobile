@@ -1,10 +1,10 @@
 // app.config.js
-// Single-source Expo config generator. Loads env vars from NODE_ENV-specific .env files.
+// Single-source Expo config generator. Loads env vars from APP_ENV-specific .env files.
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
-const appEnv = (process.env.NODE_ENV || 'development').trim();
+const appEnv = (process.env.APP_ENV || process.env.NODE_ENV || 'development').trim();
 const envFile = `.env.${appEnv}`;
 const envPath = path.resolve(__dirname, envFile);
 
