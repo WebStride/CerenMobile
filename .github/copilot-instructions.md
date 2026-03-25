@@ -99,6 +99,7 @@ For real-time, up-to-date ABP or other library docs:
 |---|---|---|
 | `aws-ec2-deploy` | `.github/skills/aws-ec2-deploy/SKILL.md` | AWS EC2 deployment, Nginx, PM2, GitHub Actions CI/CD |
 | `mobile-feature-ship` | `.github/skills/mobile-feature-ship/SKILL.md` | After building any feature — API performance audit, loading states, error handling, security, backend query review, ship checklist |
+| `mobile-store-release` | `.github/skills/mobile-store-release/SKILL.md` | Preview builds, Android testing tracks, iOS TestFlight, Play Store/App Store submission readiness, signing, metadata, rejection prevention |
 
 ### When to Auto-Load `mobile-feature-ship`
 
