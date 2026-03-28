@@ -192,6 +192,8 @@ export default function OrdersScreen() {
     const loadGuestState = async () => {
       const guest = await isGuestSession();
       setIsGuest(guest);
+      // useFocusEffect fires immediately when isGuest changes to false (screen already focused)
+      // so we do NOT call loadOrders() here to avoid a double call race condition
     };
 
     loadGuestState();

@@ -348,12 +348,30 @@ const InvoiceDetailModal = ({
                   color: '#111827',
                   fontSize: 14
                 }}>
-                  {transaction.details.invoiceNo || transaction.id}
+                  {transaction.details.invoiceNo || transaction.id || 'N/A'}
                 </Text>
               </View>
 
+              {/* Invoice ID */}
+              {transaction.details.invoiceId != null && (
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  marginBottom: 8
+                }}>
+                  <Text style={{ color: '#6B7280', fontSize: 14 }}>Invoice ID:</Text>
+                  <Text style={{ 
+                    fontWeight: '600', 
+                    color: '#111827',
+                    fontSize: 14
+                  }}>
+                    {String(transaction.details.invoiceId)}
+                  </Text>
+                </View>
+              )}
+
               {/* Order Number */}
-              {(transaction.details.orderNumber || transaction.details.orderId) && (
+              {transaction.details.orderId != null && (
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
@@ -365,7 +383,7 @@ const InvoiceDetailModal = ({
                     color: '#111827',
                     fontSize: 14
                   }}>
-                    {transaction.details.orderNumber || `#${transaction.details.orderId}`}
+                    {transaction.details.orderNumber || 'N/A'}
                   </Text>
                 </View>
               )}
@@ -958,11 +976,16 @@ export default function InvoicesScreen() {
   const [downloadingStatement, setDownloadingStatement] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null); // null = checking, true = guest, false = logged in
 
-  // Check guest session on mount
+  // Check guest session on mount — useFocusEffect will call loadInvoices as soon as isGuest is confirmed
   useEffect(() => {
     const checkGuestSession = async () => {
       const guest = await isGuestSession();
       setIsGuest(guest);
+      // useFocusEffect fires immediately when isGuest changes to false (screen already focused)
+      // so we do NOT call loadInvoices() here to avoid a double call race condition
+      if (guest) {
+        setLoading(false);
+      }
     };
     checkGuestSession();
   }, []);
@@ -1037,7 +1060,7 @@ export default function InvoicesScreen() {
           details: {
             transactionIndex,
             invoiceId: inv.invoiceID,
-            invoiceNo: inv.invoiceNo,
+            invoiceNo: inv.InvoiceNumber ?? inv.invoiceNo ?? null,
             orderId: inv.OrderID ?? inv.orderId ?? null,
             orderNumber: inv.OrderNumber ?? inv.orderNumber ?? null,
             // Normalize various possible fields for invoice status

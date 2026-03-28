@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useFavourites } from "../context/FavouritesContext";
 import {
@@ -14,6 +14,7 @@ import {
   Dimensions,
   Pressable,
   StatusBar,
+  RefreshControl,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,6 +39,7 @@ import {
 import { useCart } from "../context/CartContext";
 import { isGuestSession } from "@/utils/session";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
+import { perfMark } from "@/utils/performanceMonitor";
 
 const { height, width } = Dimensions.get('window');
 
@@ -1270,12 +1272,22 @@ const HomeScreen = () => {
   const [bestSelling, setBestSelling] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [userData, setUserData] = useState<{name: string; phoneNumber: string} | null>(null);
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [buyAgainProducts, setBuyAgainProducts] = useState<Product[]>([]);
+  // Guard against setState on unmounted component
+  const isMounted = useRef(true);
+  // Guard: fetch products exactly once (not on every focus)
+  const hasFetchedProducts = useRef(false);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const handleCategoryPress = useCallback((category: Category) => {
     router.push({
@@ -1549,16 +1561,20 @@ const HomeScreen = () => {
     };
     checkCustomer();
     loadUserData();
-    loadStoreData(); // Load store data on mount
-    fetchData(false); // Initially fetch without Buy Again products
-  }, [loadUserData, loadStoreData]);
+    loadStoreData();
+    if (!hasFetchedProducts.current) {
+      hasFetchedProducts.current = true;
+      fetchData(false); // Fetch products exactly once on mount
+    }
+  }, []); // empty deps — runs exactly once on mount
 
-  // Use useFocusEffect to refresh address whenever screen comes into focus
+  // Refresh address whenever screen comes into focus.
+  // loadStoreData is intentionally NOT here — stores don't change between navigations.
+  // It is loaded once on mount above and refreshed explicitly on store change.
   useFocusEffect(
     useCallback(() => {
       fetchDefaultAddress();
-      loadStoreData();
-    }, [fetchDefaultAddress, loadStoreData])
+    }, [fetchDefaultAddress])
   );
 
   // Handle store change
@@ -1652,7 +1668,8 @@ const HomeScreen = () => {
     setFilteredProducts(filtered);
   }, [searchQuery, exclusiveOffers, bestSelling]);
 
-  const fetchData = async (shouldFetchBuyAgain: boolean = true) => {
+  const fetchData = async (shouldFetchBuyAgain: boolean = true, isRefresh = false) => {
+    const _perf = perfMark('HomeScreen (shop.tsx)');
     try {
       console.log('🏪 [Shop.fetchData] Starting to fetch products...');
       console.log('🏪 [Shop.fetchData] shouldFetchBuyAgain:', shouldFetchBuyAgain);
@@ -1661,7 +1678,13 @@ const HomeScreen = () => {
       const storedStoreId = await AsyncStorage.getItem('selectedStoreId');
       console.log('🏪 [Shop.fetchData] selectedStoreId from AsyncStorage:', storedStoreId);
       
-      setLoading(true);
+      if (!isMounted.current) return;
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setFetchFailed(false);
       
       // Conditionally fetch Buy Again products only for registered users
       const apiCalls = [
@@ -1709,15 +1732,35 @@ const HomeScreen = () => {
         } as Product;
       };
 
-      if (exclusiveRes.success) setExclusiveOffers((exclusiveRes.products || []).map((p: any, i: number) => normalize(p, i)));
-      if (bestSellingRes.success) setBestSelling((bestSellingRes.products || []).map((p: any, i: number) => normalize(p, i)));
-      if (categoriesRes.success) setCategories(categoriesRes.categories);
-      if (newProductsRes.success) setNewProducts((newProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
-      if (buyAgainProductsRes && buyAgainProductsRes.success) setBuyAgainProducts((buyAgainProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
+      if (!isMounted.current) return;
+
+      const loadedExclusive = exclusiveRes.success ? (exclusiveRes.products || []).map((p: any, i: number) => normalize(p, i)) : null;
+      const loadedBestSelling = bestSellingRes.success ? (bestSellingRes.products || []).map((p: any, i: number) => normalize(p, i)) : null;
+      const loadedCategories = categoriesRes.success ? categoriesRes.categories : null;
+      const loadedNew = newProductsRes.success ? (newProductsRes.products || []).map((p: any, i: number) => normalize(p, i)) : null;
+      const loadedBuyAgain = (buyAgainProductsRes && buyAgainProductsRes.success) ? (buyAgainProductsRes.products || []).map((p: any, i: number) => normalize(p, i)) : null;
+
+      const allFailed = loadedExclusive === null && loadedBestSelling === null && loadedCategories === null && loadedNew === null;
+
+      if (loadedExclusive !== null) setExclusiveOffers(loadedExclusive);
+      if (loadedBestSelling !== null) setBestSelling(loadedBestSelling);
+      if (loadedCategories !== null) setCategories(loadedCategories);
+      if (loadedNew !== null) setNewProducts(loadedNew);
+      if (loadedBuyAgain !== null) setBuyAgainProducts(loadedBuyAgain);
+
+      if (allFailed) {
+        console.warn('🏪 [Shop.fetchData] All product API calls failed — setting fetchFailed flag');
+        setFetchFailed(true);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
+      if (isMounted.current) setFetchFailed(true);
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+      _perf.end();
     }
   };
 
@@ -1755,7 +1798,15 @@ const HomeScreen = () => {
         <>
           <ScrollView 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 120 }} // Extra padding for cart button
+            contentContainerStyle={{ paddingBottom: 120 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => fetchData(isCustomerExists === true, true)}
+                colors={['#BCD042']}
+                tintColor="#BCD042"
+              />
+            }
           >
             {/* Top Header with Store/Location */}
             <View className="flex-row items-center justify-between px-5 mt-20">
@@ -1894,6 +1945,20 @@ const HomeScreen = () => {
                     <Text className="text-green-700 font-medium text-base">See all</Text>
                   </TouchableOpacity>
                 </View>
+                {fetchFailed ? (
+                  <View className="mx-4 mt-2 mb-4 rounded-xl bg-red-50 border border-red-100 px-4 py-5 items-center">
+                    <Ionicons name="cloud-offline-outline" size={36} color="#ef4444" />
+                    <Text className="text-red-600 font-semibold mt-2 text-center">Couldn't load products</Text>
+                    <Text className="text-gray-500 text-sm mt-1 text-center">Check your connection and try again.</Text>
+                    <TouchableOpacity
+                      className="mt-3 bg-green-700 px-6 py-2 rounded-full"
+                      onPress={() => fetchData(isCustomerExists === true)}
+                      activeOpacity={0.8}
+                    >
+                      <Text className="text-white font-semibold">Retry</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
                 <FlatList
                   data={exclusiveOffers}
                   horizontal
@@ -1909,9 +1974,12 @@ const HomeScreen = () => {
                   )}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
                   ListEmptyComponent={() => (
-                    <Text className="text-center text-gray-500 mx-4">No exclusive offers available</Text>
+                    <View style={{ height: 120, justifyContent: 'center', paddingHorizontal: 16 }}>
+                      <Text className="text-gray-400 text-sm">No exclusive offers available</Text>
+                    </View>
                   )}
                 />
+                )}
 
                 {/* Best Selling */}
                 <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
@@ -1935,7 +2003,9 @@ const HomeScreen = () => {
                   )}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
                   ListEmptyComponent={() => (
-                    <Text className="text-center text-gray-500 mx-4">No best selling products available</Text>
+                    <View style={{ height: 120, justifyContent: 'center', paddingHorizontal: 16 }}>
+                      <Text className="text-gray-400 text-sm">No best selling products available</Text>
+                    </View>
                   )}
                 />
 
@@ -1961,7 +2031,9 @@ const HomeScreen = () => {
                   )}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
                   ListEmptyComponent={() => (
-                    <Text className="text-center text-gray-500 mx-4">No new products available</Text>
+                    <View style={{ height: 120, justifyContent: 'center', paddingHorizontal: 16 }}>
+                      <Text className="text-gray-400 text-sm">No new products available</Text>
+                    </View>
                   )}
                 />
 
@@ -1989,7 +2061,9 @@ const HomeScreen = () => {
                       )}
                       contentContainerStyle={{ paddingLeft: 16, paddingBottom: 8 }}
                       ListEmptyComponent={() => (
-                        <Text className="text-center text-gray-500 mx-4">No buy again products available</Text>
+                        <View style={{ height: 120, justifyContent: 'center', paddingHorizontal: 16 }}>
+                          <Text className="text-gray-400 text-sm">No buy again products available</Text>
+                        </View>
                       )}
                     />
                   </>
@@ -2010,7 +2084,9 @@ const HomeScreen = () => {
                   renderItem={({ item }) => <GroceryCategoryCard item={item} onPress={() => handleCategoryPress(item)} />}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 32 }}
                   ListEmptyComponent={() => (
-                    <Text className="text-center text-gray-500 mx-4">No categories available</Text>
+                    <View style={{ height: 80, justifyContent: 'center', paddingHorizontal: 16 }}>
+                      <Text className="text-gray-400 text-sm">No categories available</Text>
+                    </View>
                   )}
                 />
               </>
@@ -2018,7 +2094,7 @@ const HomeScreen = () => {
           </ScrollView>
 
           {/* Fixed "Go to Cart" button */}
-          {(cartCount > 0 || isCartLoading) && (
+          {cartCount > 0 && (
             <View 
               style={{
                 position: 'absolute',
@@ -2045,7 +2121,6 @@ const HomeScreen = () => {
                 }}
                 activeOpacity={0.9}
                 onPress={() => router.push("/cart")}
-                disabled={isCartLoading}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="cart-outline" size={24} color="#fff" />
@@ -2055,7 +2130,7 @@ const HomeScreen = () => {
                     fontSize: 18, // Bigger text
                     marginLeft: 8 
                   }}>
-                    {isCartLoading ? 'Loading...' : 'Go to Cart'}
+                    Go to Cart
                   </Text>
                 </View>
                 
@@ -2069,19 +2144,15 @@ const HomeScreen = () => {
                   justifyContent: 'center',
                   paddingHorizontal: 12,
                 }}>
-                  {isCartLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={{ 
-                      color: 'white', 
-                      fontWeight: '700',
-                      fontSize: 16, // Bigger count text
-                      textAlign: 'center',
-                      lineHeight: 20, // Fixed line height for APK
-                    }}>
-                      {cartCount}
-                    </Text>
-                  )}
+                  <Text style={{ 
+                    color: 'white', 
+                    fontWeight: '700',
+                    fontSize: 16,
+                    textAlign: 'center',
+                    lineHeight: 20,
+                  }}>
+                    {cartCount}
+                  </Text>
                 </View>
               </TouchableOpacity>
             </View>

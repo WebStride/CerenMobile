@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCart, addToCartApi, updateCartApi, removeCartApi } from "../../services/api";
 
@@ -19,6 +19,7 @@ export interface CartContextProps {
   removeFromCart: (productId: number) => void;
   increaseQuantity: (productId: number) => void;
   decreaseQuantity: (productId: number) => void;
+  setQuantityDirect: (productId: number, quantity: number) => void;
   clearCart: () => void;
   refreshCart: () => Promise<void>;
   cartCount: number;
@@ -37,6 +38,10 @@ export function useCart() {
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartLoading, setIsCartLoading] = useState(false);
+  // Track the last time a local quantity edit was made.
+  // refreshCart will skip overwriting cart state if an update is in flight.
+  const pendingUpdateAt = useRef<number>(0);
+  const PENDING_GRACE_MS = 4000; // wait 4s after last edit before allowing server overwrite
 
   useEffect(() => {
     let mounted = true;
@@ -66,23 +71,24 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     return () => { mounted = false; };
   }, []);
 
-  // Function to refresh cart from server (used when store changes)
-  const refreshCart = async () => {
+  // Stable reference — wrapped in useCallback so useFocusEffect deps never change
+  const refreshCart = useCallback(async () => {
+    // Skip if a local edit was made very recently (race condition guard)
+    if (Date.now() - pendingUpdateAt.current < PENDING_GRACE_MS) {
+      console.log('🛒 refreshCart skipped — local update in flight');
+      return;
+    }
     try {
-      setIsCartLoading(true);
-      console.log('🛒 Refreshing cart from server...');
       const res: any = await getCart();
-      if (res?.success) {
+      // Double-check: if an edit happened while we were fetching, don't overwrite
+      if (res?.success && Date.now() - pendingUpdateAt.current >= PENDING_GRACE_MS) {
         setCart(res.cart || []);
         await AsyncStorage.setItem('cart', JSON.stringify(res.cart || []));
-        console.log('✅ Cart refreshed:', res.cart?.length || 0, 'items');
       }
     } catch (err) {
       console.error('Failed to refresh cart from server', err);
-    } finally {
-      setIsCartLoading(false);
     }
-  };
+  }, []); // stable — no deps change
 
   const addToCart = (item: Omit<CartItem, "quantity"> & { quantity?: number; minOrderQuantity?: number }, providedQuantity?: number) => {
     const quantity = providedQuantity || item.quantity || 1;
@@ -135,6 +141,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const increase = (productId: number) => {
+    pendingUpdateAt.current = Date.now();
     let newQty = 0;
     setCart(prev => {
       const newCart = prev.map(x => {
@@ -157,6 +164,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const decrease = (productId: number) => {
+    pendingUpdateAt.current = Date.now();
     let newQty = NaN;
     setCart(prev => {
       const found = prev.find(x => x.productId === productId);
@@ -185,6 +193,22 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     if (isNaN(newQty)) return;
     if (newQty <= 0) return; // Should not happen with MOQ guard, but safety check
     updateCartApi(productId, newQty).catch(err => console.error('updateCartApi failed', err));
+  };
+
+  const setQuantityDirect = (productId: number, quantity: number) => {
+    pendingUpdateAt.current = Date.now();
+    setCart(prev => {
+      const newCart = prev.map(x =>
+        x.productId === productId ? { ...x, quantity } : x
+      );
+      AsyncStorage.setItem('cart', JSON.stringify(newCart)).catch(err =>
+        console.error('Failed to save cart to AsyncStorage', err)
+      );
+      return newCart;
+    });
+    updateCartApi(productId, quantity).catch(err =>
+      console.error('updateCartApi failed', err)
+    );
   };
 
   const clearCart = () => {
@@ -216,7 +240,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         addToCart, 
         removeFromCart, 
         increaseQuantity: increase,
-        decreaseQuantity: decrease, 
+        decreaseQuantity: decrease,
+        setQuantityDirect,
         clearCart,
         refreshCart,
         cartCount, 

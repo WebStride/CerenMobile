@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Platform, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -11,6 +11,7 @@ import { checkCustomerExists, placeOrder } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import GuestScreen from "@/components/GuestScreen";
 import { isGuestSession } from "@/utils/session";
+import { perfMark } from "@/utils/performanceMonitor";
 
 const defaultImage = require("../../assets/images/Banana.png");
 
@@ -19,7 +20,7 @@ const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
 export default function CartScreen() {
   const router = useRouter();
-  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal, clearCart, refreshCart } = useCart();
+  const { cart, increaseQuantity, decreaseQuantity, setQuantityDirect, removeFromCart, cartTotal, clearCart, refreshCart } = useCart();
   const insets = useSafeAreaInsets();
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const [hasStore, setHasStore] = useState<boolean | null>(null);
@@ -27,6 +28,8 @@ export default function CartScreen() {
   const [orderDate, setOrderDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  // Local draft values while typing — keyed by productId
+  const [inputValues, setInputValues] = useState<Record<number, string>>({});
   
   // Refresh cart when screen is focused (handles store switching)
   useFocusEffect(
@@ -35,16 +38,18 @@ export default function CartScreen() {
         console.log('🛒 Cart screen focused - refreshing cart...');
         refreshCart();
       }
-    }, [isGuest, refreshCart])
+    }, [isGuest]) // refreshCart is stable (useCallback in CartContext) — not needed here
   );
 
   // Check customer existence and store registration when component mounts
   useEffect(() => {
     const checkCustomer = async () => {
+      const _perf = perfMark('CartScreen (cart.tsx)');
       try {
         const guest = await isGuestSession();
         setIsGuest(guest);
         if (guest) {
+          _perf.end();
           return;
         }
 
@@ -52,13 +57,23 @@ export default function CartScreen() {
         const storeId = await AsyncStorage.getItem('selectedStoreId');
         setHasStore(!!storeId);
 
+        // Read from cache immediately to avoid spinner on re-visits
+        const cached = await AsyncStorage.getItem('customerExists');
+        if (cached !== null) {
+          setIsCustomerExists(cached === 'true');
+        }
+
+        // Revalidate in background (won't show spinner if cache hit above)
         const response = await checkCustomerExists();
         const isRegistered = response.success ? response.exists : false;
         setIsCustomerExists(isRegistered);
+        await AsyncStorage.setItem('customerExists', String(isRegistered));
+        _perf.end();
       } catch (error) {
         console.error("Error checking customer existence:", error);
         setIsCustomerExists(false);
         setHasStore(false);
+        _perf.end();
       }
     };
     
@@ -85,43 +100,46 @@ export default function CartScreen() {
   // ensure an extra gap above system navigation / gesture bar
   const bottomOffset = (insets.bottom || 0) + 50;
 
-  const handleQuantityChange = (productId: number, newQuantity: string) => {
-    const numVal = Number(newQuantity.replace(/[^0-9]/g, ""));
+  // Called on every keystroke — just update the local draft, no validation
+  const handleQuantityChangeText = (productId: number, val: string) => {
+    // Only allow digits
+    const digitsOnly = val.replace(/[^0-9]/g, '');
+    setInputValues(prev => ({ ...prev, [productId]: digitsOnly }));
+  };
+
+  // Called when the input loses focus — validate and commit to cart
+  const handleQuantityBlur = (productId: number) => {
     const currentItem = cart.find(item => item.productId === productId);
-    
     if (!currentItem) return;
-    
+
+    const draft = inputValues[productId];
     const minQty = currentItem.minOrderQuantity || 1;
-    
-    if (newQuantity === "") {
-      // Allow empty for typing, but don't remove — will snap on blur
+
+    // Clear local draft so the TextInput falls back to cart value
+    setInputValues(prev => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
+
+    if (draft === undefined || draft === '') {
+      // User cleared the field without entering anything — snap back silently
       return;
     }
-    
-    if (numVal === 0) {
-      // Don't allow zero — snap to minimum
+
+    const numVal = parseInt(draft, 10);
+
+    if (!numVal || numVal < minQty) {
       Alert.alert(
-        "Minimum Order Quantity",
-        `Minimum order quantity for ${currentItem.productName} is ${minQty}. Use the ✕ button to remove the item.`,
-        [{ text: "OK" }]
-      );
-      return;
-    }
-    
-    if (numVal < minQty) {
-      Alert.alert(
-        "Minimum Order Quantity",
+        'Minimum Order Quantity',
         `Minimum order quantity for ${currentItem.productName} is ${minQty}.`,
-        [{ text: "OK" }]
+        [{ text: 'OK' }]
       );
-      return;
+      return; // cart value unchanged — TextInput will show it again
     }
-    
-    const diff = numVal - currentItem.quantity;
-    if (diff > 0) {
-      for (let i = 0; i < diff; i++) increaseQuantity(productId);
-    } else if (diff < 0) {
-      for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(productId);
+
+    if (numVal !== currentItem.quantity) {
+      setQuantityDirect(productId, numVal);
     }
   };
 
@@ -172,8 +190,11 @@ export default function CartScreen() {
   if (isCustomerExists === null || hasStore === null) {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+        <View className="px-4 py-3 border-b border-gray-100">
+          <Text className="text-xl font-bold text-center text-gray-900">My Cart</Text>
+        </View>
         <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">Checking access...</Text>
+          <ActivityIndicator size="large" color="#BCD042" />
         </View>
       </SafeAreaView>
     );
@@ -262,10 +283,11 @@ export default function CartScreen() {
                     <View className="mx-2 min-w-[40px] items-center justify-center">
                       <TextInput
                         className="text-center text-white font-bold text-base"
-                        value={String(item.quantity)}
-                        onChangeText={(val) => handleQuantityChange(item.productId, val)}
+                        value={inputValues[item.productId] ?? String(item.quantity)}
+                        onChangeText={(val) => handleQuantityChangeText(item.productId, val)}
+                        onBlur={() => handleQuantityBlur(item.productId)}
                         keyboardType="number-pad"
-                        maxLength={3}
+                        maxLength={4}
                         style={{
                           borderWidth: 0,
                           backgroundColor: "transparent",

@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { getExclusiveOffers, getBestSelling, getNewProducts, getBuyAgainProducts, checkCustomerExists } from "@/services/api";
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
+import { perfMark } from "@/utils/performanceMonitor";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
 
 // Blurhash for smooth placeholder (light gray)
@@ -476,11 +477,9 @@ const AllProductsList = () => {
   }, [searchQuery, products]);
 
   const loadInitialData = async () => {
+    const _perf = perfMark('ProductList (AllProductsList.tsx)');
     setLoading(true);
     try {
-      // show quick spinner
-      await new Promise(resolve => setTimeout(resolve, 300));
-
       let apiProducts: any[] | null = null;
       try {
         if (feedType === "exclusive") {
@@ -545,6 +544,7 @@ const AllProductsList = () => {
       Alert.alert("Error", "Failed to load products");
     } finally {
       setLoading(false);
+      _perf.end();
     }
   };
 
@@ -553,8 +553,6 @@ const AllProductsList = () => {
 
     setLoadingMore(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
       const nextPage = currentPage + 1;
       const startIndex = (nextPage - 1) * ITEMS_PER_PAGE;
       const endIndex = startIndex + ITEMS_PER_PAGE;

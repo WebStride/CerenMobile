@@ -851,94 +851,58 @@ export default function AccountScreen() {
   };
 
   const handleAddNewAddress = async () => {
-    console.log("🖱️ Add new address button clicked from account");
-
-    let currentUserData = null;
-
-    // Load userData from AsyncStorage
-    try {
-      const storedUserData = await AsyncStorage.getItem('userData');
-      if (storedUserData) {
-        currentUserData = JSON.parse(storedUserData);
-        console.log("✅ Loaded user data from AsyncStorage:", currentUserData);
-      } else {
-          // Check if user is logged in at all
-          const accessToken = await AsyncStorage.getItem('accessToken');
-          if (!accessToken) {
-            console.log("❌ User not logged in, redirecting to login");
-            Alert.alert(
-              "Session Expired",
-              "Please log in again to continue.",
-              [
-                {
-                  text: "Login",
-                  onPress: () => router.push("/OnboardingScreen")
-                }
-              ]
-            );
-            return;
-          }
-        }
-    } catch (error) {
-      console.error("❌ Failed to load user data from AsyncStorage:", error);
-    }
-
-    if (!currentUserData || !currentUserData.name || !currentUserData.phoneNumber) {
-      console.log("❌ User data still not available, cannot add address");
+    // Check guest session first — show login prompt instead of navigating
+    const guest = await isGuestSession();
+    if (guest) {
       Alert.alert(
-        "Session Error",
-        "Unable to load user information. This might be due to corrupted data.",
+        "Login Required",
+        "Please login to add a delivery address.",
         [
-          {
-            text: "Retry",
-            onPress: () => {
-              handleAddNewAddress(); // Try to reload user data
-            }
-          },
-          {
-            text: "Clear & Re-login",
-            style: "destructive",
-            onPress: async () => {
-              console.log("🧹 Clearing stored data and redirecting to login...");
-              await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userData']);
-              router.push("/OnboardingScreen");
-            }
-          },
-          {
-            text: "Debug",
-            onPress: async () => {
-              // Debug AsyncStorage contents
-              const accessToken = await AsyncStorage.getItem('accessToken');
-              const refreshToken = await AsyncStorage.getItem('refreshToken');
-              const userDataStored = await AsyncStorage.getItem('userData');
-              console.log("🔍 Debug Info:");
-              console.log("- Access Token:", accessToken ? "Present" : "Missing");
-              console.log("- Refresh Token:", refreshToken ? "Present" : "Missing");
-              console.log("- User Data:", userDataStored ? JSON.parse(userDataStored) : "Missing");
-
-              const debugInfo = `Access Token: ${accessToken ? "Present" : "Missing"}\nRefresh Token: ${refreshToken ? "Present" : "Missing"}\nUser Data: ${userDataStored ? "Present" : "Missing"}`;
-              Alert.alert("Debug Info", debugInfo);
-            }
-          }
+          { text: "Cancel", style: "cancel" },
+          { text: "Login", onPress: () => router.push("/OnboardingScreen") }
         ]
       );
       return;
     }
 
-    console.log("✅ User data available, navigating to select location...");
-    console.log("📋 Navigation params:", {
-      name: currentUserData.name || "",
-      phoneNumber: currentUserData.phoneNumber || "",
-      fromLocationModal: "true"
-    });
+    // Attempt to get phone number and name from stored userData
+    let userName = "";
+    let userPhone = "";
 
-    // Navigate to SelectLocation screen first to choose city/district
+    try {
+      const storedUserData = await AsyncStorage.getItem('userData');
+      if (storedUserData) {
+        const parsed = JSON.parse(storedUserData);
+        userName = parsed.name || "";
+        userPhone = parsed.phoneNumber || "";
+      }
+    } catch (error) {
+      console.error("❌ Failed to read userData from AsyncStorage:", error);
+    }
+
+    // Fall back to decoding phone from the JWT access token
+    if (!userPhone) {
+      try {
+        const accessToken = await AsyncStorage.getItem('accessToken');
+        if (accessToken) {
+          const parts = accessToken.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            userPhone = payload.phoneNumber || "";
+          }
+        }
+      } catch (tokenError) {
+        console.error("❌ Failed to decode access token:", tokenError);
+      }
+    }
+
+    // Navigate to SelectLocation with whatever data we have
     router.push({
       pathname: "/login/SelectLocation",
       params: {
-        name: currentUserData.name || "",
-        phoneNumber: currentUserData.phoneNumber || "",
-        fromLocationModal: "true" // Flag to indicate navigation from location modal
+        name: userName,
+        phoneNumber: userPhone,
+        fromLocationModal: "true",
       },
     });
   };
