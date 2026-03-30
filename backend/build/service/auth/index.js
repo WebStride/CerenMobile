@@ -17,8 +17,7 @@ exports.generateTokens = generateTokens;
 exports.verifyOTP = verifyOTP;
 exports.saveUserAndGenerateTokens = saveUserAndGenerateTokens;
 exports.checkCustomerExists = checkCustomerExists;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../../lib/prisma"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
@@ -123,38 +122,20 @@ function verifyOTP(phoneNumber, code) {
 }
 function saveUserAndGenerateTokens(name, phoneNumber) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("🔧 Creating/updating user (UserCustomerMaster):", { name, phoneNumber });
-        // Normalize phone number before any DB operations
         const formattedPhone = formatPhoneNumber(phoneNumber);
-        console.log('📱 saveUserAndGenerateTokens - Input:', phoneNumber, '→ Formatted:', formattedPhone);
-        // Check if user already exists in USERCUSTOMERMASTER
-        let user = yield prisma.uSERCUSTOMERMASTER.findFirst({
-            where: { phoneNumber: formattedPhone }
+        const normalizedName = typeof name === 'string' ? name.trim() : '';
+        const user = yield prisma_1.default.uSERCUSTOMERMASTER.upsert({
+            where: { phoneNumber: formattedPhone },
+            update: normalizedName ? { name: normalizedName } : {},
+            create: {
+                name: normalizedName || `User ${formattedPhone.slice(-4)}`,
+                phoneNumber: formattedPhone
+            }
         });
-        if (user) {
-            // Update existing user
-            user = yield prisma.uSERCUSTOMERMASTER.update({
-                where: { id: user.id },
-                data: { name }
-            });
-            console.log("✅ UserCustomer updated:", user);
-        }
-        else {
-            // Create new user in USERCUSTOMERMASTER with normalized phone
-            user = yield prisma.uSERCUSTOMERMASTER.create({
-                data: {
-                    name,
-                    phoneNumber: formattedPhone,
-                }
-            });
-            console.log("✅ UserCustomer created:", user);
-        }
-        // Generate tokens using the user table id (not the legacy CUSTOMERID)
         const tokens = generateTokens({
             userId: user.id,
             phoneNumber: user.phoneNumber || formattedPhone
         });
-        console.log("🎫 Tokens generated for user (id):", user.id);
         return { user, tokens };
     });
 }
@@ -168,7 +149,7 @@ function checkCustomerExists(phoneNumber) {
             console.log('📱 checkCustomerExists - Input:', phoneNumber);
             console.log('📱 Searching for:', formattedPhone, 'or', unformattedPhone);
             // Search for user with either format (handles inconsistent DB data)
-            const user = yield prisma.uSERCUSTOMERMASTER.findFirst({
+            const user = yield prisma_1.default.uSERCUSTOMERMASTER.findFirst({
                 where: {
                     OR: [
                         { phoneNumber: formattedPhone },
@@ -177,17 +158,8 @@ function checkCustomerExists(phoneNumber) {
                 },
             });
             if (user) {
-                // If found with old format, update to normalized format
-                if (user.phoneNumber !== formattedPhone) {
-                    console.log('🔄 Normalizing phone format in DB:', user.phoneNumber, '→', formattedPhone);
-                    yield prisma.uSERCUSTOMERMASTER.update({
-                        where: { id: user.id },
-                        data: { phoneNumber: formattedPhone }
-                    });
-                    user.phoneNumber = formattedPhone;
-                }
                 // If a legacy CUSTOMERMASTER record has been linked to this user (via USERID), return that id too
-                const customer = yield prisma.cUSTOMERMASTER.findFirst({
+                const customer = yield prisma_1.default.cUSTOMERMASTER.findFirst({
                     where: { USERID: user.id }
                 });
                 return {

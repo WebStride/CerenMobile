@@ -8,6 +8,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCartList = getCartList;
 exports.postCart = postCart;
@@ -15,6 +18,16 @@ exports.putCartItem = putCartItem;
 exports.deleteCartItem = deleteCartItem;
 exports.postClearCart = postClearCart;
 const cart_1 = require("../../service/cart");
+const prisma_1 = __importDefault(require("../../lib/prisma"));
+function verifyCustomerOwnership(userId, customerId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const owned = yield prisma_1.default.cUSTOMERMASTER.findFirst({
+            where: { CUSTOMERID: customerId, USERID: parseInt(userId) },
+            select: { CUSTOMERID: true },
+        });
+        return !!owned;
+    });
+}
 function getCartList(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
@@ -27,6 +40,9 @@ function getCartList(req, res) {
                 : parseInt(req.headers['x-customer-id']);
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
+            }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             const cart = yield (0, cart_1.getCart)(customerId);
             res.json({ success: true, cart });
@@ -49,6 +65,9 @@ function postCart(req, res) {
                 : parseInt(req.headers['x-customer-id']);
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
+            }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             const body = req.body;
             if (!(body === null || body === void 0 ? void 0 : body.productId) || !(body === null || body === void 0 ? void 0 : body.productName))
@@ -74,6 +93,9 @@ function putCartItem(req, res) {
                 : parseInt(req.headers['x-customer-id']);
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
+            }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             const productId = parseInt(req.params.productId);
             const { quantity } = req.body;
@@ -101,6 +123,9 @@ function deleteCartItem(req, res) {
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
             }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
+            }
             const productId = parseInt(req.params.productId);
             if (isNaN(productId))
                 return res.status(400).json({ error: 'Invalid productId' });
@@ -125,6 +150,9 @@ function postClearCart(req, res) {
                 : parseInt(req.headers['x-customer-id']);
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
+            }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             yield (0, cart_1.clearCart)(customerId);
             res.json({ success: true });

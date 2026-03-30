@@ -17,6 +17,7 @@ exports.isTestPhoneNumber = isTestPhoneNumber;
 exports.sendOtpToPhone = sendOtpToPhone;
 exports.verifyOtp = verifyOtp;
 exports.resendOtp = resendOtp;
+exports.sendAdminContactAlert = sendAdminContactAlert;
 const axios_1 = __importDefault(require("axios"));
 // MSG91 Configuration from environment variables
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
@@ -135,9 +136,9 @@ function verifyOtp(phoneNumber, otp) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d, _e, _f, _g;
         const formattedPhone = formatPhoneForMsg91(phoneNumber);
-        // Test bypass: Accept '123456' OTP for any phone in development
-        if (otp === '123456') {
-            console.log('🎯 Test OTP 123456 accepted - bypassing MSG91 verification');
+        // Test bypass: Accept '123456' OTP only in development environment
+        if (process.env.NODE_ENV === 'development' && otp === '123456') {
+            console.log('🎯 Dev test OTP 123456 accepted - bypassing MSG91 verification');
             return {
                 success: true,
                 message: 'Test OTP verified'
@@ -256,6 +257,89 @@ function resendOtp(phoneNumber_1) {
                 success: false,
                 message: ((_e = (_d = error.response) === null || _d === void 0 ? void 0 : _d.data) === null || _e === void 0 ? void 0 : _e.message) || error.message || 'Failed to resend OTP'
             };
+        }
+    });
+}
+function sendAdminContactAlert(payload) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        const authKey = process.env.MSG91_AUTH_KEY || process.env.MSG91_API_KEY || '';
+        const adminWhatsapp = (process.env.ADMIN_WHATSAPP_NUMBER || '').replace(/\D/g, '');
+        const integratedNumber = (process.env.MSG91_WHATSAPP_INTEGRATED_NUMBER || '').replace(/\D/g, '');
+        const templateName = process.env.MSG91_WHATSAPP_TEMPLATE_NAME || '';
+        const missing = [];
+        if (!authKey)
+            missing.push('MSG91_AUTH_KEY/MSG91_API_KEY');
+        if (!adminWhatsapp)
+            missing.push('ADMIN_WHATSAPP_NUMBER');
+        if (!integratedNumber)
+            missing.push('MSG91_WHATSAPP_INTEGRATED_NUMBER');
+        if (!templateName)
+            missing.push('MSG91_WHATSAPP_TEMPLATE_NAME');
+        if (missing.length > 0) {
+            return {
+                success: false,
+                message: `MSG91 WhatsApp configuration missing: ${missing.join(', ')}`
+            };
+        }
+        const endpoint = 'https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/';
+        try {
+            yield axios_1.default.post(endpoint, {
+                integrated_number: integratedNumber,
+                content_type: 'template',
+                payload: {
+                    type: 'template',
+                    template: {
+                        name: templateName,
+                        language: {
+                            code: 'en',
+                            policy: 'deterministic'
+                        },
+                        to_and_components: [
+                            {
+                                to: [adminWhatsapp],
+                                components: {
+                                    body_1: {
+                                        type: 'text',
+                                        value: payload.name
+                                    },
+                                    body_2: {
+                                        type: 'text',
+                                        value: payload.phoneNumber
+                                    },
+                                    body_3: {
+                                        type: 'text',
+                                        value: payload.address
+                                    },
+                                    body_4: {
+                                        type: 'text',
+                                        value: payload.requestType
+                                    },
+                                    body_5: {
+                                        type: 'text',
+                                        value: payload.message
+                                    },
+                                    body_6: {
+                                        type: 'text',
+                                        value: payload.isGuest ? 'Guest' : 'Registered User'
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    messaging_product: 'whatsapp'
+                }
+            }, {
+                headers: {
+                    authkey: authKey,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return { success: true, message: 'Admin WhatsApp alert sent' };
+        }
+        catch (error) {
+            console.error('❌ Failed sending MSG91 WhatsApp contact alert:', ((_a = error === null || error === void 0 ? void 0 : error.response) === null || _a === void 0 ? void 0 : _a.data) || (error === null || error === void 0 ? void 0 : error.message));
+            return { success: false, message: 'Failed to send WhatsApp alert' };
         }
     });
 }

@@ -1,10 +1,22 @@
 // app.config.js
-// Single-source Expo config generator. Loads env vars and injects platform-specific
-// Google Maps API keys into native config and expo.extra so runtime JS can access them.
+// Single-source Expo config generator. Loads env vars from APP_ENV-specific .env files.
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env.development') });
-require('dotenv').config();
+const dotenv = require('dotenv');
+
+const appEnv = (process.env.APP_ENV || process.env.NODE_ENV || 'development').trim();
+const envFile = `.env.${appEnv}`;
+const envPath = path.resolve(__dirname, envFile);
+
+if (fs.existsSync(envPath)) {
+  console.log(`🎯 app.config: loading env ${envFile}`);
+  dotenv.config({ path: envPath });
+} else if (fs.existsSync(path.resolve(__dirname, '.env'))) {
+  console.warn(`⚠️ app.config: ${envFile} not found, loading .env fallback.`);
+  dotenv.config();
+} else {
+  console.warn(`⚠️ app.config: no env file found. Please create ${envFile} or .env`);
+}
 
 module.exports = ({ config }) => {
   // Read the env vars you said you use in your .env

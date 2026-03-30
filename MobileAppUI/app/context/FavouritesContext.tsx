@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchFavourites, addFavouriteApi, removeFavouriteApi } from '../../services/api';
 
@@ -74,8 +74,13 @@ export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
 
       // optimistic update for registered users
-      const updatedFavourites = [...favourites, product];
-      setFavourites(updatedFavourites);
+      const updatedFavourites = await new Promise<Product[]>((resolve) => {
+        setFavourites((prev) => {
+          const next = [...prev, product];
+          resolve(next);
+          return next;
+        });
+      });
       await AsyncStorage.setItem('favourites', JSON.stringify(updatedFavourites));
       // persist to server
       addFavouriteApi(product).catch(err => {
@@ -84,12 +89,17 @@ export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } catch (error) {
       console.error('Error adding to favourites:', error);
     }
-  }, [favourites]);
+  }, []);
 
   const removeFromFavourites = useCallback(async (productId: number) => {
     try {
-      const updatedFavourites = favourites.filter(item => item.productId !== productId);
-      setFavourites(updatedFavourites);
+      const updatedFavourites = await new Promise<Product[]>((resolve) => {
+        setFavourites((prev) => {
+          const next = prev.filter((item) => item.productId !== productId);
+          resolve(next);
+          return next;
+        });
+      });
       await AsyncStorage.setItem('favourites', JSON.stringify(updatedFavourites));
       // persist removal
       removeFavouriteApi(productId).catch(err => {
@@ -98,7 +108,7 @@ export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } catch (error) {
       console.error('Error removing from favourites:', error);
     }
-  }, [favourites]);
+  }, []);
 
   const isFavourite = useCallback((productId: number) => {
     return favourites.some(item => item.productId === productId);
@@ -106,13 +116,13 @@ export const FavouritesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const favouritesCount = favourites.length;
 
-  const value: FavouritesContextType = {
+  const value = useMemo<FavouritesContextType>(() => ({
     favourites,
     addToFavourites,
     removeFromFavourites,
     isFavourite,
     favouritesCount,
-  };
+  }), [favourites, addToFavourites, removeFromFavourites, isFavourite, favouritesCount]);
 
   return (
     <FavouritesContext.Provider value={value}>

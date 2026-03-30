@@ -15,9 +15,51 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
-// import routes from "./routes";
-dotenv_1.default.config();
-const routes_1 = __importDefault(require("./routes"));
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
+const MSG91_PLACEHOLDER_VALUES = new Set([
+    'msg91_auth_key',
+    'msg91_template_id',
+    'msg91_api_key',
+    'your_dev_msg91_key',
+    'your_dev_template_id',
+    'your_prod_msg91_key',
+    'your_prod_template_id',
+]);
+function shouldSkipEnvOverride(key, value) {
+    if (!['MSG91_AUTH_KEY', 'MSG91_TEMPLATE_ID', 'MSG91_API_KEY'].includes(key)) {
+        return false;
+    }
+    return MSG91_PLACEHOLDER_VALUES.has(value.trim().toLowerCase());
+}
+function loadEnvFile(filePath, sourceLabel, overrideExisting) {
+    const parsed = dotenv_1.default.parse(fs_1.default.readFileSync(filePath));
+    Object.entries(parsed).forEach(([key, value]) => {
+        if (shouldSkipEnvOverride(key, value)) {
+            console.warn(`⚠️  Skipping placeholder ${key} from ${sourceLabel}; keeping existing value.`);
+            return;
+        }
+        if (overrideExisting || process.env[key] === undefined) {
+            process.env[key] = value;
+        }
+    });
+}
+// Load environment variables based on NODE_ENV
+const nodeEnv = (process.env.NODE_ENV || 'development').trim();
+const defaultEnvPath = path_1.default.resolve(process.cwd(), '.env');
+const envPath = path_1.default.resolve(process.cwd(), `.env.${nodeEnv}`);
+if (fs_1.default.existsSync(defaultEnvPath)) {
+    console.log('🛠️  Loading default .env file');
+    loadEnvFile(defaultEnvPath, '.env', false);
+}
+if (fs_1.default.existsSync(envPath)) {
+    console.log(`🛠️  Loading env file: ${envPath}`);
+    loadEnvFile(envPath, `.env.${nodeEnv}`, true);
+}
+else if (!fs_1.default.existsSync(defaultEnvPath)) {
+    console.warn(`⚠️  No .env file found for NODE_ENV=${nodeEnv}. Falling back to process env values.`);
+}
+const routes = require('./routes').default;
 const app = (0, express_1.default)();
 console.log("cors enabled");
 app.use((0, cors_1.default)({
@@ -43,7 +85,7 @@ const port = parseInt(process.env.PORT || '3002');
 const host = process.env.HOST || '0.0.0.0';
 app.listen(port, host, () => __awaiter(void 0, void 0, void 0, function* () {
     console.log(`App is running at port: http://${host}:${port}`);
-    yield (0, routes_1.default)(app);
+    yield routes(app);
 }));
 exports.default = app;
 //# sourceMappingURL=app.js.map

@@ -17,7 +17,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cerenmobile.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://api.cerenmobile.com"
       },
       "android": {
         "buildType": "apk"
@@ -26,7 +26,7 @@
     "testflight": {
       "distribution": "store",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cerenmobile.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://api.cerenmobile.com"
       },
       "ios": {
         "simulator": false
@@ -38,7 +38,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cerenmobile.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://api.cerenmobile.com"
       },
       "android": {
         "buildType": "app-bundle"

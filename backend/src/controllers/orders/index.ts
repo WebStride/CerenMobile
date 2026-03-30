@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth';
 import { getOrdersByCustomerId, getOrderItemsByOrderId, getInvoicesByCustomerId, getInvoiceItemsByInvoiceId, getInvoicesByCustomerAndDateRange } from '../../service/orders';
+import prisma from '../../lib/prisma';
 
 export async function getInvoicesByCustomer(req: AuthRequest, res: Response) {
     try {
@@ -8,7 +9,18 @@ export async function getInvoicesByCustomer(req: AuthRequest, res: Response) {
         let customerId: number;
 
         if (queryCustomerId) {
-            customerId = parseInt(queryCustomerId);
+            const parsed = parseInt(queryCustomerId);
+            if (!req.user?.userId) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const owned = await prisma.cUSTOMERMASTER.findFirst({
+                where: { CUSTOMERID: parsed, USERID: parseInt(req.user.userId) },
+                select: { CUSTOMERID: true },
+            });
+            if (!owned) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
+            }
+            customerId = parsed;
             console.log('🔍 Using query customerId for invoices:', customerId);
         } else {
             if (!req.user?.userId) {
@@ -38,7 +50,18 @@ export async function getOrdersByCustomer(req: AuthRequest, res: Response) {
         let customerId: number;
 
         if (queryCustomerId) {
-            customerId = parseInt(queryCustomerId);
+            const parsed = parseInt(queryCustomerId);
+            if (!req.user?.userId) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const owned = await prisma.cUSTOMERMASTER.findFirst({
+                where: { CUSTOMERID: parsed, USERID: parseInt(req.user.userId) },
+                select: { CUSTOMERID: true },
+            });
+            if (!owned) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
+            }
+            customerId = parsed;
             console.log('🔍 Using query customerId:', customerId);
         } else {
             if (!req.user?.userId) {
@@ -157,6 +180,15 @@ export async function getInvoicesForCustomer(req: AuthRequest, res: Response) {
                 success: false,
                 error: 'Missing required fields: FromDateTime, ToDateTime, CustomerID'
             });
+        }
+
+        // Verify the requesting user owns the CustomerID
+        const owned = await prisma.cUSTOMERMASTER.findFirst({
+            where: { CUSTOMERID: parseInt(CustomerID), USERID: parseInt(req.user!.userId) },
+            select: { CUSTOMERID: true },
+        });
+        if (!owned) {
+            return res.status(403).json({ success: false, error: 'Access denied.' });
         }
 
         console.log('🔍 Fetching invoices for CustomerID:', CustomerID, 'from:', FromDateTime, 'to:', ToDateTime);

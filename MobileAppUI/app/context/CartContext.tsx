@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCart, addToCartApi, updateCartApi, removeCartApi } from "../../services/api";
 
@@ -67,24 +67,22 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Function to refresh cart from server (used when store changes)
-  const refreshCart = async () => {
+  const refreshCart = useCallback(async () => {
     try {
       setIsCartLoading(true);
-      console.log('🛒 Refreshing cart from server...');
       const res: any = await getCart();
       if (res?.success) {
         setCart(res.cart || []);
         await AsyncStorage.setItem('cart', JSON.stringify(res.cart || []));
-        console.log('✅ Cart refreshed:', res.cart?.length || 0, 'items');
       }
     } catch (err) {
       console.error('Failed to refresh cart from server', err);
     } finally {
       setIsCartLoading(false);
     }
-  };
+  }, []);
 
-  const addToCart = (item: Omit<CartItem, "quantity"> & { quantity?: number; minOrderQuantity?: number }, providedQuantity?: number) => {
+  const addToCart = useCallback((item: Omit<CartItem, "quantity"> & { quantity?: number; minOrderQuantity?: number }, providedQuantity?: number) => {
     const quantity = providedQuantity || item.quantity || 1;
     const minOrderQuantity = item.minOrderQuantity || providedQuantity || 1;
     setCart(prev => {
@@ -119,9 +117,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       quantity: quantity, // Send the actual quantity instead of hardcoded 1
       minOrderQuantity: quantity // Use the actual quantity as minOrderQuantity
     }).catch(err => console.error('addToCartApi failed', err));
-  };
+  }, []);
 
-  const removeFromCart = (productId: number) => {
+  const removeFromCart = useCallback((productId: number) => {
     setCart(prev => {
       const newCart = prev.filter(x => x.productId !== productId);
       // Save to AsyncStorage
@@ -132,9 +130,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     });
     // persist removal
     removeCartApi(productId).catch(err => console.error('removeCartApi failed', err));
-  };
+  }, []);
 
-  const increase = (productId: number) => {
+  const increase = useCallback((productId: number) => {
     let newQty = 0;
     setCart(prev => {
       const newCart = prev.map(x => {
@@ -154,9 +152,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     });
     
     if (newQty > 0) updateCartApi(productId, newQty).catch(err => console.error('updateCartApi failed', err));
-  };
+  }, []);
 
-  const decrease = (productId: number) => {
+  const decrease = useCallback((productId: number) => {
     let newQty = NaN;
     setCart(prev => {
       const found = prev.find(x => x.productId === productId);
@@ -185,9 +183,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     if (isNaN(newQty)) return;
     if (newQty <= 0) return; // Should not happen with MOQ guard, but safety check
     updateCartApi(productId, newQty).catch(err => console.error('updateCartApi failed', err));
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]);
     // Save empty cart to AsyncStorage
     AsyncStorage.setItem('cart', JSON.stringify([])).catch(err => 
@@ -198,7 +196,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     import('../../services/api').then(({ clearCartApi }) => {
       clearCartApi().catch(err => console.error('clearCartApi failed', err));
     }).catch(() => {});
-  };
+  }, []);
   const cartCount = useMemo(
     () => cart.reduce((acc, cur) => acc + cur.quantity, 0),
     [cart]
@@ -209,20 +207,22 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     [cart]
   );
 
+  const value = useMemo(() => ({ 
+    cart, 
+    addToCart, 
+    removeFromCart, 
+    increaseQuantity: increase,
+    decreaseQuantity: decrease, 
+    clearCart,
+    refreshCart,
+    cartCount, 
+    cartTotal,
+    isCartLoading
+  }), [cart, addToCart, removeFromCart, increase, decrease, clearCart, refreshCart, cartCount, cartTotal, isCartLoading]);
+
   return (
     <CartContext.Provider
-      value={{ 
-        cart, 
-        addToCart, 
-        removeFromCart, 
-        increaseQuantity: increase,
-        decreaseQuantity: decrease, 
-        clearCart,
-        refreshCart,
-        cartCount, 
-        cartTotal,
-        isCartLoading
-      }}
+      value={value}
     >
       {children}
     </CartContext.Provider>

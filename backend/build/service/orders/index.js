@@ -17,47 +17,25 @@ exports.getOrderItemsByOrderId = getOrderItemsByOrderId;
 exports.getInvoicesByCustomerId = getInvoicesByCustomerId;
 exports.getInvoiceItemsByInvoiceId = getInvoiceItemsByInvoiceId;
 exports.getInvoicesByCustomerAndDateRange = getInvoicesByCustomerAndDateRange;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../../lib/prisma"));
 const axios_1 = __importDefault(require("axios"));
-const prisma = new client_1.PrismaClient();
 // External API URL for invoices
 const EXTERNAL_API_URL = process.env.EXTERNAL_API_URL || 'http://3.109.147.219/test/api';
 const EXTERNAL_INVOICE_API_URL = process.env.EXTERNAL_INVOICE_API_URL || 'http://3.109.147.219/test/api/Invoice/GetInvoicesForCustomer';
 const EXTERNAL_API_USERNAME = process.env.EXTERNAL_API_USERNAME || 'testuser';
 const EXTERNAL_API_PASSWORD = process.env.EXTERNAL_API_PASSWORD || 'testpassword';
-// Helper function to safely convert BigInt and Date to serializable format for JSON
-const serializeForJson = (value) => {
-    if (value === null || value === undefined)
-        return value;
-    // Handle BigInt - convert to number if safe, otherwise to string
-    if (typeof value === 'bigint') {
-        return Number(value) <= Number.MAX_SAFE_INTEGER ? Number(value) : String(value);
-    }
-    // Handle Date objects - convert to ISO string
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-    // Handle arrays recursively
-    if (Array.isArray(value)) {
-        return value.map(serializeForJson);
-    }
-    // Handle objects recursively
-    if (typeof value === 'object' && value !== null) {
-        const result = {};
-        for (const key in value) {
-            result[key] = serializeForJson(value[key]);
-        }
-        return result;
-    }
-    return value;
-};
-function getOrdersByCustomerId(customerId) {
-    return __awaiter(this, void 0, void 0, function* () {
+const EXTERNAL_TOKEN_TTL_MS = 10 * 60 * 1000;
+let cachedExternalToken = null;
+let externalTokenExpiresAt = 0;
+const jsonReplacer = (_, v) => typeof v === 'bigint' ? (v <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(v) : String(v)) : v;
+function getOrdersByCustomerId(customerId_1) {
+    return __awaiter(this, arguments, void 0, function* (customerId, take = 100, skip = 0) {
         try {
-            console.log('🔍 Querying orders for CustomerID:', customerId);
-            const orders = yield prisma.orders.findMany({
+            const orders = yield prisma_1.default.orders.findMany({
                 where: { CustomerID: customerId },
                 orderBy: { OrderDate: 'desc' },
+                take,
+                skip,
                 select: {
                     OrderID: true,
                     OrderNumber: true,
@@ -71,9 +49,7 @@ function getOrdersByCustomerId(customerId) {
                     LastUpdatedDate: true
                 }
             });
-            console.log('📊 Found orders count:', orders.length);
-            // Convert BigInt and Date values to serializable format
-            const serializedOrders = serializeForJson(orders);
+            const serializedOrders = JSON.parse(JSON.stringify(orders, jsonReplacer));
             return {
                 success: true,
                 orders: serializedOrders
@@ -92,41 +68,44 @@ function getOrdersByCustomerId(customerId) {
 function getOrderItemsByOrderId(orderId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('🔍 [getOrderItemsByOrderId] START - OrderID:', orderId);
-            const orderItems = yield prisma.orderItems.findMany({
-                where: { OrderID: orderId }
+            const orderItems = yield prisma_1.default.orderItems.findMany({
+                where: { OrderID: orderId },
+                select: {
+                    OrderItemID: true,
+                    OrderID: true,
+                    ProductID: true,
+                    OrderQty: true,
+                    Price: true,
+                    DeliveryLineID: true,
+                    OrderItemStatus: true,
+                    Comments: true
+                }
             });
-            console.log('📊 [getOrderItemsByOrderId] Found order items count:', orderItems.length);
-            console.log('📊 [getOrderItemsByOrderId] Raw order items:', JSON.stringify(orderItems, (key, value) => typeof value === 'bigint' ? value.toString() : value));
             // Get product names from ProductMaster table
             const productIds = orderItems.map(item => item.ProductID).filter((id) => id !== null);
-            console.log('🆔 [getOrderItemsByOrderId] Product IDs to lookup:', productIds);
             let productNameMap = new Map();
             let productImageMap = new Map();
             if (productIds.length > 0) {
-                const products = yield prisma.productMaster.findMany({
-                    where: { ProductID: { in: productIds } },
-                    select: { ProductID: true, ProductName: true, DisplayName: true }
-                });
-                console.log('📦 [getOrderItemsByOrderId] Products found from ProductMaster:', JSON.stringify(products));
+                const [products, productImages] = yield Promise.all([
+                    prisma_1.default.productMaster.findMany({
+                        where: { ProductID: { in: productIds } },
+                        select: { ProductID: true, ProductName: true, DisplayName: true }
+                    }),
+                    prisma_1.default.productImages.findMany({
+                        where: { ProductID: { in: productIds } },
+                        select: { ProductID: true, ImageID: true }
+                    })
+                ]);
                 products.forEach(p => {
                     const name = p.DisplayName || p.ProductName || `Product #${p.ProductID}`;
-                    console.log(`📝 [getOrderItemsByOrderId] Mapping ProductID ${p.ProductID} -> "${name}"`);
                     productNameMap.set(p.ProductID, name);
                 });
-                // Fetch product images from ProductImages and ImageMaster tables
-                const productImages = yield prisma.productImages.findMany({
-                    where: { ProductID: { in: productIds } },
-                    select: { ProductID: true, ImageID: true }
-                });
-                console.log('🖼️ [getOrderItemsByOrderId] Product images found:', JSON.stringify(productImages));
                 if (productImages.length > 0) {
                     const imageIds = productImages.map(pi => pi.ImageID);
-                    const images = yield prisma.imageMaster.findMany({
+                    const images = yield prisma_1.default.imageMaster.findMany({
                         where: { ImageID: { in: imageIds } },
                         select: { ImageID: true, Url: true }
                     });
-                    console.log('🎨 [getOrderItemsByOrderId] Images found from ImageMaster:', JSON.stringify(images));
                     const imageIdToUrlMap = new Map();
                     const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
                     images.forEach(img => {
@@ -141,23 +120,16 @@ function getOrderItemsByOrderId(orderId) {
                     productImages.forEach(pi => {
                         const imageUrl = imageIdToUrlMap.get(pi.ImageID) || null;
                         productImageMap.set(pi.ProductID, imageUrl);
-                        console.log(`🖼️ [getOrderItemsByOrderId] ProductID ${pi.ProductID} -> Image: ${imageUrl}`);
                     });
                 }
-            }
-            else {
-                console.log('⚠️ [getOrderItemsByOrderId] No valid ProductIDs found in order items');
             }
             // Enrich order items with product names and images
             const orderItemsWithNames = orderItems.map(item => {
                 const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
                 const productImage = item.ProductID ? (productImageMap.get(item.ProductID) || null) : null;
-                console.log(`🏷️ [getOrderItemsByOrderId] OrderItemID ${item.OrderItemID}: ProductID=${item.ProductID} -> ProductName="${productName}", ProductImage="${productImage}"`);
                 return Object.assign(Object.assign({}, item), { ProductName: productName, ProductImage: productImage });
             });
-            // Convert BigInt and Date values to serializable format
-            const serializedOrderItems = serializeForJson(orderItemsWithNames);
-            console.log('✅ [getOrderItemsByOrderId] Final serialized order items:', JSON.stringify(serializedOrderItems));
+            const serializedOrderItems = JSON.parse(JSON.stringify(orderItemsWithNames, jsonReplacer));
             return {
                 success: true,
                 orderItems: serializedOrderItems
@@ -173,13 +145,14 @@ function getOrderItemsByOrderId(orderId) {
         }
     });
 }
-function getInvoicesByCustomerId(customerId) {
-    return __awaiter(this, void 0, void 0, function* () {
+function getInvoicesByCustomerId(customerId_1) {
+    return __awaiter(this, arguments, void 0, function* (customerId, take = 100, skip = 0) {
         try {
-            console.log('🔍 Querying invoices for CustomerID:', customerId);
-            const invoices = yield prisma.invoices.findMany({
+            const invoices = yield prisma_1.default.invoices.findMany({
                 where: { CustomerID: customerId },
                 orderBy: { InvoiceDate: 'desc' },
+                take,
+                skip,
                 select: {
                     InvoiceID: true,
                     InvoiceNumber: true,
@@ -197,9 +170,22 @@ function getInvoicesByCustomerId(customerId) {
                     LastUpdatedDate: true
                 }
             });
-            console.log('📊 Found invoices count:', invoices.length);
-            // Convert BigInt and Date values to serializable format
-            const serializedInvoices = serializeForJson(invoices);
+            // Get unique OrderIDs to fetch OrderNumbers
+            const orderIds = [...new Set(invoices.map(inv => inv.OrderID).filter(id => id !== null))];
+            // Fetch OrderNumbers for all orders
+            let orderNumberMap = new Map();
+            if (orderIds.length > 0) {
+                const orders = yield prisma_1.default.orders.findMany({
+                    where: { OrderID: { in: orderIds } },
+                    select: { OrderID: true, OrderNumber: true }
+                });
+                orders.forEach(order => {
+                    orderNumberMap.set(order.OrderID.toString(), order.OrderNumber);
+                });
+            }
+            // Add OrderNumber to each invoice
+            const invoicesWithOrderNumber = invoices.map(inv => (Object.assign(Object.assign({}, inv), { OrderNumber: inv.OrderID ? orderNumberMap.get(inv.OrderID.toString()) || null : null })));
+            const serializedInvoices = JSON.parse(JSON.stringify(invoicesWithOrderNumber, jsonReplacer));
             return {
                 success: true,
                 invoices: serializedInvoices
@@ -218,41 +204,49 @@ function getInvoicesByCustomerId(customerId) {
 function getInvoiceItemsByInvoiceId(invoiceId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            console.log('🔍 [getInvoiceItemsByInvoiceId] START - InvoiceID:', invoiceId);
-            const invoiceItems = yield prisma.invoiceItems.findMany({
-                where: { InvoiceID: invoiceId }
+            const invoiceItems = yield prisma_1.default.invoiceItems.findMany({
+                where: { InvoiceID: invoiceId },
+                select: {
+                    InvoiceItemID: true,
+                    InvoiceID: true,
+                    ProductID: true,
+                    OrderQty: true,
+                    SaleQty: true,
+                    Price: true,
+                    TaxableValue: true,
+                    CGST: true,
+                    SGST: true,
+                    IGST: true,
+                    NetTotal: true,
+                    InvoiceItemStatus: true,
+                    Discount: true
+                }
             });
-            console.log('📊 [getInvoiceItemsByInvoiceId] Found invoice items count:', invoiceItems.length);
-            console.log('📊 [getInvoiceItemsByInvoiceId] Raw invoice items:', JSON.stringify(invoiceItems, (key, value) => typeof value === 'bigint' ? value.toString() : value));
             // Get product names and images from ProductMaster table
             const productIds = invoiceItems.map(item => item.ProductID).filter((id) => id !== null);
-            console.log('🆔 [getInvoiceItemsByInvoiceId] Product IDs to lookup:', productIds);
             let productNameMap = new Map();
             let productImageMap = new Map();
             if (productIds.length > 0) {
-                const products = yield prisma.productMaster.findMany({
-                    where: { ProductID: { in: productIds } },
-                    select: { ProductID: true, ProductName: true, DisplayName: true }
-                });
-                console.log('📦 [getInvoiceItemsByInvoiceId] Products found from ProductMaster:', JSON.stringify(products));
+                const [products, productImages] = yield Promise.all([
+                    prisma_1.default.productMaster.findMany({
+                        where: { ProductID: { in: productIds } },
+                        select: { ProductID: true, ProductName: true, DisplayName: true }
+                    }),
+                    prisma_1.default.productImages.findMany({
+                        where: { ProductID: { in: productIds } },
+                        select: { ProductID: true, ImageID: true }
+                    })
+                ]);
                 products.forEach(p => {
                     const name = p.DisplayName || p.ProductName || `Product #${p.ProductID}`;
-                    console.log(`📝 [getInvoiceItemsByInvoiceId] Mapping ProductID ${p.ProductID} -> "${name}"`);
                     productNameMap.set(p.ProductID, name);
                 });
-                // Fetch product images from ProductImages and ImageMaster tables
-                const productImages = yield prisma.productImages.findMany({
-                    where: { ProductID: { in: productIds } },
-                    select: { ProductID: true, ImageID: true }
-                });
-                console.log('🖼️ [getInvoiceItemsByInvoiceId] Product images found:', JSON.stringify(productImages));
                 if (productImages.length > 0) {
                     const imageIds = productImages.map(pi => pi.ImageID);
-                    const images = yield prisma.imageMaster.findMany({
+                    const images = yield prisma_1.default.imageMaster.findMany({
                         where: { ImageID: { in: imageIds } },
                         select: { ImageID: true, Url: true }
                     });
-                    console.log('🎨 [getInvoiceItemsByInvoiceId] Images found from ImageMaster:', JSON.stringify(images));
                     const imageIdToUrlMap = new Map();
                     const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
                     images.forEach(img => {
@@ -267,23 +261,16 @@ function getInvoiceItemsByInvoiceId(invoiceId) {
                     productImages.forEach(pi => {
                         const imageUrl = imageIdToUrlMap.get(pi.ImageID) || null;
                         productImageMap.set(pi.ProductID, imageUrl);
-                        console.log(`🖼️ [getInvoiceItemsByInvoiceId] ProductID ${pi.ProductID} -> Image: ${imageUrl}`);
                     });
                 }
-            }
-            else {
-                console.log('⚠️ [getInvoiceItemsByInvoiceId] No valid ProductIDs found in invoice items');
             }
             // Enrich invoice items with product names and images
             const invoiceItemsWithNames = invoiceItems.map(item => {
                 const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
                 const productImage = item.ProductID ? (productImageMap.get(item.ProductID) || null) : null;
-                console.log(`🏷️ [getInvoiceItemsByInvoiceId] InvoiceItemID ${item.InvoiceItemID}: ProductID=${item.ProductID} -> ProductName="${productName}", ProductImage="${productImage}"`);
                 return Object.assign(Object.assign({}, item), { ProductName: productName, ProductImage: productImage });
             });
-            // Convert BigInt and Date values to serializable format
-            const serializedInvoiceItems = serializeForJson(invoiceItemsWithNames);
-            console.log('✅ [getInvoiceItemsByInvoiceId] Final serialized invoice items:', JSON.stringify(serializedInvoiceItems));
+            const serializedInvoiceItems = JSON.parse(JSON.stringify(invoiceItemsWithNames, jsonReplacer));
             return {
                 success: true,
                 invoiceItems: serializedInvoiceItems
@@ -306,9 +293,9 @@ function getExternalApiToken() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b, _c, _d;
         try {
-            console.log('🔐 Authenticating with external API for invoices...');
-            console.log('🔗 API URL:', `${EXTERNAL_API_URL}/accounts/login`);
-            console.log('👤 Username:', EXTERNAL_API_USERNAME);
+            if (cachedExternalToken && Date.now() < externalTokenExpiresAt) {
+                return cachedExternalToken;
+            }
             const response = yield axios_1.default.post(`${EXTERNAL_API_URL}/accounts/login`, {
                 username: EXTERNAL_API_USERNAME,
                 password: EXTERNAL_API_PASSWORD,
@@ -318,16 +305,17 @@ function getExternalApiToken() {
                 },
                 timeout: 15000
             });
-            console.log('📡 Login response status:', response.status);
-            console.log('📥 Login response data:', response.data);
             if ((_a = response.data) === null || _a === void 0 ? void 0 : _a.token) {
-                console.log('✅ External API authentication successful');
-                return response.data.token;
+                cachedExternalToken = response.data.token;
+                externalTokenExpiresAt = Date.now() + EXTERNAL_TOKEN_TTL_MS;
+                return cachedExternalToken;
             }
             console.error('❌ No token received from external API');
             return null;
         }
         catch (error) {
+            cachedExternalToken = null;
+            externalTokenExpiresAt = 0;
             console.error('❌ Error authenticating with external API:', (_d = (_c = (_b = error === null || error === void 0 ? void 0 : error.response) === null || _b === void 0 ? void 0 : _b.data) !== null && _c !== void 0 ? _c : error.message) !== null && _d !== void 0 ? _d : error);
             return null;
         }
@@ -352,15 +340,12 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
                     message: 'Failed to authenticate with external invoice API'
                 };
             }
-            console.log('🔍 Calling external invoice API for CustomerID:', customerId, 'from:', fromDateTime, 'to:', toDateTime);
             // Build request body for external API
             const requestBody = {
                 FromDateTime: fromDateTime,
                 ToDateTime: toDateTime,
                 CustomerID: customerId
             };
-            console.log('➡️ GET to external API:', EXTERNAL_INVOICE_API_URL);
-            console.log('📤 Request body:', JSON.stringify(requestBody));
             // Step 2: Call invoice API with the token (using GET with data in body)
             const response = yield (0, axios_1.default)({
                 method: 'GET',
@@ -373,22 +358,15 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
                 timeout: 15000
             });
             const invoices = response.data;
-            console.log('📊 Received invoices count:', Array.isArray(invoices) ? invoices.length : 'non-array response');
-            // Log first invoice to see field structure
-            if (Array.isArray(invoices) && invoices.length > 0) {
-                console.log('📋 Sample invoice fields:', Object.keys(invoices[0]));
-                console.log('📋 First invoice data:', JSON.stringify(invoices[0], null, 2));
-            }
             // Enrich external API data with InvoiceStatus and NetInvoiceAmount from our database
             if (Array.isArray(invoices) && invoices.length > 0) {
-                console.log('🔄 Enriching invoice data from local database...');
                 // Get all invoice IDs from external API response
                 const invoiceIds = invoices
                     .map((inv) => inv.invoiceID)
                     .filter((id) => id !== null && id !== undefined);
                 if (invoiceIds.length > 0) {
-                    // Fetch InvoiceStatus and NetInvoiceAmount from our database
-                    const dbInvoices = yield prisma.invoices.findMany({
+                    // Fetch InvoiceStatus, NetInvoiceAmount, and OrderID from our database
+                    const dbInvoices = yield prisma_1.default.invoices.findMany({
                         where: {
                             InvoiceID: { in: invoiceIds }
                         },
@@ -396,10 +374,23 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
                             InvoiceID: true,
                             InvoiceStatus: true,
                             NetInvoiceAmount: true,
-                            InvoiceNumber: true
+                            InvoiceNumber: true,
+                            OrderID: true
                         }
                     });
-                    console.log('✅ Fetched', dbInvoices.length, 'invoices from local database');
+                    // Get unique OrderIDs to fetch OrderNumbers
+                    const orderIds = [...new Set(dbInvoices.map(inv => inv.OrderID).filter(id => id !== null))];
+                    // Fetch OrderNumbers for all orders
+                    let orderNumberMap = new Map();
+                    if (orderIds.length > 0) {
+                        const orders = yield prisma_1.default.orders.findMany({
+                            where: { OrderID: { in: orderIds } },
+                            select: { OrderID: true, OrderNumber: true }
+                        });
+                        orders.forEach(order => {
+                            orderNumberMap.set(order.OrderID.toString(), order.OrderNumber);
+                        });
+                    }
                     // Create a map for quick lookup
                     const dbInvoiceMap = new Map(dbInvoices.map(inv => [inv.InvoiceID, inv]));
                     // Enrich each invoice with database data
@@ -409,7 +400,8 @@ function getInvoicesByCustomerAndDateRange(customerId, fromDateTime, toDateTime)
                             inv.InvoiceStatus = dbData.InvoiceStatus;
                             inv.NetInvoiceAmount = dbData.NetInvoiceAmount;
                             inv.InvoiceNumber = dbData.InvoiceNumber;
-                            console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}`);
+                            inv.OrderID = dbData.OrderID ? Number(dbData.OrderID) : null;
+                            inv.OrderNumber = dbData.OrderID ? orderNumberMap.get(dbData.OrderID.toString()) || null : null;
                         }
                     });
                 }

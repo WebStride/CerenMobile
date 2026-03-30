@@ -8,11 +8,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFavourites = getFavourites;
 exports.postFavourite = postFavourite;
 exports.deleteFavourite = deleteFavourite;
 const favourites_1 = require("../../service/favourites");
+const prisma_1 = __importDefault(require("../../lib/prisma"));
+function verifyCustomerOwnership(userId, customerId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const owned = yield prisma_1.default.cUSTOMERMASTER.findFirst({
+            where: { CUSTOMERID: customerId, USERID: parseInt(userId) },
+            select: { CUSTOMERID: true },
+        });
+        return !!owned;
+    });
+}
 function getFavourites(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
@@ -25,6 +38,9 @@ function getFavourites(req, res) {
                 : parseInt(req.headers['x-customer-id']);
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
+            }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             const favourites = yield (0, favourites_1.getUserFavourites)(customerId);
             res.json({ success: true, favourites });
@@ -47,6 +63,9 @@ function postFavourite(req, res) {
                 : parseInt(req.headers['x-customer-id']);
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
+            }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             const product = req.body;
             if (!(product === null || product === void 0 ? void 0 : product.productId))
@@ -72,6 +91,9 @@ function deleteFavourite(req, res) {
                 : parseInt(req.headers['x-customer-id']);
             if (!customerId || isNaN(customerId)) {
                 return res.status(400).json({ error: 'customerId is required' });
+            }
+            if (!(yield verifyCustomerOwnership(req.user.userId, customerId))) {
+                return res.status(403).json({ success: false, error: 'Access denied.' });
             }
             const productId = parseInt(req.params.productId);
             if (isNaN(productId))

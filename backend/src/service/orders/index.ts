@@ -1,52 +1,26 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../lib/prisma';
 import axios from 'axios';
-
-const prisma = new PrismaClient();
 
 // External API URL for invoices
 const EXTERNAL_API_URL = process.env.EXTERNAL_API_URL || 'http://3.109.147.219/test/api';
 const EXTERNAL_INVOICE_API_URL = process.env.EXTERNAL_INVOICE_API_URL || 'http://3.109.147.219/test/api/Invoice/GetInvoicesForCustomer';
 const EXTERNAL_API_USERNAME = process.env.EXTERNAL_API_USERNAME || 'testuser';
 const EXTERNAL_API_PASSWORD = process.env.EXTERNAL_API_PASSWORD || 'testpassword';
+const EXTERNAL_TOKEN_TTL_MS = 10 * 60 * 1000;
 
-// Helper function to safely convert BigInt and Date to serializable format for JSON
-const serializeForJson = (value: any): any => {
-    if (value === null || value === undefined) return value;
-    
-    // Handle BigInt - convert to number if safe, otherwise to string
-    if (typeof value === 'bigint') {
-        return Number(value) <= Number.MAX_SAFE_INTEGER ? Number(value) : String(value);
-    }
-    
-    // Handle Date objects - convert to ISO string
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-    
-    // Handle arrays recursively
-    if (Array.isArray(value)) {
-        return value.map(serializeForJson);
-    }
-    
-    // Handle objects recursively
-    if (typeof value === 'object' && value !== null) {
-        const result: Record<string, any> = {};
-        for (const key in value) {
-            result[key] = serializeForJson(value[key]);
-        }
-        return result;
-    }
-    
-    return value;
-};
+let cachedExternalToken: string | null = null;
+let externalTokenExpiresAt = 0;
 
-export async function getOrdersByCustomerId(customerId: number) {
+const jsonReplacer = (_: string, v: unknown) =>
+    typeof v === 'bigint' ? (v <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(v) : String(v)) : v;
+
+export async function getOrdersByCustomerId(customerId: number, take = 100, skip = 0) {
     try {
-        console.log('🔍 Querying orders for CustomerID:', customerId);
-
         const orders = await prisma.orders.findMany({
             where: { CustomerID: customerId },
             orderBy: { OrderDate: 'desc' },
+            take,
+            skip,
             select: {
                 OrderID: true,
                 OrderNumber: true,
@@ -61,10 +35,7 @@ export async function getOrdersByCustomerId(customerId: number) {
             }
         });
 
-        console.log('📊 Found orders count:', orders.length);
-
-        // Convert BigInt and Date values to serializable format
-        const serializedOrders = serializeForJson(orders);
+        const serializedOrders = JSON.parse(JSON.stringify(orders, jsonReplacer));
 
         return {
             success: true,
@@ -82,43 +53,41 @@ export async function getOrdersByCustomerId(customerId: number) {
 
 export async function getOrderItemsByOrderId(orderId: number) {
     try {
-        console.log('🔍 [getOrderItemsByOrderId] START - OrderID:', orderId);
-
         const orderItems = await prisma.orderItems.findMany({
-            where: { OrderID: orderId }
+            where: { OrderID: orderId },
+            select: {
+                OrderItemID: true,
+                OrderID: true,
+                ProductID: true,
+                OrderQty: true,
+                Price: true,
+                DeliveryLineID: true,
+                OrderItemStatus: true,
+                Comments: true
+            }
         });
-
-        console.log('📊 [getOrderItemsByOrderId] Found order items count:', orderItems.length);
-        console.log('📊 [getOrderItemsByOrderId] Raw order items:', JSON.stringify(orderItems, (key, value) =>
-            typeof value === 'bigint' ? value.toString() : value
-        ));
 
         // Get product names from ProductMaster table
         const productIds = orderItems.map(item => item.ProductID).filter((id): id is number => id !== null);
-        console.log('🆔 [getOrderItemsByOrderId] Product IDs to lookup:', productIds);
         
         let productNameMap = new Map<number, string>();
         let productImageMap = new Map<number, string | null>();
         
         if (productIds.length > 0) {
-            const products = await prisma.productMaster.findMany({
-                where: { ProductID: { in: productIds } },
-                select: { ProductID: true, ProductName: true, DisplayName: true }
-            });
-            console.log('📦 [getOrderItemsByOrderId] Products found from ProductMaster:', JSON.stringify(products));
-            
+            const [products, productImages] = await Promise.all([
+                prisma.productMaster.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ProductName: true, DisplayName: true }
+                }),
+                prisma.productImages.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ImageID: true }
+                })
+            ]);
             products.forEach(p => {
                 const name = p.DisplayName || p.ProductName || `Product #${p.ProductID}`;
-                console.log(`📝 [getOrderItemsByOrderId] Mapping ProductID ${p.ProductID} -> "${name}"`);
                 productNameMap.set(p.ProductID, name);
             });
-
-            // Fetch product images from ProductImages and ImageMaster tables
-            const productImages = await prisma.productImages.findMany({
-                where: { ProductID: { in: productIds } },
-                select: { ProductID: true, ImageID: true }
-            });
-            console.log('🖼️ [getOrderItemsByOrderId] Product images found:', JSON.stringify(productImages));
 
             if (productImages.length > 0) {
                 const imageIds = productImages.map(pi => pi.ImageID);
@@ -126,7 +95,6 @@ export async function getOrderItemsByOrderId(orderId: number) {
                     where: { ImageID: { in: imageIds } },
                     select: { ImageID: true, Url: true }
                 });
-                console.log('🎨 [getOrderItemsByOrderId] Images found from ImageMaster:', JSON.stringify(images));
 
                 const imageIdToUrlMap = new Map<number, string>();
                 const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
@@ -144,18 +112,14 @@ export async function getOrderItemsByOrderId(orderId: number) {
                 productImages.forEach(pi => {
                     const imageUrl = imageIdToUrlMap.get(pi.ImageID) || null;
                     productImageMap.set(pi.ProductID, imageUrl);
-                    console.log(`🖼️ [getOrderItemsByOrderId] ProductID ${pi.ProductID} -> Image: ${imageUrl}`);
                 });
             }
-        } else {
-            console.log('⚠️ [getOrderItemsByOrderId] No valid ProductIDs found in order items');
         }
 
         // Enrich order items with product names and images
         const orderItemsWithNames = orderItems.map(item => {
             const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
             const productImage = item.ProductID ? (productImageMap.get(item.ProductID) || null) : null;
-            console.log(`🏷️ [getOrderItemsByOrderId] OrderItemID ${item.OrderItemID}: ProductID=${item.ProductID} -> ProductName="${productName}", ProductImage="${productImage}"`);
             return {
                 ...item,
                 ProductName: productName,
@@ -163,9 +127,7 @@ export async function getOrderItemsByOrderId(orderId: number) {
             };
         });
 
-        // Convert BigInt and Date values to serializable format
-        const serializedOrderItems = serializeForJson(orderItemsWithNames);
-        console.log('✅ [getOrderItemsByOrderId] Final serialized order items:', JSON.stringify(serializedOrderItems));
+        const serializedOrderItems = JSON.parse(JSON.stringify(orderItemsWithNames, jsonReplacer));
 
         return {
             success: true,
@@ -181,13 +143,13 @@ export async function getOrderItemsByOrderId(orderId: number) {
     }
 }
 
-export async function getInvoicesByCustomerId(customerId: number) {
+export async function getInvoicesByCustomerId(customerId: number, take = 100, skip = 0) {
     try {
-        console.log('🔍 Querying invoices for CustomerID:', customerId);
-
         const invoices = await prisma.invoices.findMany({
             where: { CustomerID: customerId },
             orderBy: { InvoiceDate: 'desc' },
+            take,
+            skip,
             select: {
                 InvoiceID: true,
                 InvoiceNumber: true,
@@ -206,8 +168,6 @@ export async function getInvoicesByCustomerId(customerId: number) {
             }
         });
         
-        console.log('📊 Found invoices count:', invoices.length);
-
         // Get unique OrderIDs to fetch OrderNumbers
         const orderIds = [...new Set(invoices.map(inv => inv.OrderID).filter(id => id !== null))];
         
@@ -229,8 +189,7 @@ export async function getInvoicesByCustomerId(customerId: number) {
             OrderNumber: inv.OrderID ? orderNumberMap.get(inv.OrderID.toString()) || null : null
         }));
 
-        // Convert BigInt and Date values to serializable format
-        const serializedInvoices = serializeForJson(invoicesWithOrderNumber);
+        const serializedInvoices = JSON.parse(JSON.stringify(invoicesWithOrderNumber, jsonReplacer));
 
         return {
             success: true,
@@ -248,43 +207,46 @@ export async function getInvoicesByCustomerId(customerId: number) {
 
 export async function getInvoiceItemsByInvoiceId(invoiceId: number) {
     try {
-        console.log('🔍 [getInvoiceItemsByInvoiceId] START - InvoiceID:', invoiceId);
-
         const invoiceItems = await prisma.invoiceItems.findMany({
-            where: { InvoiceID: invoiceId }
+            where: { InvoiceID: invoiceId },
+            select: {
+                InvoiceItemID: true,
+                InvoiceID: true,
+                ProductID: true,
+                OrderQty: true,
+                SaleQty: true,
+                Price: true,
+                TaxableValue: true,
+                CGST: true,
+                SGST: true,
+                IGST: true,
+                NetTotal: true,
+                InvoiceItemStatus: true,
+                Discount: true
+            }
         });
-        
-        console.log('📊 [getInvoiceItemsByInvoiceId] Found invoice items count:', invoiceItems.length);
-        console.log('📊 [getInvoiceItemsByInvoiceId] Raw invoice items:', JSON.stringify(invoiceItems, (key, value) =>
-            typeof value === 'bigint' ? value.toString() : value
-        ));
 
         // Get product names and images from ProductMaster table
         const productIds = invoiceItems.map(item => item.ProductID).filter((id): id is number => id !== null);
-        console.log('🆔 [getInvoiceItemsByInvoiceId] Product IDs to lookup:', productIds);
         
         let productNameMap = new Map<number, string>();
         let productImageMap = new Map<number, string | null>();
         
         if (productIds.length > 0) {
-            const products = await prisma.productMaster.findMany({
-                where: { ProductID: { in: productIds } },
-                select: { ProductID: true, ProductName: true, DisplayName: true }
-            });
-            console.log('📦 [getInvoiceItemsByInvoiceId] Products found from ProductMaster:', JSON.stringify(products));
-            
+            const [products, productImages] = await Promise.all([
+                prisma.productMaster.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ProductName: true, DisplayName: true }
+                }),
+                prisma.productImages.findMany({
+                    where: { ProductID: { in: productIds } },
+                    select: { ProductID: true, ImageID: true }
+                })
+            ]);
             products.forEach(p => {
                 const name = p.DisplayName || p.ProductName || `Product #${p.ProductID}`;
-                console.log(`📝 [getInvoiceItemsByInvoiceId] Mapping ProductID ${p.ProductID} -> "${name}"`);
                 productNameMap.set(p.ProductID, name);
             });
-
-            // Fetch product images from ProductImages and ImageMaster tables
-            const productImages = await prisma.productImages.findMany({
-                where: { ProductID: { in: productIds } },
-                select: { ProductID: true, ImageID: true }
-            });
-            console.log('🖼️ [getInvoiceItemsByInvoiceId] Product images found:', JSON.stringify(productImages));
 
             if (productImages.length > 0) {
                 const imageIds = productImages.map(pi => pi.ImageID);
@@ -292,7 +254,6 @@ export async function getInvoiceItemsByInvoiceId(invoiceId: number) {
                     where: { ImageID: { in: imageIds } },
                     select: { ImageID: true, Url: true }
                 });
-                console.log('🎨 [getInvoiceItemsByInvoiceId] Images found from ImageMaster:', JSON.stringify(images));
 
                 const imageIdToUrlMap = new Map<number, string>();
                 const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
@@ -310,18 +271,14 @@ export async function getInvoiceItemsByInvoiceId(invoiceId: number) {
                 productImages.forEach(pi => {
                     const imageUrl = imageIdToUrlMap.get(pi.ImageID) || null;
                     productImageMap.set(pi.ProductID, imageUrl);
-                    console.log(`🖼️ [getInvoiceItemsByInvoiceId] ProductID ${pi.ProductID} -> Image: ${imageUrl}`);
                 });
             }
-        } else {
-            console.log('⚠️ [getInvoiceItemsByInvoiceId] No valid ProductIDs found in invoice items');
         }
 
         // Enrich invoice items with product names and images
         const invoiceItemsWithNames = invoiceItems.map(item => {
             const productName = item.ProductID ? (productNameMap.get(item.ProductID) || `Product #${item.ProductID}`) : 'Unknown Product';
             const productImage = item.ProductID ? (productImageMap.get(item.ProductID) || null) : null;
-            console.log(`🏷️ [getInvoiceItemsByInvoiceId] InvoiceItemID ${item.InvoiceItemID}: ProductID=${item.ProductID} -> ProductName="${productName}", ProductImage="${productImage}"`);
             return {
                 ...item,
                 ProductName: productName,
@@ -329,9 +286,7 @@ export async function getInvoiceItemsByInvoiceId(invoiceId: number) {
             };
         });
 
-        // Convert BigInt and Date values to serializable format
-        const serializedInvoiceItems = serializeForJson(invoiceItemsWithNames);
-        console.log('✅ [getInvoiceItemsByInvoiceId] Final serialized invoice items:', JSON.stringify(serializedInvoiceItems));
+        const serializedInvoiceItems = JSON.parse(JSON.stringify(invoiceItemsWithNames, jsonReplacer));
 
         return {
             success: true,
@@ -352,10 +307,10 @@ export async function getInvoiceItemsByInvoiceId(invoiceId: number) {
  */
 async function getExternalApiToken(): Promise<string | null> {
     try {
-        console.log('🔐 Authenticating with external API for invoices...');
-        console.log('🔗 API URL:', `${EXTERNAL_API_URL}/accounts/login`);
-        console.log('👤 Username:', EXTERNAL_API_USERNAME);
-        
+        if (cachedExternalToken && Date.now() < externalTokenExpiresAt) {
+            return cachedExternalToken;
+        }
+
         const response = await axios.post(`${EXTERNAL_API_URL}/accounts/login`, {
             username: EXTERNAL_API_USERNAME,
             password: EXTERNAL_API_PASSWORD,
@@ -366,17 +321,17 @@ async function getExternalApiToken(): Promise<string | null> {
             timeout: 15000
         });
 
-        console.log('📡 Login response status:', response.status);
-        console.log('📥 Login response data:', response.data);
-        
         if (response.data?.token) {
-            console.log('✅ External API authentication successful');
-            return response.data.token;
+            cachedExternalToken = response.data.token;
+            externalTokenExpiresAt = Date.now() + EXTERNAL_TOKEN_TTL_MS;
+            return cachedExternalToken;
         }
 
         console.error('❌ No token received from external API');
         return null;
     } catch (error: any) {
+        cachedExternalToken = null;
+        externalTokenExpiresAt = 0;
         console.error('❌ Error authenticating with external API:', error?.response?.data ?? error.message ?? error);
         return null;
     }
@@ -405,17 +360,12 @@ export async function getInvoicesByCustomerAndDateRange(
             };
         }
 
-        console.log('🔍 Calling external invoice API for CustomerID:', customerId, 'from:', fromDateTime, 'to:', toDateTime);
-
         // Build request body for external API
         const requestBody = {
             FromDateTime: fromDateTime,
             ToDateTime: toDateTime,
             CustomerID: customerId
         };
-
-        console.log('➡️ GET to external API:', EXTERNAL_INVOICE_API_URL);
-        console.log('📤 Request body:', JSON.stringify(requestBody));
 
         // Step 2: Call invoice API with the token (using GET with data in body)
         const response = await axios({
@@ -431,17 +381,8 @@ export async function getInvoicesByCustomerAndDateRange(
 
         const invoices = response.data;
 
-        console.log('📊 Received invoices count:', Array.isArray(invoices) ? invoices.length : 'non-array response');
-        
-        // Log first invoice to see field structure
-        if (Array.isArray(invoices) && invoices.length > 0) {
-            console.log('📋 Sample invoice fields:', Object.keys(invoices[0]));
-            console.log('📋 First invoice data:', JSON.stringify(invoices[0], null, 2));
-        }
-
         // Enrich external API data with InvoiceStatus and NetInvoiceAmount from our database
         if (Array.isArray(invoices) && invoices.length > 0) {
-            console.log('🔄 Enriching invoice data from local database...');
             
             // Get all invoice IDs from external API response
             const invoiceIds = invoices
@@ -462,8 +403,6 @@ export async function getInvoicesByCustomerAndDateRange(
                         OrderID: true
                     }
                 });
-
-                console.log('✅ Fetched', dbInvoices.length, 'invoices from local database');
 
                 // Get unique OrderIDs to fetch OrderNumbers
                 const orderIds = [...new Set(dbInvoices.map(inv => inv.OrderID).filter(id => id !== null))] as bigint[];
@@ -494,7 +433,6 @@ export async function getInvoicesByCustomerAndDateRange(
                         inv.InvoiceNumber = dbData.InvoiceNumber;
                         inv.OrderID = dbData.OrderID ? Number(dbData.OrderID) : null;
                         inv.OrderNumber = dbData.OrderID ? orderNumberMap.get(dbData.OrderID.toString()) || null : null;
-                        console.log(`📝 Enriched Invoice ${inv.invoiceID}: Status=${dbData.InvoiceStatus}, NetAmount=${dbData.NetInvoiceAmount}, OrderID=${inv.OrderID}, OrderNumber=${inv.OrderNumber}`);
                     }
                 });
             }

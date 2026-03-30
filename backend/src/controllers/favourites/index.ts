@@ -1,6 +1,15 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../../middleware/auth';
 import { getUserFavourites, addUserFavourite, removeUserFavourite } from '../../service/favourites';
+import prisma from '../../lib/prisma';
+
+async function verifyCustomerOwnership(userId: string, customerId: number): Promise<boolean> {
+  const owned = await prisma.cUSTOMERMASTER.findFirst({
+    where: { CUSTOMERID: customerId, USERID: parseInt(userId) },
+    select: { CUSTOMERID: true },
+  });
+  return !!owned;
+}
 
 export async function getFavourites(req: AuthRequest, res: Response) {
   try {
@@ -13,6 +22,10 @@ export async function getFavourites(req: AuthRequest, res: Response) {
     
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
+    }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
     }
     
     const favourites = await getUserFavourites(customerId);
@@ -34,6 +47,10 @@ export async function postFavourite(req: AuthRequest, res: Response) {
     
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
+    }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
     }
     
     const product = req.body;
@@ -58,6 +75,10 @@ export async function deleteFavourite(req: AuthRequest, res: Response) {
     
     if (!customerId || isNaN(customerId)) {
       return res.status(400).json({ error: 'customerId is required' });
+    }
+
+    if (!(await verifyCustomerOwnership(req.user.userId, customerId))) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
     }
     
     const productId = parseInt(req.params.productId);
