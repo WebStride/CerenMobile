@@ -38,6 +38,7 @@ import {
 import { useCart } from "../context/CartContext";
 import { isGuestSession } from "@/utils/session";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
+import { QuantitySelector } from "@/components/QuantitySelector";
 
 const { height, width } = Dimensions.get('window');
 
@@ -802,7 +803,7 @@ const ProductCard = React.memo(({
   sectionKey: string;
   index: number;
 }) => {
-  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, setQuantity } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const router = useRouter();
 
@@ -812,23 +813,17 @@ const ProductCard = React.memo(({
   const minOrder = item.minOrderQuantity || (item as any).minimumOrderQuantity || 1;
 
   const [showControls, setShowControls] = useState(!!cartItem);
-  const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
-  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
 
   useEffect(() => {
     if (cartItem) {
-      setQtyInput(String(cartItem.quantity));
-      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
-      setQtyInput(String(minOrder));
-      setTempInput(String(minOrder));
     }
-  }, [cartItem, showControls, minOrder]);
+  }, [cartItem, showControls]);
 
   const handleProductPress = useCallback(() => {
     router.push({
@@ -882,93 +877,30 @@ const ProductCard = React.memo(({
       return;
     }
 
-    const qty = Math.max(Number(qtyInput), minOrder);
-    
-    // Add the item with the correct quantity in one call
+    // Add the item with MOQ
     addToCart({
       productId: item.productId,
       productName: item.productName,
-      price: item.price || 0, // Use 0 if price is null (catalog mode)
+      price: item.price || 0,
       image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
       productUnits: item.productUnits,
       unitsOfMeasurement: item.unitsOfMeasurement,
-    }, qty);
+    }, minOrder);
     
     setShowControls(true);
-  }, [item, addToCart, qtyInput, minOrder, isCustomerExists]);
+  }, [item, addToCart, minOrder, isCustomerExists]);
 
-  const handleInputChange = useCallback((val: string) => {
-    // Check if user is registered before allowing cart access
+  const handleSetQuantity = useCallback((qty: number) => {
     if (!isCustomerExists) {
       Alert.alert(
         'Registration Required',
         'Please register in the app to access the add to cart feature.',
-        [
-          { text: 'OK', style: 'cancel' }
-        ]
+        [{ text: 'OK', style: 'cancel' }]
       );
       return;
     }
-
-    // Just update temporary display without validation
-    const onlyDigits = val.replace(/[^0-9]/g, "");
-    setTempInput(onlyDigits);
-  }, [isCustomerExists]);
-
-  // Validate and apply changes when user finishes editing
-  const handleBlur = useCallback(() => {
-    if (!isCustomerExists) return;
-
-    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
-
-    // If empty or below MOQ, snap to minimum quantity
-    if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      const snapQty = minOrder;
-      setTempInput(String(snapQty));
-      setQtyInput(String(snapQty));
-      
-      // Update cart to minimum quantity
-      if (cartItem) {
-        const diff = snapQty - cartItem.quantity;
-        if (diff > 0) {
-          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-        } else if (diff < 0) {
-          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-        }
-      } else {
-        addToCart({
-          productId: item.productId,
-          productName: item.productName,
-          price: item.price || 0,
-          image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
-          productUnits: item.productUnits,
-          unitsOfMeasurement: item.unitsOfMeasurement,
-        }, snapQty);
-      }
-      return;
-    }
-
-    const numVal = Number(onlyDigits);
-    setQtyInput(String(numVal));
-
-    if (!cartItem && numVal >= minOrder) {
-      addToCart({
-        productId: item.productId,
-        productName: item.productName,
-        price: item.price || 0,
-        image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
-        productUnits: item.productUnits,
-        unitsOfMeasurement: item.unitsOfMeasurement,
-      }, numVal);
-    } else if (cartItem) {
-      const diff = numVal - cartItem.quantity;
-      if (diff > 0) {
-        for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-      } else if (diff < 0) {
-        for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-      }
-    }
-  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder, isCustomerExists]);
+    setQuantity(item.productId, qty);
+  }, [isCustomerExists, setQuantity, item.productId]);
 
   const handleDecrease = useCallback(() => {
     // Check if user is registered before allowing cart access
@@ -1075,79 +1007,14 @@ const ProductCard = React.memo(({
       {/* FIXED: Quantity Controls - Only show for products with pricing */}
       {(item.price !== null && item.price !== undefined && item.price > 0) && (
         showControls ? (
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#15803d', // green-700
-            borderRadius: 25,
-            paddingHorizontal: 4,
-            paddingVertical: 6, // Increased vertical padding
-            height: 40, // Fixed height for consistency
-          }}>
-          <TouchableOpacity
-            onPress={handleDecrease}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Ionicons name="remove" size={20} color="#fff" />
-          </TouchableOpacity>
-          
-          {/* FIXED: Text Input Container - Better Android support */}
-          <View style={{
-            flex: 1,
-            marginHorizontal: 4,
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: 48, // Ensure minimum width
-            height: 32, // Fixed height
-          }}>
-            <TextInput
-              value={tempInput}
-              onChangeText={handleInputChange}
-              onBlur={handleBlur}
-              keyboardType="number-pad"
-              maxLength={3}
-              style={{
-                width: '100%',
-                height: 32, // Explicit height
-                textAlign: 'center',
-                fontSize: 16,
-                fontWeight: 'bold',
-                color: 'white',
-                backgroundColor: 'transparent',
-                borderWidth: 0,
-                padding: 0, // Remove padding to prevent text cutoff
-                margin: 0,
-                includeFontPadding: false, // Android specific - prevents text cutoff
-                textAlignVertical: 'center', // Android specific - centers text vertically
-              }}
-              selectionColor="#fff"
-              placeholder={String(minOrder)}
-              placeholderTextColor="rgba(255,255,255,0.5)"
-              multiline={false}
-              numberOfLines={1}
-            />
-          </View>
-          
-          <TouchableOpacity
-            onPress={handleIncrease}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
+          <QuantitySelector
+            quantity={cartItem?.quantity ?? minOrder}
+            minQuantity={minOrder}
+            productName={item.productName}
+            onDecrease={handleDecrease}
+            onIncrease={handleIncrease}
+            onSetQuantity={handleSetQuantity}
+          />
         ) : (
           <TouchableOpacity
             style={{

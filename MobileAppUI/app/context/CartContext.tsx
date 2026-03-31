@@ -19,6 +19,7 @@ export interface CartContextProps {
   removeFromCart: (productId: number) => void;
   increaseQuantity: (productId: number) => void;
   decreaseQuantity: (productId: number) => void;
+  setQuantity: (productId: number, qty: number) => void;
   clearCart: () => void;
   refreshCart: () => Promise<void>;
   cartCount: number;
@@ -185,6 +186,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     updateCartApi(productId, newQty).catch(err => console.error('updateCartApi failed', err));
   }, []);
 
+  const setQuantity = useCallback((productId: number, newQty: number) => {
+    setCart(prev => {
+      const found = prev.find(x => x.productId === productId);
+      if (!found) return prev;
+      const minQty = found.minOrderQuantity || 1;
+      if (newQty < minQty) return prev;
+      const newCart = prev.map(x => x.productId === productId ? { ...x, quantity: newQty } : x);
+      AsyncStorage.setItem('cart', JSON.stringify(newCart)).catch(err =>
+        console.error('Failed to save cart to AsyncStorage', err)
+      );
+      return newCart;
+    });
+    updateCartApi(productId, newQty).catch(err => console.error('updateCartApi failed', err));
+  }, []);
+
   const clearCart = useCallback(() => {
     setCart([]);
     // Save empty cart to AsyncStorage
@@ -212,13 +228,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     addToCart, 
     removeFromCart, 
     increaseQuantity: increase,
-    decreaseQuantity: decrease, 
+    decreaseQuantity: decrease,
+    setQuantity,
     clearCart,
     refreshCart,
     cartCount, 
     cartTotal,
     isCartLoading
-  }), [cart, addToCart, removeFromCart, increase, decrease, clearCart, refreshCart, cartCount, cartTotal, isCartLoading]);
+  }), [cart, addToCart, removeFromCart, increase, decrease, setQuantity, clearCart, refreshCart, cartCount, cartTotal, isCartLoading]);
 
   return (
     <CartContext.Provider
