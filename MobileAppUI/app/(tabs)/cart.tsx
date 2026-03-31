@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, Platform } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, Platform, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -322,7 +322,8 @@ export default function CartScreen() {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
         <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">Checking access...</Text>
+          <ActivityIndicator size="large" color="#15803D" />
+          <Text className="text-gray-500 mt-3">Loading Cart</Text>
         </View>
       </SafeAreaView>
     );
