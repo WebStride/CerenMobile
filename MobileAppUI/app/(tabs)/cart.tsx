@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, Platform, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCart } from "../context/CartContext";
@@ -349,6 +349,11 @@ export default function CartScreen() {
     );
   }
 
+  const handleConfirmOrderDate = (selectedDate: Date) => {
+    setOrderDate(selectedDate);
+    setShowDatePicker(false);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       {/* Header */}
@@ -460,20 +465,14 @@ export default function CartScreen() {
           <Text className="text-xs text-gray-500 mt-2 ml-1">Select your preferred order date</Text>
         </View>
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={orderDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            minimumDate={new Date()}
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              if (selectedDate) {
-                setOrderDate(selectedDate);
-              }
-            }}
-          />
-        )}
+        <DateTimePickerModal
+          isVisible={showDatePicker}
+          mode="date"
+          date={orderDate}
+          minimumDate={new Date()}
+          onConfirm={handleConfirmOrderDate}
+          onCancel={() => setShowDatePicker(false)}
+        />
 
         {/* Bill Details */}
         <View className="mx-4 mb-4 bg-gray-50 rounded-lg p-4">

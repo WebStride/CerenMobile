@@ -942,20 +942,34 @@ const ProductCard = React.memo(({
     <View
       key={uniqueInstanceId}
       className="bg-white rounded-xl p-3 mr-4 w-40 border border-gray-100"
+      style={{ minHeight: 292 }}
     >
       <TouchableOpacity
         onPress={handleProductPress}
-        className="flex-1 items-center mb-2 relative"
+        style={{ alignItems: 'center', marginBottom: 10, position: 'relative' }}
         activeOpacity={0.7}
       >
-        <Image
-          source={getImageSource()}
-          placeholder={blurhash}
-          contentFit="contain"
-          transition={200}
-          cachePolicy="memory-disk"
-          style={{ width: 112, height: 112, marginBottom: 8, backgroundColor: '#f3f4f6' }}
-        />
+        <View
+          style={{
+            width: 112,
+            height: 112,
+            borderRadius: 12,
+            backgroundColor: '#f3f4f6',
+            overflow: 'hidden',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <Image
+            source={getImageSource()}
+            placeholder={blurhash}
+            contentFit="contain"
+            transition={200}
+            cachePolicy="memory-disk"
+            style={{ width: '100%', height: '100%' }}
+          />
+        </View>
         <TouchableOpacity
           onPress={handleFavouriteToggle}
           className="absolute top-0 right-0 bg-white/80 rounded-full p-1.5 shadow-sm"
@@ -969,7 +983,7 @@ const ProductCard = React.memo(({
         </TouchableOpacity>
       </TouchableOpacity>
 
-      <Text className="text-base font-semibold text-gray-900" numberOfLines={1}>
+      <Text className="text-base font-semibold text-gray-900 mt-1" numberOfLines={1}>
         {item.productName}
       </Text>
       <Text className="text-gray-500 text-xs mb-1">
