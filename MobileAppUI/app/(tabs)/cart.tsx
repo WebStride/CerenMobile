@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +16,7 @@ const defaultImage = require("../../assets/images/Banana.png");
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
+const CART_FOCUS_REFRESH_COOLDOWN_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // Self-contained quantity editor for each cart row.
@@ -216,14 +217,49 @@ export default function CartScreen() {
   const [orderDate, setOrderDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const lastFocusedStoreIdRef = useRef<string | null>(null);
+  const lastCartSyncAtRef = useRef(0);
   
-  // Refresh cart when screen is focused (handles store switching)
+  // Refresh the cart on first entry, when the selected store changes, or after a cooldown.
   useFocusEffect(
     useCallback(() => {
-      if (isGuest === false) {
-        console.log('🛒 Cart screen focused - refreshing cart...');
-        refreshCart();
-      }
+      let isActive = true;
+
+      const syncCartIfNeeded = async () => {
+        if (isGuest !== false) {
+          return;
+        }
+
+        const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
+        if (!isActive) {
+          return;
+        }
+
+        const storeChanged = selectedStoreId !== lastFocusedStoreIdRef.current;
+        const wasSyncedRecently =
+          lastCartSyncAtRef.current > 0 &&
+          Date.now() - lastCartSyncAtRef.current < CART_FOCUS_REFRESH_COOLDOWN_MS;
+
+        if (!storeChanged && wasSyncedRecently) {
+          return;
+        }
+
+        await refreshCart();
+        if (!isActive) {
+          return;
+        }
+
+        lastFocusedStoreIdRef.current = selectedStoreId;
+        lastCartSyncAtRef.current = Date.now();
+      };
+
+      syncCartIfNeeded().catch((error) => {
+        console.error('Error syncing cart on focus:', error);
+      });
+
+      return () => {
+        isActive = false;
+      };
     }, [isGuest, refreshCart])
   );
 

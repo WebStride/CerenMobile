@@ -962,6 +962,14 @@ export default function InvoicesScreen() {
   const [downloadingStatement, setDownloadingStatement] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null); // null = checking, true = guest, false = logged in
 
+  // Keep only the latest invoice request authoritative so quick filter changes cannot leave stale data onscreen.
+  const latestLoadRequestIdRef = React.useRef(0);
+  const latestFilterStateRef = React.useRef({
+    selectedFilter,
+    startDate,
+    endDate,
+  });
+
   // Check guest session on mount
   useEffect(() => {
     const checkGuestSession = async () => {
@@ -971,15 +979,81 @@ export default function InvoicesScreen() {
     checkGuestSession();
   }, []);
 
+  useEffect(() => {
+    latestFilterStateRef.current = {
+      selectedFilter,
+      startDate,
+      endDate,
+    };
+  }, [selectedFilter, startDate, endDate]);
+
+  const getStartOfDay = (date: Date) => {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    return normalizedDate;
+  };
+
+  const getEndOfDay = (date: Date) => {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(23, 59, 59, 999);
+    return normalizedDate;
+  };
+
+  const getDateRangeForFilter = (
+    filterKey: string,
+    customStartDate: Date = startDate,
+    customEndDate: Date = endDate
+  ) => {
+    const now = new Date();
+    let fromDate = new Date(now);
+    let toDate = new Date(now);
+
+    switch (filterKey) {
+      case '7days':
+        fromDate.setDate(fromDate.getDate() - 7);
+        break;
+      case '30days':
+        fromDate.setDate(fromDate.getDate() - 30);
+        break;
+      case '3months':
+        fromDate.setDate(fromDate.getDate() - 90);
+        break;
+      case 'custom':
+        fromDate = new Date(customStartDate);
+        toDate = new Date(customEndDate);
+        break;
+      default:
+        fromDate.setDate(fromDate.getDate() - 90);
+        break;
+    }
+
+    const normalizedFromDate = getStartOfDay(fromDate);
+    const normalizedToDate = getEndOfDay(toDate);
+
+    if (normalizedFromDate.getTime() <= normalizedToDate.getTime()) {
+      return {
+        fromDate: normalizedFromDate,
+        toDate: normalizedToDate,
+      };
+    }
+
+    return {
+      fromDate: getStartOfDay(customEndDate),
+      toDate: getEndOfDay(customStartDate),
+    };
+  };
+
   // Load invoices helper: accepts optional custom date range (Date objects)
   const loadInvoices = async (fromDate?: Date, toDate?: Date) => {
+    const requestId = latestLoadRequestIdRef.current + 1;
+    latestLoadRequestIdRef.current = requestId;
     setLoading(true);
     setError(null);
     try {
       console.log('📊 Loading invoices from API...');
 
-      const toDt = toDate || new Date();
-      const fromDt = fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const toDt = getEndOfDay(toDate || new Date());
+      const fromDt = getStartOfDay(fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
 
       const fromDateTime = fromDt.getTime().toString();
       const toDateTime = toDt.getTime().toString();
@@ -1001,6 +1075,12 @@ export default function InvoicesScreen() {
       }
 
       const apiInvoices = res.invoices;
+
+      if (latestLoadRequestIdRef.current !== requestId) {
+        console.log('⏭️ Ignoring stale invoice response for request:', requestId);
+        return;
+      }
+
       console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
 
       // Log the first invoice structure to see actual field names
@@ -1090,13 +1170,30 @@ export default function InvoicesScreen() {
       setTransactions(allTransactions);
       setFilteredTransactions(allTransactions);
     } catch (err: any) {
+      if (latestLoadRequestIdRef.current !== requestId) {
+        console.log('⏭️ Ignoring stale invoice error for request:', requestId);
+        return;
+      }
+
       console.error('❌ Error loading invoices:', err);
       setError(err?.message || 'Failed to load invoices');
       setTransactions([]);
       setFilteredTransactions([]);
     } finally {
-      setLoading(false);
+      if (latestLoadRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
+  };
+
+  const loadInvoicesForFilter = async (
+    filterKey: string,
+    customStartDate: Date = startDate,
+    customEndDate: Date = endDate
+  ) => {
+    const { fromDate, toDate } = getDateRangeForFilter(filterKey, customStartDate, customEndDate);
+    console.log('🔁 Loading invoices for filter:', filterKey, { fromDate, toDate });
+    await loadInvoices(fromDate, toDate);
   };
 
   // Use useFocusEffect to reload invoices whenever the screen comes into focus
@@ -1104,17 +1201,21 @@ export default function InvoicesScreen() {
   useFocusEffect(
     useCallback(() => {
       if (isGuest === false) {
+        const {
+          selectedFilter: focusedFilter,
+          startDate: focusedStartDate,
+          endDate: focusedEndDate,
+        } = latestFilterStateRef.current;
         console.log('📊 Invoices screen focused - reloading invoices...');
-        loadInvoices();
+        loadInvoicesForFilter(focusedFilter, focusedStartDate, focusedEndDate);
       }
     }, [isGuest])
   );
 
-  // Re-fetch invoices when custom date range is selected (only if confirmed not guest)
+  // Fetch invoices whenever the active date filter changes.
   useEffect(() => {
-    if (isGuest === false && selectedFilter === 'custom') {
-      console.log('🔁 Custom date range selected - re-fetching invoices for range:', startDate, endDate);
-      loadInvoices(startDate, endDate);
+    if (isGuest === false) {
+      loadInvoicesForFilter(selectedFilter, startDate, endDate);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFilter, startDate, endDate, isGuest]);
@@ -1142,49 +1243,22 @@ export default function InvoicesScreen() {
 
   const filterTransactions = () => {
     let filtered = [...transactions];
-    const now = new Date();
+    const { fromDate, toDate } = getDateRangeForFilter(selectedFilter);
     
     console.log('🔍 Filtering transactions:', {
       total: transactions.length,
       filter: selectedFilter,
-      currentDate: now.toISOString(),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      fromDate: fromDate.toISOString(),
+      toDate: toDate.toISOString()
     });
-    
-    switch (selectedFilter) {
-      case "7days":
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        filtered = transactions.filter(transaction => 
-          transaction.type === "balance" || new Date(transaction.date!) >= sevenDaysAgo
-        );
-        break;
-      case "30days":
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        filtered = transactions.filter(transaction => 
-          transaction.type === "balance" || new Date(transaction.date!) >= thirtyDaysAgo
-        );
-        break;
-      case "3months":
-        // For mock data testing, show all transactions (6 months back)
-        const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
-        filtered = transactions.filter(transaction => 
-          transaction.type === "balance" || new Date(transaction.date!) >= sixMonthsAgo
-        );
-        break;
-      case "custom":
-        filtered = transactions.filter(transaction => {
-          if (transaction.type === "balance") return true;
-          if (!transaction.date) return false;
-          const transactionDate = new Date(transaction.date);
-          // Normalize dates to compare only date parts (ignore time)
-          const txDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), transactionDate.getDate());
-          const fromDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-          const toDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-          return txDate >= fromDate && txDate <= toDate;
-        });
-        break;
-    }
+
+    filtered = transactions.filter(transaction => {
+      if (transaction.type === 'balance') return true;
+      if (!transaction.date) return false;
+
+      const transactionDate = new Date(transaction.date);
+      return transactionDate >= fromDate && transactionDate <= toDate;
+    });
     
     // Apply status filter
     if (selectedStatus && selectedStatus !== 'all') {
@@ -1311,8 +1385,9 @@ export default function InvoicesScreen() {
         });
       };
 
-      const dateRangeText = `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
-      const filenameDate = formatDateForFilename(endDate.toISOString());
+      const activeDateRange = getDateRangeForFilter(selectedFilter);
+      const dateRangeText = `${formatDateForDisplay(activeDateRange.fromDate)} to ${formatDateForDisplay(activeDateRange.toDate)}`;
+      const filenameDate = formatDateForFilename(activeDateRange.toDate.toISOString());
 
       // Get customer name from AsyncStorage (store name)
       console.log('📝 DEBUG: Retrieving store name from AsyncStorage...');

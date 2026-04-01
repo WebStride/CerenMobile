@@ -90,6 +90,29 @@ const fallbackImages = [
   require("../../assets/images/LocationThumbnail.png"),
   require("../../assets/images/HomeLogo.png"),
 ];
+const HOME_RAIL_PADDING_LEFT = 16;
+const HOME_PRODUCT_CARD_WIDTH = 160;
+const HOME_PRODUCT_CARD_SPACING = 16;
+const HOME_PRODUCT_CARD_ITEM_SIZE = HOME_PRODUCT_CARD_WIDTH + HOME_PRODUCT_CARD_SPACING;
+const HOME_CATEGORY_CARD_WIDTH = 192;
+const HOME_CATEGORY_CARD_SPACING = 12;
+const HOME_CATEGORY_CARD_ITEM_SIZE = HOME_CATEGORY_CARD_WIDTH + HOME_CATEGORY_CARD_SPACING;
+
+const createHorizontalItemLayout = (itemSize: number, leadingPadding = 0) =>
+  (_data: ArrayLike<unknown> | null | undefined, index: number) => ({
+    length: itemSize,
+    offset: leadingPadding + itemSize * index,
+    index,
+  });
+
+const getHomeProductItemLayout = createHorizontalItemLayout(
+  HOME_PRODUCT_CARD_ITEM_SIZE,
+  HOME_RAIL_PADDING_LEFT,
+);
+const getHomeCategoryItemLayout = createHorizontalItemLayout(
+  HOME_CATEGORY_CARD_ITEM_SIZE,
+  HOME_RAIL_PADDING_LEFT,
+);
 
 // ---------- Fixed Location Selection Modal ----------
 const LocationModal = ({
@@ -941,8 +964,8 @@ const ProductCard = React.memo(({
   return (
     <View
       key={uniqueInstanceId}
-      className="bg-white rounded-xl p-3 mr-4 w-40 border border-gray-100"
-      style={{ minHeight: 292 }}
+      className="bg-white rounded-xl p-3 border border-gray-100"
+      style={{ minHeight: 292, marginRight: HOME_PRODUCT_CARD_SPACING, width: HOME_PRODUCT_CARD_WIDTH }}
     >
       <TouchableOpacity
         onPress={handleProductPress}
@@ -1072,7 +1095,8 @@ const GroceryCategoryCard = ({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
-      className={`rounded-xl flex-row items-center justify-start mr-3 px-3 py-2 w-48 h-auto ${getRandomColor()} gap-x-3`}
+      className={`rounded-xl flex-row items-center justify-start px-3 py-2 h-auto ${getRandomColor()} gap-x-3`}
+      style={{ marginRight: HOME_CATEGORY_CARD_SPACING, width: HOME_CATEGORY_CARD_WIDTH }}
     >
       <Image 
         source={typeof item.categoryImage === 'string' ? { uri: item.categoryImage } : (item.categoryImage || defaultImage)} 
@@ -1759,6 +1783,7 @@ const HomeScreen = () => {
                   data={exclusiveOffers}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeProductItemLayout}
                   keyExtractor={(item, index) => `exclusive_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
@@ -1788,6 +1813,7 @@ const HomeScreen = () => {
                   data={bestSelling}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeProductItemLayout}
                   keyExtractor={(item, index) => `bestselling_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
@@ -1817,6 +1843,7 @@ const HomeScreen = () => {
                   data={newProducts}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeProductItemLayout}
                   keyExtractor={(item, index) => `newproducts_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
@@ -1848,6 +1875,7 @@ const HomeScreen = () => {
                       data={buyAgainProducts}
                       horizontal
                       showsVerticalScrollIndicator={false}
+                      getItemLayout={getHomeProductItemLayout}
                       keyExtractor={(item, index) => `buyagain_${item.productId ?? index}`}
                       renderItem={({ item, index }) => (
                         <ProductCard
@@ -1879,6 +1907,7 @@ const HomeScreen = () => {
                   data={categories}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeCategoryItemLayout}
                   keyExtractor={(item) => item.categoryId.toString()}
                   renderItem={({ item }) => <GroceryCategoryCard item={item} onPress={() => handleCategoryPress(item)} />}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 32 }}
