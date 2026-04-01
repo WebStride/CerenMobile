@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Platform } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCart } from "../context/CartContext";
@@ -17,9 +17,198 @@ const defaultImage = require("../../assets/images/Banana.png");
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 
+// ---------------------------------------------------------------------------
+// Self-contained quantity editor for each cart row.
+// By living in its own component it has truly local state, so there are zero
+// stale-closure or controlled-input-race issues when typing freely.
+// ---------------------------------------------------------------------------
+interface CartItemQuantityInputProps {
+  item: { productId: number; productName: string; quantity: number; minOrderQuantity?: number };
+  onIncrease: (productId: number) => void;
+  onDecrease: (productId: number) => void;
+  onSetQuantity: (productId: number, qty: number) => void;
+}
+
+function CartItemQuantityInput({ item, onIncrease, onDecrease, onSetQuantity }: CartItemQuantityInputProps) {
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editInputVal, setEditInputVal] = useState('');
+
+  const minQty = item.minOrderQuantity || 1;
+
+  const openEdit = () => {
+    setEditInputVal(String(item.quantity));
+    setShowEditModal(true);
+  };
+
+  const handleConfirm = () => {
+    const numVal = parseInt(editInputVal, 10);
+
+    if (isNaN(numVal) || numVal === 0) {
+      Alert.alert(
+        'Invalid Quantity',
+        `Please enter a valid quantity. Minimum order quantity for ${item.productName} is ${minQty}. Use the ✕ button to remove the item.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (numVal < minQty) {
+      Alert.alert(
+        'Minimum Order Quantity',
+        `Minimum order quantity for ${item.productName} is ${minQty}.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setShowEditModal(false);
+    if (numVal !== item.quantity) {
+      onSetQuantity(item.productId, numVal);
+    }
+  };
+
+  const handleCancel = () => {
+    setShowEditModal(false);
+    setEditInputVal('');
+  };
+
+  return (
+    <>
+      <View className="flex-row items-center mt-3 rounded-full bg-green-700 px-1 py-1 self-start">
+        {/* Decrease button */}
+        <TouchableOpacity
+          onPress={() => {
+            if (item.quantity <= minQty) {
+              Alert.alert(
+                'Minimum Order Quantity',
+                `Cannot decrease below minimum order quantity of ${minQty}. Use the ✕ button to remove this item.`,
+                [{ text: 'OK' }]
+              );
+              return;
+            }
+            onDecrease(item.productId);
+          }}
+          className="w-8 h-8 rounded-full items-center justify-center"
+        >
+          <Ionicons name="remove" size={20} color="#fff" />
+        </TouchableOpacity>
+
+        {/* Quantity — tap to edit */}
+        <TouchableOpacity
+          onPress={openEdit}
+          className="mx-2 min-w-[40px] items-center justify-center"
+        >
+          <Text style={{ fontSize: 16, color: 'white', fontWeight: 'bold', textAlign: 'center', minWidth: 40 }}>
+            {item.quantity}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Increase button */}
+        <TouchableOpacity
+          onPress={() => onIncrease(item.productId)}
+          className="w-8 h-8 rounded-full items-center justify-center"
+        >
+          <Ionicons name="add" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Edit quantity modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancel}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }}
+          activeOpacity={1}
+          onPress={handleCancel}
+        >
+          {/* Inner card — stop tap propagation */}
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {}}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 24,
+              width: 280,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 }}>
+              Update Quantity
+            </Text>
+            <Text style={{ fontSize: 13, color: '#666', marginBottom: 16 }} numberOfLines={2}>
+              {item.productName}
+            </Text>
+            {minQty > 1 && (
+              <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                Minimum order: {minQty}
+              </Text>
+            )}
+            <TextInput
+              value={editInputVal}
+              onChangeText={val => setEditInputVal(val.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              onSubmitEditing={handleConfirm}
+              autoFocus
+              selectTextOnFocus
+              style={{
+                borderWidth: 1.5,
+                borderColor: '#15803d',
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 22,
+                fontWeight: 'bold',
+                textAlign: 'center',
+                color: '#1a1a1a',
+                marginBottom: 20,
+              }}
+            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={handleCancel}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#e5e7eb',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 15, color: '#666', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirm}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 8,
+                  backgroundColor: '#15803d',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 15, color: '#fff', fontWeight: '700' }}>Update</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </>
+  );
+}
+// ---------------------------------------------------------------------------
+
 export default function CartScreen() {
   const router = useRouter();
-  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal, clearCart, refreshCart } = useCart();
+  const { cart, increaseQuantity, decreaseQuantity, setQuantity, removeFromCart, cartTotal, clearCart, refreshCart } = useCart();
   const insets = useSafeAreaInsets();
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const [hasStore, setHasStore] = useState<boolean | null>(null);
@@ -85,46 +274,6 @@ export default function CartScreen() {
   // ensure an extra gap above system navigation / gesture bar
   const bottomOffset = (insets.bottom || 0) + 50;
 
-  const handleQuantityChange = (productId: number, newQuantity: string) => {
-    const numVal = Number(newQuantity.replace(/[^0-9]/g, ""));
-    const currentItem = cart.find(item => item.productId === productId);
-    
-    if (!currentItem) return;
-    
-    const minQty = currentItem.minOrderQuantity || 1;
-    
-    if (newQuantity === "") {
-      // Allow empty for typing, but don't remove — will snap on blur
-      return;
-    }
-    
-    if (numVal === 0) {
-      // Don't allow zero — snap to minimum
-      Alert.alert(
-        "Minimum Order Quantity",
-        `Minimum order quantity for ${currentItem.productName} is ${minQty}. Use the ✕ button to remove the item.`,
-        [{ text: "OK" }]
-      );
-      return;
-    }
-    
-    if (numVal < minQty) {
-      Alert.alert(
-        "Minimum Order Quantity",
-        `Minimum order quantity for ${currentItem.productName} is ${minQty}.`,
-        [{ text: "OK" }]
-      );
-      return;
-    }
-    
-    const diff = numVal - currentItem.quantity;
-    if (diff > 0) {
-      for (let i = 0; i < diff; i++) increaseQuantity(productId);
-    } else if (diff < 0) {
-      for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(productId);
-    }
-  };
-
   // Calculate bill details
   const itemsSubtotal = cartTotal;
   const discountPercent = 13.6;
@@ -173,7 +322,8 @@ export default function CartScreen() {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
         <View className="flex-1 items-center justify-center">
-          <Text className="text-gray-500">Checking access...</Text>
+          <ActivityIndicator size="large" color="#15803D" />
+          <Text className="text-gray-500 mt-3">Loading Cart</Text>
         </View>
       </SafeAreaView>
     );
@@ -198,6 +348,11 @@ export default function CartScreen() {
       </SafeAreaView>
     );
   }
+
+  const handleConfirmOrderDate = (selectedDate: Date) => {
+    setOrderDate(selectedDate);
+    setShowDatePicker(false);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -241,50 +396,12 @@ export default function CartScreen() {
                   </Text>
                   
                   {/* Quantity Controls */}
-                  <View className="flex-row items-center mt-3 rounded-full bg-green-700 px-1 py-1 self-start">
-                    <TouchableOpacity
-                      onPress={() => {
-                        const minQty = item.minOrderQuantity || 1;
-                        if (item.quantity <= minQty) {
-                          Alert.alert(
-                            "Minimum Order Quantity",
-                            `Cannot decrease below minimum order quantity of ${minQty}. Use the ✕ button to remove this item.`,
-                            [{ text: "OK" }]
-                          );
-                          return;
-                        }
-                        decreaseQuantity(item.productId);
-                      }}
-                      className="w-8 h-8 rounded-full items-center justify-center"
-                    >
-                      <Ionicons name="remove" size={20} color="#fff" />
-                    </TouchableOpacity>
-                    <View className="mx-2 min-w-[40px] items-center justify-center">
-                      <TextInput
-                        className="text-center text-white font-bold text-base"
-                        value={String(item.quantity)}
-                        onChangeText={(val) => handleQuantityChange(item.productId, val)}
-                        keyboardType="number-pad"
-                        maxLength={3}
-                        style={{
-                          borderWidth: 0,
-                          backgroundColor: "transparent",
-                          fontSize: 16,
-                          color: "white",
-                          fontWeight: "bold",
-                          textAlign: "center",
-                          minWidth: 40,
-                        }}
-                        selectionColor="#fff"
-                      />
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => increaseQuantity(item.productId)}
-                      className="w-8 h-8 rounded-full items-center justify-center"
-                    >
-                      <Ionicons name="add" size={20} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
+                  <CartItemQuantityInput
+                    item={item}
+                    onIncrease={increaseQuantity}
+                    onDecrease={decreaseQuantity}
+                    onSetQuantity={setQuantity}
+                  />
                   
                   {/* Min Order Quantity hint */}
                   {(item.minOrderQuantity && item.minOrderQuantity > 1) ? (
@@ -348,20 +465,14 @@ export default function CartScreen() {
           <Text className="text-xs text-gray-500 mt-2 ml-1">Select your preferred order date</Text>
         </View>
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={orderDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            minimumDate={new Date()}
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              if (selectedDate) {
-                setOrderDate(selectedDate);
-              }
-            }}
-          />
-        )}
+        <DateTimePickerModal
+          isVisible={showDatePicker}
+          mode="date"
+          date={orderDate}
+          minimumDate={new Date()}
+          onConfirm={handleConfirmOrderDate}
+          onCancel={() => setShowDatePicker(false)}
+        />
 
         {/* Bill Details */}
         <View className="mx-4 mb-4 bg-gray-50 rounded-lg p-4">

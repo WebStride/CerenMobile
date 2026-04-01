@@ -2,12 +2,12 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { 
   View, 
   Text, 
-  TextInput, 
   TouchableOpacity, 
   FlatList, 
   ActivityIndicator, 
   Alert,
-  SafeAreaView
+  SafeAreaView,
+  TextInput
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +16,7 @@ import { getExclusiveOffers, getBestSelling, getNewProducts, getBuyAgainProducts
 import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
+import { QuantitySelector } from "@/components/QuantitySelector";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -116,7 +117,7 @@ const ProductCard = React.memo(({
   isCustomerExists: boolean;
   index: number;
 }) => {
-  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, setQuantity } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const router = useRouter();
   
@@ -125,23 +126,17 @@ const ProductCard = React.memo(({
   const minOrder = item.minOrderQuantity; // Now guaranteed to exist
   
   const [showControls, setShowControls] = useState(!!cartItem);
-  const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
-  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
 
   useEffect(() => {
     if (cartItem) {
-      setQtyInput(String(cartItem.quantity));
-      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
-      setQtyInput(String(minOrder));
-      setTempInput(String(minOrder));
     }
-  }, [cartItem, showControls, minOrder]);
+  }, [cartItem, showControls]);
 
   // Navigation to product details
   const handleProductPress = useCallback(() => {
@@ -178,94 +173,20 @@ const ProductCard = React.memo(({
 
   // Enhanced Add to Cart with MOQ validation
   const handleAddToCartPress = useCallback(() => {
-    const qty = Math.max(Number(qtyInput), minOrder);
-    
-    // Show MOQ info if quantity is being adjusted
-    if (qty > Number(qtyInput)) {
-      Alert.alert(
-        "Minimum Order Quantity", 
-        `Minimum order for ${item.productName} is ${minOrder}. Adding ${qty} to cart.`,
-        [{ text: "OK" }]
-      );
-    }
-    
-    for (let i = 0; i < qty; i++) {
-      addToCart({
-        productId: item.productId,
-        productName: item.productName,
-        price: item.price,
+    addToCart({
+      productId: item.productId,
+      productName: item.productName,
+      price: item.price,
   image: typeof item.image === 'number' ? '' : (item.image as string | null),
-        productUnits: item.productUnits,
-        unitsOfMeasurement: item.unitsOfMeasurement,
-      });
-    }
+      productUnits: item.productUnits,
+      unitsOfMeasurement: item.unitsOfMeasurement,
+    }, minOrder);
     setShowControls(true);
-  }, [item, addToCart, qtyInput, minOrder]);
+  }, [item, addToCart, minOrder]);
 
-  // Enhanced input validation with MOQ
-  const handleInputChange = useCallback((val: string) => {
-    // Just update temporary display without validation
-    const onlyDigits = val.replace(/[^0-9]/g, "");
-    setTempInput(onlyDigits);
-  }, []);
-
-  // Validate and apply changes when user finishes editing
-  const handleBlur = useCallback(() => {
-    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
-
-    // If empty or below MOQ, snap to minimum quantity
-    if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      const snapQty = minOrder;
-      setTempInput(String(snapQty));
-      setQtyInput(String(snapQty));
-      
-      // Update cart to minimum quantity
-      if (cartItem) {
-        const diff = snapQty - cartItem.quantity;
-        if (diff > 0) {
-          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-        } else if (diff < 0) {
-          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-        }
-      } else {
-        for (let i = 0; i < snapQty; i++) {
-          addToCart({
-            productId: item.productId,
-            productName: item.productName,
-            price: item.price,
-            image: item.image,
-            productUnits: item.productUnits,
-            unitsOfMeasurement: item.unitsOfMeasurement,
-          });
-        }
-      }
-      return;
-    }
-
-    const numVal = Number(onlyDigits);
-    setQtyInput(String(numVal));
-    
-    if (!cartItem && numVal >= minOrder) {
-      // Add MOQ-compliant quantity to cart
-      for (let i = 0; i < numVal; i++) {
-        addToCart({
-          productId: item.productId,
-          productName: item.productName,
-          price: item.price,
-          image: item.image,
-          productUnits: item.productUnits,
-          unitsOfMeasurement: item.unitsOfMeasurement,
-        });
-      }
-    } else if (cartItem) {
-      const diff = numVal - cartItem.quantity;
-      if (diff > 0) {
-        for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-      } else if (diff < 0) {
-        for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-      }
-    }
-  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder]);
+  const handleSetQuantity = useCallback((qty: number) => {
+    setQuantity(item.productId, qty);
+  }, [setQuantity, item.productId]);
 
   // Enhanced decrease with MOQ validation
   const handleDecrease = useCallback(() => {
@@ -370,43 +291,14 @@ const ProductCard = React.memo(({
       {/* Add to Cart Button OR Quantity Controls */}
       {(isCustomerExists && item.price > 0) ? (
         showControls ? (
-          <View className="flex-row items-center justify-center rounded-full bg-green-700 px-1 py-1">
-            <TouchableOpacity
-              onPress={handleDecrease}
-              className="w-7 h-7 rounded-full items-center justify-center"
-            >
-              <Ionicons name="remove" size={18} color="#fff" />
-            </TouchableOpacity>
-            <View className="flex-1 mx-1 items-center justify-center">
-              <TextInput
-                className="w-full h-7 text-center text-white font-bold"
-                value={tempInput}
-                onChangeText={handleInputChange}
-                onBlur={handleBlur}
-                keyboardType="number-pad"
-                maxLength={3}
-                style={{
-                  borderWidth: 0,
-                  backgroundColor: "transparent",
-                  fontSize: 14,
-                  color: "white",
-                  fontWeight: "bold",
-                  textAlign: "center",
-                  minWidth: 30,
-                }}
-                selectionColor="#fff"
-                placeholder={String(minOrder)}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                textAlign="center"
-              />
-            </View>
-            <TouchableOpacity
-              onPress={handleIncrease}
-              className="w-7 h-7 rounded-full items-center justify-center"
-            >
-              <Ionicons name="add" size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          <QuantitySelector
+            quantity={cartItem?.quantity ?? minOrder}
+            minQuantity={minOrder}
+            productName={item.productName}
+            onDecrease={handleDecrease}
+            onIncrease={handleIncrease}
+            onSetQuantity={handleSetQuantity}
+          />
         ) : (
           <TouchableOpacity
             className="w-full bg-green-700 rounded-full py-1.5 px-2 items-center justify-center"

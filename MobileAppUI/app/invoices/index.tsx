@@ -845,6 +845,10 @@ const TransactionRow = ({
   };
 
   const transactionIndex = transaction.details?.transactionIndex;
+  const orderNumber = transaction.details?.orderNumber || (transaction.details?.orderId ? `#${transaction.details.orderId}` : null);
+  const summaryLabel = transaction.type === "invoice"
+    ? (orderNumber ? `Order Number: ${orderNumber}` : transaction.description)
+    : transaction.description;
 
   return (
     <TouchableOpacity
@@ -922,7 +926,7 @@ const TransactionRow = ({
       {/* Description and Balance */}
       <View className="flex-row justify-between items-center pt-2 border-t border-gray-200">
         <Text className="text-sm text-gray-600 flex-1">
-          {transaction.description}
+          {summaryLabel}
         </Text>
         <View className="items-end ml-2">
           <Text className="text-xs text-gray-500">{transaction.type === "balance" ? "Opening" : "Current"} Balance</Text>
