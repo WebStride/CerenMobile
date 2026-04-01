@@ -42,12 +42,50 @@ jobs:
           STAGING_HOST: ${{ secrets.STAGING_HOST }}
           STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
           STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          STAGING_ACCESS_TOKEN_SECRET: ${{ secrets.STAGING_ACCESS_TOKEN_SECRET }}
+          STAGING_REFRESH_TOKEN_SECRET: ${{ secrets.STAGING_REFRESH_TOKEN_SECRET }}
+          STAGING_MSG91_AUTH_KEY: ${{ secrets.STAGING_MSG91_AUTH_KEY }}
+          STAGING_MSG91_TEMPLATE_ID: ${{ secrets.STAGING_MSG91_TEMPLATE_ID }}
+          STAGING_MSG91_OTP_LENGTH: ${{ secrets.STAGING_MSG91_OTP_LENGTH }}
+          STAGING_MSG91_OTP_EXPIRY: ${{ secrets.STAGING_MSG91_OTP_EXPIRY }}
+          STAGING_IMAGE_BASE_URL: ${{ secrets.STAGING_IMAGE_BASE_URL }}
+          STAGING_TEST_PHONE_NUMBERS: ${{ secrets.STAGING_TEST_PHONE_NUMBERS }}
+          STAGING_NOTIFY_ADMIN_ON_NEW_USER: ${{ secrets.STAGING_NOTIFY_ADMIN_ON_NEW_USER }}
+          STAGING_ADMIN_WHATSAPP_NUMBER: ${{ secrets.STAGING_ADMIN_WHATSAPP_NUMBER }}
         timeout-minutes: 60
         run: |
           printf '%s' "$STAGING_SSH_KEY" > /tmp/deploy_key.pem
           chmod 600 /tmp/deploy_key.pem
           mkdir -p ~/.ssh
           ssh-keyscan -H "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # ── Validate required secrets ────────────────────────────────────────
+          for var in STAGING_DATABASE_URL STAGING_ACCESS_TOKEN_SECRET STAGING_REFRESH_TOKEN_SECRET; do
+            if [ -z "${!var}" ]; then
+              echo "ERROR: Required GitHub secret $var is not set in the staging environment"
+              exit 1
+            fi
+          done
+          # ── Write backend .env to staging server ──────────────────────────────
+          printf '%s\n' \
+            "NODE_ENV=staging" \
+            "DATABASE_URL=${STAGING_DATABASE_URL}" \
+            "ACCESS_TOKEN_SECRET=${STAGING_ACCESS_TOKEN_SECRET}" \
+            "REFRESH_TOKEN_SECRET=${STAGING_REFRESH_TOKEN_SECRET}" \
+            "MSG91_AUTH_KEY=${STAGING_MSG91_AUTH_KEY}" \
+            "MSG91_TEMPLATE_ID=${STAGING_MSG91_TEMPLATE_ID}" \
+            "MSG91_OTP_LENGTH=${STAGING_MSG91_OTP_LENGTH}" \
+            "MSG91_OTP_EXPIRY=${STAGING_MSG91_OTP_EXPIRY}" \
+            "IMAGE_BASE_URL=${STAGING_IMAGE_BASE_URL}" \
+            "TEST_PHONE_NUMBERS=${STAGING_TEST_PHONE_NUMBERS}" \
+            "NOTIFY_ADMIN_ON_NEW_USER=${STAGING_NOTIFY_ADMIN_ON_NEW_USER}" \
+            "ADMIN_WHATSAPP_NUMBER=${STAGING_ADMIN_WHATSAPP_NUMBER}" \
+            | base64 -w 0 \
+            | ssh -i /tmp/deploy_key.pem \
+                -o ConnectTimeout=30 -o BatchMode=yes \
+                "$STAGING_SSH_USER@$STAGING_HOST" \
+                "base64 -d > ~/ceren-backend/backend/.env"
+          echo "✓ .env written to staging server"
           cat << DEPLOY_SCRIPT | ssh -i /tmp/deploy_key.pem \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
@@ -136,12 +174,50 @@ jobs:
           PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
           PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
           PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          PRODUCTION_ACCESS_TOKEN_SECRET: ${{ secrets.PRODUCTION_ACCESS_TOKEN_SECRET }}
+          PRODUCTION_REFRESH_TOKEN_SECRET: ${{ secrets.PRODUCTION_REFRESH_TOKEN_SECRET }}
+          PRODUCTION_MSG91_AUTH_KEY: ${{ secrets.PRODUCTION_MSG91_AUTH_KEY }}
+          PRODUCTION_MSG91_TEMPLATE_ID: ${{ secrets.PRODUCTION_MSG91_TEMPLATE_ID }}
+          PRODUCTION_MSG91_OTP_LENGTH: ${{ secrets.PRODUCTION_MSG91_OTP_LENGTH }}
+          PRODUCTION_MSG91_OTP_EXPIRY: ${{ secrets.PRODUCTION_MSG91_OTP_EXPIRY }}
+          PRODUCTION_IMAGE_BASE_URL: ${{ secrets.PRODUCTION_IMAGE_BASE_URL }}
+          PRODUCTION_TEST_PHONE_NUMBERS: ${{ secrets.PRODUCTION_TEST_PHONE_NUMBERS }}
+          PRODUCTION_NOTIFY_ADMIN_ON_NEW_USER: ${{ secrets.PRODUCTION_NOTIFY_ADMIN_ON_NEW_USER }}
+          PRODUCTION_ADMIN_WHATSAPP_NUMBER: ${{ secrets.PRODUCTION_ADMIN_WHATSAPP_NUMBER }}
         timeout-minutes: 60
         run: |
           printf '%s' "$PRODUCTION_SSH_KEY" > /tmp/deploy_key.pem
           chmod 600 /tmp/deploy_key.pem
           mkdir -p ~/.ssh
           ssh-keyscan -H "$PRODUCTION_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # ── Validate required secrets ────────────────────────────────────────
+          for var in PRODUCTION_DATABASE_URL PRODUCTION_ACCESS_TOKEN_SECRET PRODUCTION_REFRESH_TOKEN_SECRET; do
+            if [ -z "${!var}" ]; then
+              echo "ERROR: Required GitHub secret $var is not set in the production environment"
+              exit 1
+            fi
+          done
+          # ── Write backend .env to production server ───────────────────────────
+          printf '%s\n' \
+            "NODE_ENV=production" \
+            "DATABASE_URL=${PRODUCTION_DATABASE_URL}" \
+            "ACCESS_TOKEN_SECRET=${PRODUCTION_ACCESS_TOKEN_SECRET}" \
+            "REFRESH_TOKEN_SECRET=${PRODUCTION_REFRESH_TOKEN_SECRET}" \
+            "MSG91_AUTH_KEY=${PRODUCTION_MSG91_AUTH_KEY}" \
+            "MSG91_TEMPLATE_ID=${PRODUCTION_MSG91_TEMPLATE_ID}" \
+            "MSG91_OTP_LENGTH=${PRODUCTION_MSG91_OTP_LENGTH}" \
+            "MSG91_OTP_EXPIRY=${PRODUCTION_MSG91_OTP_EXPIRY}" \
+            "IMAGE_BASE_URL=${PRODUCTION_IMAGE_BASE_URL}" \
+            "TEST_PHONE_NUMBERS=${PRODUCTION_TEST_PHONE_NUMBERS}" \
+            "NOTIFY_ADMIN_ON_NEW_USER=${PRODUCTION_NOTIFY_ADMIN_ON_NEW_USER}" \
+            "ADMIN_WHATSAPP_NUMBER=${PRODUCTION_ADMIN_WHATSAPP_NUMBER}" \
+            | base64 -w 0 \
+            | ssh -i /tmp/deploy_key.pem \
+                -o ConnectTimeout=30 -o BatchMode=yes \
+                "$PRODUCTION_SSH_USER@$PRODUCTION_HOST" \
+                "base64 -d > ~/ceren-backend/backend/.env"
+          echo "✓ .env written to production server"
           cat << DEPLOY_SCRIPT | ssh -i /tmp/deploy_key.pem \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
