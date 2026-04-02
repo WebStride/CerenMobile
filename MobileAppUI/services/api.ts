@@ -80,20 +80,33 @@ const getSelectedStoreId = async (): Promise<number | null> => {
   return storeId ? Number(storeId) : null;
 };
 
+// Short-lived cache: deduplicates concurrent and back-to-back getSessionState()
+// calls that happen within a single API function's async flow (e.g. one call for
+// selectedStoreId + another inside getAuthHeaders = 8 AsyncStorage reads → 4).
+// 50 ms is well within a single request lifetime and short enough that rotated
+// tokens from a login/refresh will never be stale by the time the next screen loads.
+let _sessionStateCache: { promise: Promise<SessionState>; expireAt: number } | null = null;
+
 const getSessionState = async (): Promise<SessionState> => {
-  const [accessToken, refreshToken, customerId, selectedStoreId] = await Promise.all([
+  const now = Date.now();
+  if (_sessionStateCache && now < _sessionStateCache.expireAt) {
+    return _sessionStateCache.promise;
+  }
+
+  const promise = Promise.all([
     AsyncStorage.getItem('accessToken'),
     AsyncStorage.getItem('refreshToken'),
     AsyncStorage.getItem('customerId'),
     AsyncStorage.getItem('selectedStoreId'),
-  ]);
-
-  return {
+  ]).then(([accessToken, refreshToken, customerId, selectedStoreId]) => ({
     accessToken: accessToken ? `Bearer ${accessToken}` : '',
     refreshToken: refreshToken || '',
     customerId: customerId ? Number(customerId) : null,
     selectedStoreId: selectedStoreId ? Number(selectedStoreId) : null,
-  };
+  }));
+
+  _sessionStateCache = { promise, expireAt: now + 50 };
+  return promise;
 };
 
 const getAuthHeaders = async (extraHeaders?: Record<string, string>) => {

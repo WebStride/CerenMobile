@@ -1,5 +1,6 @@
 import express, {Request, Response} from  "express";
 import cors from "cors";
+import compression from 'compression';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -66,6 +67,9 @@ app.use(cors({
   credentials: true // Set to true if the frontend uses cookies/auth headers
 }));
 
+// Gzip all responses — reduces JSON payload ~80-90% over internet connections
+app.use(compression());
+
 app.use(express.json());
 
 // Simple request timing middleware to log response durations
@@ -90,10 +94,17 @@ const host = process.env.HOST || '0.0.0.0';
 
 
 
-app.listen(port, host, async () => {
+// Register routes before starting the server — avoids race-condition 404s on startup
+routes(app);
+
+// Fix Node.js (5s default) vs Nginx (65s) keepAlive mismatch.
+// Without this, Node closes keep-alive connections before Nginx does, causing
+// ECONNRESET + TCP+TLS retry on random requests (~150-400ms penalty each).
+const server = app.listen(port, host, () => {
     console.log(`App is running at port: http://${host}:${port}`);
-    await routes(app);
   });
 
+server.keepAliveTimeout = 65000;  // must exceed Nginx keepalive_timeout (65s)
+server.headersTimeout  = 66000;   // must be > keepAliveTimeout
 
 export default app;
