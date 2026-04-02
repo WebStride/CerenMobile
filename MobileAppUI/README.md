@@ -696,8 +696,13 @@ graph TD
 3. **Configure environment variables**
    Create a `.env.development` file:
    ```env
-   EXPO_PUBLIC_API_URL=http://your-backend-ip:3002
-   EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
+    EXPO_PUBLIC_API_URL=http://your-backend-ip:3002
+    EXPO_GOOGLE_MAPS_API_KEY=your-android-google-maps-key
+    EXPO_GOOGLE_MAPS_API_KEY_IOS=your-ios-google-maps-key
+    EXPO_PUBLIC_INTEGRATED_NO=your-msg91-integrated-number
+    EXPO_PUBLIC_ADMIN_TO_NUMBER=your-admin-whatsapp-number
+    EXPO_PUBLIC_MSG91_AUTH_KEY=your-msg91-auth-key
+    EXPO_PUBLIC_MSG91_WHATSAPP_URL=https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/
    ```
 
 4. **Start Expo development server**
