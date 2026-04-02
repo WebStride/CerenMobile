@@ -30,11 +30,12 @@ interface ValidateTokenResponse {
 
 // Environment-based API URL configuration
 const getApiUrl = (): string => {
-  // Check if running in development mode
-  const isDevelopment = __DEV__ || Constants.appOwnership === 'expo';
-
-  // Check if we have an environment variable set
-  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  // Constants.expoConfig.extra is set by app.config.js at Metro startup time from the
+  // correct .env file, so it reliably reflects the active environment (local / staging / prod).
+  // process.env.EXPO_PUBLIC_API_URL is a build-time inline used by EAS production builds.
+  const envApiUrl =
+    (Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL as string | undefined) ||
+    process.env.EXPO_PUBLIC_API_URL;
 
   if (envApiUrl) {
     debugLog('🌍 Using environment API URL:', envApiUrl);
@@ -42,6 +43,7 @@ const getApiUrl = (): string => {
   }
 
   // Fallback to hardcoded URLs based on environment
+  const isDevelopment = __DEV__ || Constants.appOwnership === 'expo';
   if (isDevelopment) {
     const devUrl = 'https://api-staging.cerenmobile.com';
     debugLog('🏠 Using development API URL (fallback):', devUrl);
