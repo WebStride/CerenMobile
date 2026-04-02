@@ -14,6 +14,12 @@ module.exports = {
       interpreter: 'node',
 
       // ── environment-specific overrides ──────────────────────────────────
+      // NOTE: `instances` and `exec_mode` are PM2 app-level properties and
+      // cannot be set per-env via env_* blocks — PM2 reads them at config
+      // parse time, before env_staging / env_production are applied.
+      // The previous ternaries on process.env.NODE_ENV always resolved to
+      // the else branch (fork / 1 instance) because NODE_ENV is not set
+      // until AFTER the config is parsed. Both envs now use cluster mode.
       env_staging: {
         NODE_ENV: 'staging',
         PORT: 3000,
@@ -24,14 +30,15 @@ module.exports = {
       },
 
       // ── process management ──────────────────────────────────────────────
-      // staging: 1 instance (t3.micro — 1 vCPU)
-      // production: 'max' spawns one worker per vCPU (t3.small — 2 vCPUs)
-      instances: process.env.NODE_ENV === 'production' ? 'max' : 1,
-      exec_mode: process.env.NODE_ENV === 'production' ? 'cluster' : 'fork',
+      // cluster mode: one worker per vCPU — handles concurrent requests in
+      // parallel and survives individual worker crashes without downtime.
+      // t3.micro (staging) = 2 vCPUs; t3.small (production) = 2 vCPUs.
+      instances: 2,
+      exec_mode: 'cluster',
 
       autorestart: true,
       watch: false,
-      max_memory_restart: process.env.NODE_ENV === 'production' ? '700M' : '450M',
+      max_memory_restart: '500M',
 
       // ── logging ─────────────────────────────────────────────────────────
       out_file: './logs/out.log',
