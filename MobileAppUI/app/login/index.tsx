@@ -14,6 +14,7 @@ import { images } from "@/constants/images";
 import { checkCustomer, sendOtp } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import { setGuestSession } from "@/utils/session";
+import { goBackOrFallback, resetToRoute } from "@/utils/navigation";
 import {
   sanitizeIndianMobileInput,
   validateIndianMobile,
@@ -43,7 +44,7 @@ export default function LoginNumberScreen() {
 
   const handleSkipLogin = async () => {
     await setGuestSession();
-    router.replace("/(tabs)/shop");
+    resetToRoute(router, "/(tabs)/shop");
   };
 
 
@@ -142,7 +143,7 @@ export default function LoginNumberScreen() {
                 alignItems: "center",
                 zIndex: 10,
               }}
-              onPress={() => router.push("/OnboardingScreen")}
+              onPress={() => goBackOrFallback(router, "/OnboardingScreen")}
               accessibilityLabel="Back"
             >
               <Image
