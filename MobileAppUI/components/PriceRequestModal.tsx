@@ -18,6 +18,12 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendPriceRequestWhatsApp } from "@/services/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  INDIA_COUNTRY_CODE,
+  sanitizeIndianMobileInput,
+  validateIndianMobile,
+  toIndianE164,
+} from "@/utils/phoneNumber";
 
 interface PriceRequestModalProps {
   visible: boolean;
@@ -61,7 +67,7 @@ export const PriceRequestModal: React.FC<PriceRequestModalProps> = ({
       if (userDataStr) {
         const userData = JSON.parse(userDataStr);
         if (userData.phoneNumber) {
-          setPhone(userData.phoneNumber);
+          setPhone(sanitizeIndianMobileInput(userData.phoneNumber));
         }
       }
     } catch (error) {
@@ -82,6 +88,12 @@ export const PriceRequestModal: React.FC<PriceRequestModalProps> = ({
       return;
     }
 
+    const phoneError = validateIndianMobile(phone);
+    if (phoneError) {
+      Alert.alert("Invalid phone number", phoneError);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const currentDateTime = new Date().toISOString().split("T")[0] + " " + 
@@ -89,7 +101,7 @@ export const PriceRequestModal: React.FC<PriceRequestModalProps> = ({
 
       const result = await sendPriceRequestWhatsApp({
         storeName: storeName.trim(),
-        phone: phone.trim(),
+        phone: toIndianE164(phone),
         productId: String(productId),
         productName: productName,
         dateTime: currentDateTime,
@@ -204,15 +216,26 @@ export const PriceRequestModal: React.FC<PriceRequestModalProps> = ({
                       <Text className="text-gray-700 font-medium mb-2">
                         Phone Number <Text className="text-red-500">*</Text>
                       </Text>
-                      <TextInput
-                        className="border border-gray-300 rounded-xl px-4 py-3 text-gray-900 bg-gray-50"
-                        placeholder="Enter your phone number"
-                        placeholderTextColor="#9CA3AF"
-                        value={phone}
-                        onChangeText={setPhone}
-                        keyboardType="phone-pad"
-                        editable={!isLoading}
-                      />
+                      <View className="flex-row items-center border border-gray-300 rounded-xl px-4 bg-gray-50">
+                        <Text className="text-gray-900 font-medium mr-3">{INDIA_COUNTRY_CODE}</Text>
+                        <TextInput
+                          className="flex-1 py-3 text-gray-900"
+                          placeholder="9876543210"
+                          placeholderTextColor="#9CA3AF"
+                          value={phone}
+                          onChangeText={(text) => setPhone(sanitizeIndianMobileInput(text))}
+                          keyboardType="phone-pad"
+                          autoComplete="tel"
+                          textContentType="telephoneNumber"
+                          maxLength={10}
+                          editable={!isLoading}
+                        />
+                      </View>
+                      {!!phone && !!validateIndianMobile(phone) && (
+                        <Text className="text-red-600 text-xs mt-2">
+                          {validateIndianMobile(phone)}
+                        </Text>
+                      )}
                     </View>
 
                     {/* Note Input */}

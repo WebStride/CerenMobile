@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendAddressDetails, getStoresForUser } from "@/services/api";
+import { resetToRoute } from "@/utils/navigation";
 
 const TEXT_SCALE_LIMIT = 1.1;
 
@@ -115,7 +116,7 @@ export default function AddAddressDetailsScreen() {
                 if (fromLocationModal === "true") {
                   // User came from location modal, navigate back to home screen
                   console.log("🏠 Navigating back to home screen after adding address");
-                  router.replace("/(tabs)/shop");
+                  resetToRoute(router, "/(tabs)/shop");
                 } else {
                   // Normal login flow: check store count before deciding navigation
                   console.log("🔐 Normal login flow, checking stores...");
@@ -131,7 +132,7 @@ export default function AddAddressDetailsScreen() {
                         await AsyncStorage.setItem('selectedStoreId', String(singleStore.CUSTOMERID));
                         await AsyncStorage.setItem('selectedStoreName', singleStore.CUSTOMERNAME);
                         console.log('🏪 Auto-selected single store:', singleStore.CUSTOMERNAME);
-                        router.replace({
+                        resetToRoute(router, {
                           pathname: '/(tabs)/shop',
                           params: {
                             customerId: String(singleStore.CUSTOMERID),
@@ -142,7 +143,7 @@ export default function AddAddressDetailsScreen() {
                         // No stores - go to shop without store (catalog mode)
                         await AsyncStorage.removeItem('selectedStoreId');
                         await AsyncStorage.removeItem('selectedStoreName');
-                        router.replace('/(tabs)/shop');
+                        resetToRoute(router, '/(tabs)/shop');
                       } else {
                         // Multiple stores - show SelectStore page
                         router.push({

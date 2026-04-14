@@ -39,6 +39,12 @@ import { useCart } from "../context/CartContext";
 import { isGuestSession } from "@/utils/session";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
 import { QuantitySelector } from "@/components/QuantitySelector";
+import {
+  sanitizeIndianMobileInput,
+  validateIndianMobile,
+  toIndianE164,
+  formatIndianMobileForDisplay,
+} from "@/utils/phoneNumber";
 
 const { height, width } = Dimensions.get('window');
 
@@ -184,7 +190,7 @@ const LocationModal = ({
     setEditingAddress(address);
     setEditForm({
       name: address.Name || '',
-      phoneNumber: address.PhoneNumber || '',
+      phoneNumber: sanitizeIndianMobileInput(address.PhoneNumber || ''),
       houseNumber: address.HouseNumber || '',
       buildingBlock: address.BuildingBlock || '',
       landmark: address.Landmark || '',
@@ -228,8 +234,17 @@ const LocationModal = ({
   const handleSaveEdit = async () => {
     if (!editingAddress) return;
 
+    const phoneError = validateIndianMobile(editForm.phoneNumber);
+    if (phoneError) {
+      Alert.alert('Invalid phone number', phoneError);
+      return;
+    }
+
     try {
-      const result = await updateUserAddress(editingAddress.DeliveryAddressID, editForm);
+      const result = await updateUserAddress(editingAddress.DeliveryAddressID, {
+        ...editForm,
+        phoneNumber: toIndianE164(editForm.phoneNumber),
+      });
       if (result.success) {
         await fetchUserAddresses();
         setEditingAddress(null);
@@ -545,7 +560,7 @@ const LocationModal = ({
                             fontSize: 12,
                             marginTop: 4
                           }}>
-                            {[address.Name, address.PhoneNumber].filter(Boolean).join(' • ')}
+                          {[address.Name, address.PhoneNumber ? formatIndianMobileForDisplay(address.PhoneNumber) : null].filter(Boolean).join(' • ')}
                           </Text>
                         )}
                       </View>

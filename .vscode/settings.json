@@ -10,5 +10,6 @@
                 "@upstash/context7-mcp"
             ]
         }
-    }
+    },
+    "claudeCode.useTerminal": true
 }

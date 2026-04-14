@@ -19,6 +19,7 @@ import { images } from "@/constants/images";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import { getStoresForUser } from "@/services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { resetToRoute } from "@/utils/navigation";
 
 type Store = {
   CUSTOMERID: number;
@@ -66,7 +67,7 @@ export default function SelectStore() {
           await AsyncStorage.setItem('selectedStoreId', String(singleStore.CUSTOMERID));
           await AsyncStorage.setItem('selectedStoreName', singleStore.CUSTOMERNAME);
           setLoading(false);
-          router.replace({
+          resetToRoute(router, {
             pathname: '/(tabs)/shop',
             params: {
               customerId: String(singleStore.CUSTOMERID),
@@ -105,7 +106,7 @@ export default function SelectStore() {
       }
       
       // Navigate to shop with store context
-      router.replace({
+      resetToRoute(router, {
         pathname: '/(tabs)/shop',
         params: {
           customerId: selected ? String(selected.CUSTOMERID) : '',
@@ -139,7 +140,7 @@ export default function SelectStore() {
       console.log('⚠️ [handleContinueWithoutStore] Continuing without store - products will show WITHOUT pricing');
       
       // Navigate to shop WITHOUT customerId (will show products without pricing)
-      router.replace({
+      resetToRoute(router, {
         pathname: '/(tabs)/shop',
         params: {
           customerId: '', // Empty customerId means no pricing
