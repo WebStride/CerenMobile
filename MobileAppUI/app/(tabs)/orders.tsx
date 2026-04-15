@@ -431,9 +431,6 @@ export default function OrdersScreen() {
           <Text className="text-2xl font-bold text-gray-900">
             My Orders
           </Text>
-          <TouchableOpacity className="p-2">
-            <Ionicons name="search-outline" size={24} color="#6B7280" />
-          </TouchableOpacity>
         </View>
 
         {/* Filter Tabs */}

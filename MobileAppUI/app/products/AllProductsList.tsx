@@ -514,9 +514,6 @@ const AllProductsList = () => {
         <Text className="text-lg font-semibold text-gray-900 flex-1">
           All Products
         </Text>
-        <TouchableOpacity>
-          <Ionicons name="filter" size={24} color="#374151" />
-        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}

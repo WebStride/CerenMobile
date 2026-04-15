@@ -213,9 +213,6 @@ const AllCategoriesScreen = () => {
                     <Ionicons name="arrow-back" size={24} color="#374151" />
                 </TouchableOpacity>
                 <Text className="text-lg font-semibold text-gray-900 flex-1">All Categories</Text>
-                <TouchableOpacity>
-                    <Ionicons name="grid" size={24} color="#374151" />
-                </TouchableOpacity>
             </View>
 
             {/* Search Bar */}
