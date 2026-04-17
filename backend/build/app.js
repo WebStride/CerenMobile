@@ -1,19 +1,11 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const compression_1 = __importDefault(require("compression"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
@@ -67,6 +59,8 @@ app.use((0, cors_1.default)({
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed HTTP methods
     credentials: true // Set to true if the frontend uses cookies/auth headers
 }));
+// Gzip all responses — reduces JSON payload ~80-90% over internet connections
+app.use((0, compression_1.default)());
 app.use(express_1.default.json());
 // Simple request timing middleware to log response durations
 app.use((req, res, next) => {
@@ -83,9 +77,15 @@ app.get('/health', (_req, res) => {
 });
 const port = parseInt(process.env.PORT || '3002');
 const host = process.env.HOST || '0.0.0.0';
-app.listen(port, host, () => __awaiter(void 0, void 0, void 0, function* () {
+// Register routes before starting the server — avoids race-condition 404s on startup
+routes(app);
+// Fix Node.js (5s default) vs Nginx (65s) keepAlive mismatch.
+// Without this, Node closes keep-alive connections before Nginx does, causing
+// ECONNRESET + TCP+TLS retry on random requests (~150-400ms penalty each).
+const server = app.listen(port, host, () => {
     console.log(`App is running at port: http://${host}:${port}`);
-    yield routes(app);
-}));
+});
+server.keepAliveTimeout = 65000; // must exceed Nginx keepalive_timeout (65s)
+server.headersTimeout = 66000; // must be > keepAliveTimeout
 exports.default = app;
 //# sourceMappingURL=app.js.map

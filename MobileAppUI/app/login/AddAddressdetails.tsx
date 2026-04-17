@@ -92,6 +92,8 @@ export default function AddAddressDetailsScreen() {
         landmark,
         latitude,
         longitude,
+        location,   // Map pin locality (CurrentLocation in DB)
+        address,    // Map pin street address (CurrentAddress in DB)
         saveAs: saveAs || "home", // Default to "home" if not selected
         isDefault: false // New addresses are not default by default
       };

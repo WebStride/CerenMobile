@@ -196,26 +196,46 @@ const params = useLocalSearchParams();
     try {
       console.log('[PinLocation] geocodeAddress -> start', address ? address.slice(0, 120) : address);
       if (!address) return null;
-      if (GOOGLE_MAPS_API_KEY) {
-        const encoded = encodeURIComponent(address);
-        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&key=${GOOGLE_MAPS_API_KEY}&language=en`;
-        const start = Date.now();
-        const resp = await fetch(geocodeUrl);
-        const json = await resp.json();
-        console.log('[PinLocation] geocodeAddress -> google response status', resp.status, 'took', Date.now() - start, 'ms');
-        if (json && Array.isArray(json.results) && json.results.length > 0) {
-          const r = json.results[0];
-          const loc = r.geometry.location;
-          console.log('[PinLocation] geocodeAddress -> parsed location', loc);
-          return {
-            displayName: r.formatted_address,
-            displayAddress: r.formatted_address,
-            latitude: loc.lat,
-            longitude: loc.lng,
-            geometry: r.geometry,
-            formattedAddress: r.formatted_address,
-          } as any;
+      
+      let json: any = null;
+      const start = Date.now();
+      const encoded = encodeURIComponent(address);
+      let status = 0;
+
+      if (API_BASE_URL) {
+        try {
+          const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+          const resp = await fetch(`${proxyBase}/maps/geocode?address=${encoded}`);
+          json = await resp.json();
+          status = resp.status;
+          console.log('[PinLocation] geocodeAddress (proxied) -> status', status, json?.status || json?.error);
+        } catch (err) {
+          console.warn('[PinLocation] Proxy geocodeAddress failed, falling back', err);
+          json = null;
         }
+      }
+      
+      if ((!json || json.error) && GOOGLE_MAPS_API_KEY) {
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&key=${GOOGLE_MAPS_API_KEY}&language=en`;
+        const resp = await fetch(geocodeUrl);
+        json = await resp.json();
+        status = resp.status;
+        console.log('[PinLocation] geocodeAddress (direct) -> status', status, 'took', Date.now() - start, 'ms');
+      }
+
+      if (json && Array.isArray(json.results) && json.results.length > 0) {
+        const r = json.results[0];
+        const loc = r.geometry.location;
+        console.log('[PinLocation] geocodeAddress -> parsed location', loc);
+        return {
+          displayName: r.formatted_address,
+          displayAddress: r.formatted_address,
+          latitude: loc.lat,
+          longitude: loc.lng,
+          geometry: r.geometry,
+          formattedAddress: r.formatted_address,
+        } as any;
+      } else if (json && json.status === 'ZERO_RESULTS') {
         console.log('[PinLocation] geocodeAddress -> google returned no results');
         return null;
       } else {
@@ -507,19 +527,29 @@ const params = useLocalSearchParams();
       let autoResp: Response | null = null;
       let autoJson: any = null;
       if (API_BASE_URL) {
-        // Use server proxy
-        const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
-        autoResp = await fetch(`${proxyBase}/maps/place-autocomplete?input=${encodeURIComponent(searchText)}`);
-        autoJson = await autoResp.json();
-        console.log('[PinLocation] Places autocomplete (proxied) -> status', autoResp.status, autoJson && (autoJson.error_message || autoJson.status));
-        if (autoResp.status !== 200) console.warn('[PinLocation] Proxy autocomplete returned non-200', autoResp.status, autoJson);
-      } else if (GOOGLE_MAPS_API_KEY) {
+        // Try server proxy first; fall back to direct key if proxy fails
+        try {
+          const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+          const resp = await fetch(`${proxyBase}/maps/place-autocomplete?input=${encodeURIComponent(searchText)}`);
+          const json = await resp.json();
+          console.log('[PinLocation] Places autocomplete (proxied) -> status', resp.status, json && (json.error_message || json.status || json.error));
+          if (resp.status === 200 && !json?.error && Array.isArray(json?.predictions)) {
+            autoResp = resp;
+            autoJson = json;
+          } else {
+            console.warn('[PinLocation] Proxy autocomplete failed, falling back to direct API', resp.status, json?.error);
+          }
+        } catch (proxyErr) {
+          console.warn('[PinLocation] Proxy autocomplete threw, falling back to direct API', proxyErr);
+        }
+      }
+      // Use direct API if proxy was skipped, unavailable, or failed
+      if (!autoJson && GOOGLE_MAPS_API_KEY) {
         const input = encodeURIComponent(searchText);
         const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${input}&key=${GOOGLE_MAPS_API_KEY}&components=country:in&language=en`;
-
         autoResp = await fetch(autocompleteUrl);
         autoJson = await autoResp.json();
-        console.log('[PinLocation] Places autocomplete -> status', autoResp.status, 'body:', (autoJson && (autoJson.error_message || autoJson.status)) || autoJson);
+        console.log('[PinLocation] Places autocomplete (direct) -> status', autoResp.status, 'body:', (autoJson && (autoJson.error_message || autoJson.status)) || autoJson);
       }
 
       if (autoJson && Array.isArray(autoJson.predictions) && autoJson.predictions.length > 0) {
@@ -530,19 +560,27 @@ const params = useLocalSearchParams();
           const detailed = await Promise.all(predictions.map(async (p: any) => {
             const placeId = p.place_id;
             try {
-              let detailsResp: any;
-              let detailsJson: any;
+              let detailsJson: any = null;
               if (API_BASE_URL) {
-                const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
-                const resp = await fetch(`${proxyBase}/maps/place-details?place_id=${encodeURIComponent(placeId)}`);
-                detailsResp = resp;
-                detailsJson = await resp.json();
-              } else {
-                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry,name,formatted_address&key=${GOOGLE_MAPS_API_KEY}`;
-                detailsResp = await fetch(detailsUrl);
-                detailsJson = await detailsResp.json();
+                try {
+                  const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+                  const resp = await fetch(`${proxyBase}/maps/place-details?place_id=${encodeURIComponent(placeId)}`);
+                  const json = await resp.json();
+                  if (resp.status === 200 && !json?.error && json?.result) {
+                    detailsJson = json;
+                  } else {
+                    console.warn('[PinLocation] Proxy place-details failed, falling back to direct API', resp.status, json?.error);
+                  }
+                } catch (proxyErr) {
+                  console.warn('[PinLocation] Proxy place-details threw, falling back to direct API', proxyErr);
+                }
               }
-              console.log('[PinLocation] Place details -> place_id', placeId, 'status', detailsResp.status, detailsJson && (detailsJson.error_message || detailsJson.status));
+              if (!detailsJson && GOOGLE_MAPS_API_KEY) {
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry,name,formatted_address&key=${GOOGLE_MAPS_API_KEY}`;
+                const resp = await fetch(detailsUrl);
+                detailsJson = await resp.json();
+              }
+              console.log('[PinLocation] Place details -> place_id', placeId, detailsJson && (detailsJson.error_message || detailsJson.status));
 
               const loc = detailsJson?.result?.geometry?.location;
               const nameText = detailsJson?.result?.name || p.description;
@@ -710,24 +748,71 @@ const params = useLocalSearchParams();
     // Do nothing - let user control the map completely
   };
 
-  const updateAddressFromCoordinate = async (coordinate : any) => {
+  const updateAddressFromCoordinate = async (coordinate: any) => {
     try {
-      const addressResponse = await Location.reverseGeocodeAsync(coordinate);
+      let json: any = null;
+      let status = 0;
 
+      if (API_BASE_URL) {
+        try {
+          const proxyBase = API_BASE_URL.replace(/\/\/$/, '');
+          const proxyUrl = `${proxyBase}/maps/geocode?latlng=${coordinate.latitude},${coordinate.longitude}`;
+          const resp = await fetch(proxyUrl);
+          json = await resp.json();
+          status = resp.status;
+        } catch (err) {
+          console.warn('[PinLocation] Proxy updateAddressFromCoordinate failed, falling back', err);
+          json = null;
+        }
+      }
+
+      // Prefer Google Reverse Geocoding API — far better results than expo-location OS geocoder
+      if ((!json || json.error) && GOOGLE_MAPS_API_KEY) {
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordinate.latitude},${coordinate.longitude}&key=${GOOGLE_MAPS_API_KEY}&language=en`;
+        const resp = await fetch(url);
+        json = await resp.json();
+        status = resp.status;
+        console.log('[PinLocation] updateAddressFromCoordinate (direct) -> google status', json.status);
+      }
+
+      if (json && json.status === 'OK' && json.results && json.results.length > 0) {
+        const result = json.results[0];
+        const components: any[] = result.address_components || [];
+          const get = (type: string) =>
+            components.find((c: any) => c.types.includes(type))?.long_name || '';
+
+          const premise      = get('premise');
+          const streetNum    = get('street_number');
+          const route        = get('route');
+          const sublocality  = get('sublocality_level_1') || get('sublocality');
+          const locality     = get('locality');
+          const adminArea2   = get('administrative_area_level_2');
+          const adminArea1   = get('administrative_area_level_1');
+
+          // Build a human-readable street line (like "12, MG Road" or "Koramangala")
+          const street = [premise, streetNum, route].filter(Boolean).join(' ')
+            || sublocality
+            || result.formatted_address.split(',')[0];
+          const area = [sublocality || locality, adminArea2 || adminArea1]
+            .filter(Boolean)
+            .join(', ');
+
+          setCurrentAddress(street);
+          setCurrentLocation(area || result.formatted_address.split(',').slice(1, 3).join(',').trim());
+          return;
+      }
+
+      // Fallback: expo-location OS reverse geocoder
+      const addressResponse = await Location.reverseGeocodeAsync(coordinate);
       if (addressResponse.length > 0) {
         const address = addressResponse[0];
-        setCurrentAddress(
-          address.street || address.name || "Selected Location",
-        );
+        setCurrentAddress(address.street || address.name || "Selected Location");
         setCurrentLocation(
-          `${address.district || address.city || ""}, ${address.region || ""}`.replace(
-            /^,\s*/,
-            "",
-          ),
+          `${address.district || address.city || ""}, ${address.region || ""}`.replace(/^,\s*/, ""),
         );
       }
     } catch (error) {
-      console.error("Error reverse geocoding:", error);
+      console.error('[PinLocation] updateAddressFromCoordinate error:', error);
       setCurrentAddress("Selected Location");
       setCurrentLocation(
         `${coordinate.latitude.toFixed(4)}, ${coordinate.longitude.toFixed(4)}`,
@@ -925,9 +1010,8 @@ const params = useLocalSearchParams();
       <View style={{ flex: 1 }}>
         <MapView
           ref={mapRef}
-          // Use Google provider only on Android. On iOS use Apple Maps unless
-          // the native Google Maps SDK is configured via app.config.js + prebuild/pods.
-          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          // Use Google Maps on both platforms (requires native dev build, not Expo Go)
+          provider={PROVIDER_GOOGLE}
           style={{ flex: 1 }}
           region={region}
           onPress={onMapPress}
