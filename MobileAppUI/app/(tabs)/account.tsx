@@ -1154,12 +1154,6 @@ export default function AccountScreen() {
     //   onPress: () => router.push('/invoices')
     // },
     {
-      id: 'notifications',
-      title: 'Notifications',
-      icon: 'notifications-outline',
-      onPress: () => Alert.alert("Coming Soon", "Notifications feature is under development.")
-    },
-    {
       id: 'about',
       title: 'About',
       icon: 'information-circle-outline',

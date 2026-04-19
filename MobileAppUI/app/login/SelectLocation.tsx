@@ -11,6 +11,7 @@ import {
   Pressable,
   ScrollView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
@@ -32,6 +33,7 @@ const TEXT_SCALE_LIMIT = 1.1;
 
 export default function SelectRegionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [city, setCity] = useState(cityOptions[0].value);
   const [district, setDistrict] = useState("");
   const [cityDropdownVisible, setCityDropdownVisible] = useState(false);
@@ -59,7 +61,7 @@ export default function SelectRegionScreen() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,

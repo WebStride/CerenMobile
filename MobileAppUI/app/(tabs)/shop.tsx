@@ -353,42 +353,6 @@ const LocationModal = ({
               paddingBottom: 20
             }}
           >
-            {/* Use Current Location */}
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 24,
-                paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: '#F3F4F6'
-              }}
-              onPress={handleUseCurrentLocation}
-              activeOpacity={0.7}
-            >
-              <View style={{
-                backgroundColor: '#DCFCE7',
-                padding: 12,
-                borderRadius: 50,
-                marginRight: 16
-              }}>
-                <Ionicons name="location" size={20} color="#16a34a" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{
-                  color: '#16a34a',
-                  fontSize: 16,
-                  fontWeight: '600',
-                  marginBottom: 4
-                }}>Use your current location</Text>
-                <Text style={{
-                  color: '#6B7280',
-                  fontSize: 14
-                }}>Greenville</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#888" />
-            </TouchableOpacity>
-
             {/* Add New Address */}
             <TouchableOpacity
               style={{
@@ -452,14 +416,204 @@ const LocationModal = ({
             ) : savedAddresses.length > 0 ? (
               savedAddresses.map((address) => (
                 editingAddress?.DeliveryAddressID === address.DeliveryAddressID ? (
-                  // Edit Form (keeping existing edit form code)
+                  // Inline Edit Form
                   <View key={address.DeliveryAddressID} style={{
                     paddingHorizontal: 24,
                     paddingVertical: 16,
                     borderBottomWidth: 1,
-                    borderBottomColor: '#F3F4F6'
+                    borderBottomColor: '#F3F4F6',
+                    backgroundColor: '#F9FAFB'
                   }}>
-                    {/* Edit form content remains the same */}
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 14 }}>
+                      Edit Address
+                    </Text>
+
+                    {/* Name */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Full Name</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.name}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, name: v }))}
+                      placeholder="Name"
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* Phone */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Phone Number</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.phoneNumber}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, phoneNumber: v }))}
+                      placeholder="10-digit mobile number"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                    />
+
+                    {/* House Number */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>House / Flat No.</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.houseNumber}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, houseNumber: v }))}
+                      placeholder="House / Flat No."
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* Building / Block */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Building / Block</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.buildingBlock}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, buildingBlock: v }))}
+                      placeholder="Building / Block / Apartment"
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* Landmark */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Landmark</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.landmark}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, landmark: v }))}
+                      placeholder="Landmark (optional)"
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* City + District row */}
+                    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>City</Text>
+                        <TextInput
+                          style={{
+                            borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                            paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                            color: '#111827', backgroundColor: 'white'
+                          }}
+                          value={editForm.city}
+                          onChangeText={(v) => setEditForm(prev => ({ ...prev, city: v }))}
+                          placeholder="City"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>District</Text>
+                        <TextInput
+                          style={{
+                            borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                            paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                            color: '#111827', backgroundColor: 'white'
+                          }}
+                          value={editForm.district}
+                          onChangeText={(v) => setEditForm(prev => ({ ...prev, district: v }))}
+                          placeholder="District"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      </View>
+                    </View>
+
+                    {/* Pin Code */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Pin Code</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.pinCode}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, pinCode: v }))}
+                      placeholder="6-digit pin code"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                    />
+
+                    {/* Save As pills */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>Save As</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {['home', 'work', 'other'].map((label) => (
+                        <TouchableOpacity
+                          key={label}
+                          onPress={() => setEditForm(prev => ({ ...prev, saveAs: label }))}
+                          style={{
+                            paddingHorizontal: 16, paddingVertical: 8,
+                            borderRadius: 20, borderWidth: 1.5,
+                            borderColor: editForm.saveAs === label ? '#BCD042' : '#E5E7EB',
+                            backgroundColor: editForm.saveAs === label ? '#F7FDE5' : 'white'
+                          }}
+                        >
+                          <Text style={{
+                            fontSize: 13, fontWeight: '500', textTransform: 'capitalize',
+                            color: editForm.saveAs === label ? '#5A7A00' : '#6B7280'
+                          }}>
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Set as default toggle */}
+                    <TouchableOpacity
+                      onPress={() => setEditForm(prev => ({ ...prev, isDefault: !prev.isDefault }))}
+                      style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{
+                        width: 20, height: 20, borderRadius: 4, borderWidth: 1.5,
+                        borderColor: editForm.isDefault ? '#BCD042' : '#D1D5DB',
+                        backgroundColor: editForm.isDefault ? '#BCD042' : 'white',
+                        alignItems: 'center', justifyContent: 'center', marginRight: 8
+                      }}>
+                        {editForm.isDefault && (
+                          <Ionicons name="checkmark" size={13} color="white" />
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 14, color: '#374151' }}>Set as default address</Text>
+                    </TouchableOpacity>
+
+                    {/* Buttons */}
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <TouchableOpacity
+                        onPress={handleCancelEdit}
+                        style={{
+                          flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1,
+                          borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: 'white'
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#6B7280' }}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleSaveEdit}
+                        style={{
+                          flex: 1, paddingVertical: 12, borderRadius: 10,
+                          backgroundColor: '#BCD042', alignItems: 'center'
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A1A' }}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : (
                   // Address Display
@@ -550,7 +704,8 @@ const LocationModal = ({
                             address.HouseNumber,
                             address.BuildingBlock,
                             address.Landmark,
-                            `${address.City}, ${address.District}`,
+                            address.CurrentAddress,
+                            address.CurrentLocation || `${address.City}, ${address.District}`,
                             address.PinCode
                           ].filter(Boolean).join(', ')}
                         </Text>
@@ -1155,9 +1310,10 @@ const HomeScreen = () => {
   const getLocationDisplay = () => {
     // Priority 1: Show default delivery address if available
     if (defaultAddress) {
-      if (defaultAddress.CurrentLocation && defaultAddress.CurrentAddress) {
-        return `${defaultAddress.CurrentAddress}, ${defaultAddress.CurrentLocation}`;
-      }
+      // Prefer pin-selected location data (either field is sufficient)
+      const pinDisplay = [defaultAddress.CurrentAddress, defaultAddress.CurrentLocation].filter(Boolean).join(', ');
+      if (pinDisplay) return pinDisplay;
+
       const parts = [
         defaultAddress.HouseNumber,
         defaultAddress.BuildingBlock,
