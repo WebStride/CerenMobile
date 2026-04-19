@@ -311,17 +311,7 @@ export default function CartScreen() {
   const bottomOffset = (insets.bottom || 0) + 50;
 
   // Calculate bill details
-  const itemsSubtotal = cartTotal;
-  const discountPercent = 13.6;
-  const discountAmount = (itemsSubtotal * discountPercent) / 100;
-  const itemsTotalAfterDiscount = itemsSubtotal - discountAmount;
-  const deliveryCharge = 100;
-  const handlingCharge = 20;
-  const isDeliveryFree = itemsTotalAfterDiscount > 500; // Free delivery above ₹500
-  const isHandlingFree = itemsTotalAfterDiscount > 500; // Free handling above ₹500
-  const totalSavings = discountAmount + (isDeliveryFree ? deliveryCharge : 0) + (isHandlingFree ? handlingCharge : 0);
-  const finalAmount = itemsTotalAfterDiscount + (isDeliveryFree ? 0 : deliveryCharge) + (isHandlingFree ? 0 : handlingCharge);
-  const totalSavingsPercent = ((totalSavings / itemsSubtotal) * 100).toFixed(1);
+  const finalAmount = cartTotal;
 
   // Don't render cart content if user has no store registered (Price on Request users)
   if (isCustomerExists === false || hasStore === false) {
@@ -527,88 +517,14 @@ export default function CartScreen() {
           {/* Separator */}
           <View className="h-px bg-gray-300 my-3" />
 
-          {/* Subtotal */}
-          <View className="flex-row justify-between items-center mb-2">
+          {/* Subtotal / Final Amount */}
+          <View className="flex-row justify-between items-center my-2">
             <View className="flex-row items-center">
               <Ionicons name="receipt-outline" size={16} color="#666" />
-              <Text className="text-gray-900 font-semibold ml-2">Total</Text>
-            </View>
-            <Text className="text-gray-900 font-semibold">₹{itemsSubtotal.toFixed(2)}</Text>
-          </View>
-
-          {/* Separator */}
-          <View className="h-px bg-gray-300 my-3" />
-
-          {/* Items Discount */}
-          <View className="flex-row justify-between items-center mb-2">
-            <View className="flex-row items-center">
-              <Ionicons name="pricetag-outline" size={16} color="#16a34a" />
-              <Text className="text-gray-700 ml-2">Items Discount ({discountPercent}%)</Text>
-            </View>
-            <Text className="text-green-600 font-semibold">- ₹{discountAmount.toFixed(2)}</Text>
-          </View>
-
-          {/* Items Total Price */}
-          <View className="flex-row justify-between items-center mb-2">
-            <View className="flex-row items-center">
-              <Ionicons name="calculator-outline" size={16} color="#666" />
-              <Text className="text-gray-700 ml-2">Items Total Price</Text>
-            </View>
-            <Text className="text-gray-900">₹{itemsTotalAfterDiscount.toFixed(2)}</Text>
-          </View>
-
-          {/* Delivery Charge */}
-          <View className="flex-row justify-between items-center mb-2">
-            <View className="flex-row items-center">
-              <Ionicons name="car-outline" size={16} color="#666" />
-              <Text className="text-gray-700 ml-2">Delivery Charge</Text>
+              <Text className="text-gray-900 font-semibold text-lg ml-2">Total</Text>
             </View>
             <View className="flex-row items-center">
-              {isDeliveryFree && <Text className="text-gray-400 line-through mr-2">₹{deliveryCharge}</Text>}
-              <Text className={isDeliveryFree ? "text-green-600 font-semibold" : "text-gray-900"}>
-                {isDeliveryFree ? "Free" : `₹${deliveryCharge}`}
-              </Text>
-            </View>
-          </View>
-
-          {/* Handling Charge */}
-          <View className="flex-row justify-between items-center mb-2">
-            <View className="flex-row items-center">
-              <Ionicons name="hand-left-outline" size={16} color="#666" />
-              <Text className="text-gray-700 ml-2">Handling Charge</Text>
-            </View>
-            <View className="flex-row items-center">
-              {isHandlingFree && <Text className="text-gray-400 line-through mr-2">₹{handlingCharge}</Text>}
-              <Text className={isHandlingFree ? "text-green-600 font-semibold" : "text-gray-900"}>
-                {isHandlingFree ? "Free" : `₹${handlingCharge}`}
-              </Text>
-            </View>
-          </View>
-
-          {/* Separator */}
-          <View className="h-px bg-gray-300 my-3" />
-
-          {/* Total Savings */}
-          <View className="flex-row justify-between items-center mb-3">
-            <View className="flex-row items-center">
-              <Ionicons name="pricetag" size={16} color="#16a34a" />
-              <Text className="text-green-600 font-semibold ml-2">Total Savings ({totalSavingsPercent}%)</Text>
-            </View>
-            <Text className="text-green-600 font-bold">- ₹{totalSavings.toFixed(2)}</Text>
-          </View>
-
-          {/* Separator */}
-          <View className="h-px bg-gray-400 my-3" />
-
-          {/* Final Amount */}
-          <View className="flex-row justify-between items-center">
-            <View className="flex-row items-center">
-              <Ionicons name="card" size={16} color="#666" />
-              <Text className="text-gray-900 font-bold text-base ml-2">To Pay ({cart.length})</Text>
-            </View>
-            <View className="flex-row items-center">
-              <Text className="text-gray-400 line-through mr-2 text-sm">₹{itemsSubtotal.toFixed(2)}</Text>
-              <Text className="text-gray-900 font-bold text-base">₹{finalAmount.toFixed(2)}</Text>
+              <Text className="text-gray-900 font-bold text-lg">₹{finalAmount.toFixed(2)}</Text>
             </View>
           </View>
         </View>
