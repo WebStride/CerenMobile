@@ -67,7 +67,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <AuthProvider>
         <CartProvider>
-          <FavouritesProvider> {/* Add this wrapper */}
+          <FavouritesProvider>
             <OfflineNotice />
             <Stack screenOptions={{ headerShown: false }} />
           </FavouritesProvider>
