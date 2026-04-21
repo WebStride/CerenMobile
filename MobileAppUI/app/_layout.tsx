@@ -49,7 +49,7 @@ console.error = (...args: any[]) => {
     }
     if (typeof arg === 'string') {
       const str = arg.toLowerCase();
-      if (str.includes('network request failed') || str.includes('network error') || str.includes('error fetching user addresses') || str.includes('error loading invoices') || str.includes('failed to fetch')) return true;
+      if (str.includes('network request failed') || str.includes('network error') || str.includes('error fetching user addresses') || str.includes('error loading invoices') || str.includes('error fetching invoices') || str.includes('failed to fetch')) return true;
     }
     return false;
   });

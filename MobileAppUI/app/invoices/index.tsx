@@ -1064,14 +1064,20 @@ export default function InvoicesScreen() {
 
       console.log('📥 API Response:', JSON.stringify(res, null, 2));
 
-      if (!res || !res.success || !Array.isArray(res.invoices)) {
-        console.error('❌ Invalid API response structure:', { 
+      if (!res || !Array.isArray(res.invoices)) {
+        console.warn('⚠️ Invalid API response structure:', { 
           hasRes: !!res, 
-          hasSuccess: res?.success, 
           isArray: Array.isArray(res?.invoices),
           response: res 
         });
-        throw new Error('Invalid response from API');
+        throw new Error(res?.message || 'Invalid response from API');
+      }
+
+      if (!res.success) {
+        console.warn('⚠️ API returned failure response:', res);
+        if (!res.invoices || res.invoices.length === 0) {
+          throw new Error(res.message || 'Failed to fetch invoices');
+        }
       }
 
       const apiInvoices = res.invoices;
@@ -1175,7 +1181,7 @@ export default function InvoicesScreen() {
         return;
       }
 
-      console.error('❌ Error loading invoices:', err);
+      console.warn('⚠️ Error loading invoices:', err);
       setError(err?.message || 'Failed to load invoices');
       setTransactions([]);
       setFilteredTransactions([]);

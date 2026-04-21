@@ -341,16 +341,6 @@ const OrderDetailScreen = () => {
               Order Again
             </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            className="flex-1 bg-white border border-green-600 py-4 rounded-xl items-center shadow-sm"
-            activeOpacity={0.8}
-            onPress={() => {}}
-          >
-            <Text className="text-green-600 font-semibold text-base">
-              Get Help
-            </Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
