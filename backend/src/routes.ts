@@ -21,6 +21,7 @@ import { getStores } from "./controllers/customer";
 import { getOrdersByCustomer, getOrderItemsByOrder, getInvoicesByCustomer, getInvoiceItemsByInvoice, getInvoicesForCustomer } from "./controllers/orders";
 import { placeOrder } from "./controllers/orders/placeOrder";
 import { submitContactUs } from "./controllers/support";
+import { placeAutocomplete, placeDetails, geocode } from './controllers/maps';
 
 function routes(app: Express) {
 
@@ -101,7 +102,10 @@ function routes(app: Express) {
     // Support routes
     app.post('/support/contact-us', submitContactUs);
     
-    // Maps proxy endpoints removed — using client-side keys / native SDKs instead
+    // Maps proxy endpoints
+    app.get('/maps/place-autocomplete', placeAutocomplete);
+    app.get('/maps/place-details', placeDetails);
+    app.get('/maps/geocode', geocode);
     
 }
 

@@ -395,6 +395,7 @@ These were not direct speed improvements, but they were completed during the sam
 - Auth verify fix for users without a supplied `name`
 - Invoice tab hidden when no store is selected
 - Login font-scaling fixes on affected login screens
+- Added centralized offline UX handling on the mobile app: installed `@react-native-community/netinfo`, created `MobileAppUI/components/OfflineNotice.tsx`, and rendered it in `MobileAppUI/app/_layout.tsx` so offline API fetches show a friendly "No Internet Connection" message instead of raw error states or dev error overlays.
 
 ## Validation Summary
 

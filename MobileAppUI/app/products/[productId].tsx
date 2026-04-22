@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   TextInput,
   Alert,
   Dimensions,
@@ -13,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -171,7 +171,7 @@ const ProductCard = React.memo(({
     >
       <TouchableOpacity
         onPress={handleProductPress}
-        className="flex-1 items-center mb-2 relative"
+        className="items-center mb-2 relative"
         activeOpacity={0.7}
       >
         <Image
@@ -258,12 +258,16 @@ const ProductCard = React.memo(({
             onPress={handleAddToCartPress}
             activeOpacity={0.8}
           >
-            <Text style={{
-              color: 'white',
-              fontWeight: '600',
-              fontSize: 14
-            }}>
-              Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
+            <Text 
+              style={{
+                color: 'white',
+                fontWeight: '600',
+                fontSize: 14
+              }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              Add {minOrder > 1 ? `${minOrder} ` : ''}to Cart
             </Text>
           </TouchableOpacity>
         )}
@@ -576,9 +580,6 @@ export default function ProductDetailsScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Ionicons name="share-outline" size={24} color="#374151" />
         </TouchableOpacity>
       </View>
 
@@ -1055,20 +1056,20 @@ export default function ProductDetailsScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ height: 220 }}>
+          <View style={{ minHeight: 260 }}>
             <FlatList
               data={similarProducts}
               renderItem={renderSimilarProduct}
               keyExtractor={(item, index) => `similar_${item.productId}_${index}`}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 0 }}
+              contentContainerStyle={{ paddingHorizontal: 0, paddingVertical: 4 }}
             />
           </View>
         </View>
       </ScrollView>
 
-      {/* Add To Basket Button - Only for registered users */}
+      {/* Add To Cart Button - Only for registered users */}
       {isCustomerExists && currentProduct.price > 0 && (
         <View style={{
           paddingHorizontal: 16,
@@ -1098,7 +1099,7 @@ export default function ProductDetailsScreen() {
               fontSize: 18,
               fontWeight: 'bold'
             }}>
-              Add To Basket
+              Add to Cart
             </Text>
           </TouchableOpacity>
         </View>

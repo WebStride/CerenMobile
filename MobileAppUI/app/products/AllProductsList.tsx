@@ -6,9 +6,9 @@ import {
   FlatList, 
   ActivityIndicator, 
   Alert,
-  SafeAreaView,
   TextInput
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -514,9 +514,6 @@ const AllProductsList = () => {
         <Text className="text-lg font-semibold text-gray-900 flex-1">
           All Products
         </Text>
-        <TouchableOpacity>
-          <Ionicons name="filter" size={24} color="#374151" />
-        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}

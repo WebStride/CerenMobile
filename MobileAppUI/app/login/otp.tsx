@@ -11,6 +11,7 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import { useLocalSearchParams,  } from "expo-router";
@@ -25,6 +26,7 @@ import { resetToRoute } from "@/utils/navigation";
 
 export default function VerificationScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { refreshCart } = useCart();
   const [code, setCode] = useState("");
   const params = useLocalSearchParams();
@@ -245,7 +247,7 @@ export default function VerificationScreen() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,
@@ -271,8 +273,6 @@ export default function VerificationScreen() {
                 fontWeight: "600",
                 fontSize: 26,
                 color: "#181725",
-                width: 332,
-                height: 29,
               }}
               className="mb-8"
             >
@@ -286,8 +286,6 @@ export default function VerificationScreen() {
                   fontWeight: "600",
                   fontSize: 16,
                   color: "#7C7C7C",
-                  width: 121,
-                  height: 29,
                 }}
                 className="mb-2"
               >

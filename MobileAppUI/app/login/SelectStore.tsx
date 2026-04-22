@@ -14,6 +14,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
@@ -31,6 +32,7 @@ type Store = {
 
 export default function SelectStore() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [saveAs, setSaveAs] = useState("");
   const [houseNumber, setHouseNumber] = useState("");
   const [buildingBlock, setBuildingBlock] = useState("");
@@ -167,7 +169,7 @@ export default function SelectStore() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,

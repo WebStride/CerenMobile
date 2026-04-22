@@ -11,6 +11,7 @@ const customer_1 = require("./controllers/customer");
 const orders_1 = require("./controllers/orders");
 const placeOrder_1 = require("./controllers/orders/placeOrder");
 const support_1 = require("./controllers/support");
+const maps_1 = require("./controllers/maps");
 function routes(app) {
     app.get('/healthcheck', (req, res) => res.sendStatus(200));
     // Auth routes
@@ -71,7 +72,10 @@ function routes(app) {
     app.post('/invoices/by-customer', auth_2.authenticateToken, orders_1.getInvoicesForCustomer);
     // Support routes
     app.post('/support/contact-us', support_1.submitContactUs);
-    // Maps proxy endpoints removed — using client-side keys / native SDKs instead
+    // Maps proxy endpoints
+    app.get('/maps/place-autocomplete', maps_1.placeAutocomplete);
+    app.get('/maps/place-details', maps_1.placeDetails);
+    app.get('/maps/geocode', maps_1.geocode);
 }
 exports.default = routes;
 //# sourceMappingURL=routes.js.map

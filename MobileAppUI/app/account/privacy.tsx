@@ -17,9 +17,10 @@ const PrivacyPolicyScreen = () => {
           <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#10B981', justifyContent: 'center', alignItems: 'center' }}>
             <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
-          <View style={{ position: 'absolute', left: 0, right: 0, alignItems: 'center' }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: '#111827' }}>PRIVACY POLICY</Text>
+          <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 8 }}>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit>PRIVACY POLICY</Text>
           </View>
+          <View style={{ width: 40 }} />
         </View>
       </View>
 

@@ -152,9 +152,10 @@ const InvoiceDetailModal = ({
   onClose: () => void;
   transaction: any;
 }) => {
-  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
-  const [loadingItems, setLoadingItems] = useState(false);
+    const insets = useSafeAreaInsets();
   const [downloading, setDownloading] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
 
   console.log("Invoice Modal - visible:", visible, "transaction:", transaction?.id);
 
@@ -353,7 +354,6 @@ const InvoiceDetailModal = ({
               </View>
 
               {/* Order Number */}
-              {(transaction.details.orderNumber || transaction.details.orderId) && (
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
@@ -365,11 +365,9 @@ const InvoiceDetailModal = ({
                     color: '#111827',
                     fontSize: 14
                   }}>
-                    {transaction.details.orderNumber || `#${transaction.details.orderId}`}
+                    {transaction.details?.orderNumber || (transaction.details?.orderId ? `#${transaction.details.orderId}` : 'N/A')}
                   </Text>
                 </View>
-              )}
-
               {/* Invoice Status */}
               <View style={{
                 flexDirection: 'row',
@@ -447,9 +445,9 @@ const InvoiceDetailModal = ({
                       {/* Right: stacked rows (labels left, values right) */}
                       <View style={{ flex: 1 }}>
                         {/* Product Name (full width) */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <View style={{ marginBottom: 8 }}>
                           <Text style={{ fontWeight: '600', color: '#111827', fontSize: 14 }}>Product Name</Text>
-                          <Text style={{ color: '#6B7280', fontSize: 14 }}>{item.ProductName || 'Unknown Product'}</Text>
+                          <Text numberOfLines={2} style={{ color: '#6B7280', fontSize: 14, marginTop: 2 }}>{item.ProductName || 'Unknown Product'}</Text>
                         </View>
 
                         {/* Sales Qty */}
@@ -509,53 +507,69 @@ const InvoiceDetailModal = ({
             </View>
           </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={{
-            padding: 24,
-            borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            flexDirection: 'row',
-            gap: 12
-          }}>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: downloading ? '#9CA3AF' : '#059669',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center'
-              }}
-              onPress={handleDownloadPDF}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
-              ) : null}
-              <Text style={{
-                color: 'white',
-                fontWeight: '600',
-                fontSize: 16
-              }}>{downloading ? 'Generating...' : 'Download PDF'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: '#F3F4F6',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center'
-              }}
-              onPress={handleDownloadPDF}
-            >
-              <Text style={{
-                color: '#374151',
-                fontWeight: '600',
-                fontSize: 16
-              }}>Share Invoice</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Action Buttons */}
+            <View style={{
+              padding: 24,
+              paddingBottom: Math.max(insets.bottom, 24),
+              borderTopWidth: 1,
+              borderTopColor: '#E5E7EB',
+              flexDirection: 'row',
+              gap: 12
+            }}>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: downloading ? '#9CA3AF' : '#059669',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadPDF}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+                ) : null}
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >{downloading ? 'Generating...' : 'Download PDF'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: '#F3F4F6',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadPDF}
+              >
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: '#374151',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >Share Invoice</Text>
+              </TouchableOpacity>
+            </View>
         </View>
       </View>
     </Modal>
@@ -572,6 +586,7 @@ const PaymentDetailModal = ({
   onClose: () => void;
   transaction: any;
 }) => {
+  const insets = useSafeAreaInsets();
   const [downloading, setDownloading] = useState(false);
   console.log("Payment Modal - visible:", visible, "transaction:", transaction?.id);
 
@@ -702,25 +717,25 @@ const PaymentDetailModal = ({
                 alignItems: 'center',
                 marginBottom: 12
               }}>
-                <View>
+                <View style={{ flex: 1, marginRight: 12 }}>
                   <Text style={{
-                    fontSize: 24,
+                    fontSize: 18,
                     fontWeight: 'bold',
                     color: '#15803D',
                     marginBottom: 4
-                  }}>
+                  }} numberOfLines={1}>
                     {transaction.id}
                   </Text>
                   <Text style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     color: '#16A34A'
-                  }}>
+                  }} numberOfLines={1}>
                     {formatDateTime(transaction.details.paymentDate)}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={{
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: 'bold',
                     color: '#15803D',
                     marginBottom: 4
@@ -731,7 +746,9 @@ const PaymentDetailModal = ({
                     backgroundColor: transaction.details.status === 'Success' ? '#BBF7D0' : '#FECACA',
                     paddingHorizontal: 12,
                     paddingVertical: 4,
-                    borderRadius: 20
+                    borderRadius: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
                     <Text style={{
                       color: transaction.details.status === 'Success' ? '#15803D' : '#DC2626',
@@ -744,55 +761,147 @@ const PaymentDetailModal = ({
                 </View>
               </View>
             </View>
+
+            {/* Payment Information */}
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              marginBottom: 24,
+              overflow: 'hidden'
+            }}>
+              <View style={{
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                backgroundColor: '#F9FAFB',
+                borderBottomWidth: 1,
+                borderBottomColor: '#E5E7EB'
+              }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>Payment Information</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Payment Method</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.paymentMethod}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Transaction ID</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.transactionId}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Reference No.</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.bankReference}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Paid By</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.paidBy}</Text>
+              </View>
+            </View>
+
+            {/* Amount Breakdown */}
+            {(transaction.details.upiAmount > 0 || transaction.details.cashAmount > 0 || transaction.details.chequeAmount > 0) && (
+              <View style={{
+                backgroundColor: 'white',
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#E5E7EB',
+                marginBottom: 24,
+                overflow: 'hidden'
+              }}>
+                <View style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  backgroundColor: '#F9FAFB',
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#E5E7EB'
+                }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>Amount Breakdown</Text>
+                </View>
+                {transaction.details.upiAmount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>UPI</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>₹{transaction.details.upiAmount.toFixed(2)}</Text>
+                  </View>
+                )}
+                {transaction.details.cashAmount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>Cash</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>₹{transaction.details.cashAmount.toFixed(2)}</Text>
+                  </View>
+                )}
+                {transaction.details.chequeAmount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>Cheque</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>₹{transaction.details.chequeAmount.toFixed(2)}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={{
-            padding: 24,
-            borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            flexDirection: 'row',
-            gap: 12
-          }}>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: downloading ? '#9CA3AF' : '#059669',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center'
-              }}
-              onPress={handleDownloadReceipt}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
-              ) : null}
-              <Text style={{
-                color: 'white',
-                fontWeight: '600',
-                fontSize: 16
-              }}>{downloading ? 'Generating...' : 'Download Receipt'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: '#F3F4F6',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center'
-              }}
-              onPress={handleDownloadReceipt}
-            >
-              <Text style={{
-                color: '#374151',
-                fontWeight: '600',
-                fontSize: 16
-              }}>Share Receipt</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Action Buttons */}
+            <View style={{
+              padding: 24,
+              paddingBottom: Math.max(insets.bottom, 24),
+              borderTopWidth: 1,
+              borderTopColor: '#E5E7EB',
+              flexDirection: 'row',
+              gap: 12
+            }}>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: downloading ? '#9CA3AF' : '#059669',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadReceipt}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+                ) : null}
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >{downloading ? 'Generating...' : 'Download Receipt'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: '#F3F4F6',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadReceipt}
+              >
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: '#374151',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >Share Receipt</Text>
+              </TouchableOpacity>
+            </View>
         </View>
       </View>
     </Modal>
@@ -1064,14 +1173,20 @@ export default function InvoicesScreen() {
 
       console.log('📥 API Response:', JSON.stringify(res, null, 2));
 
-      if (!res || !res.success || !Array.isArray(res.invoices)) {
-        console.error('❌ Invalid API response structure:', { 
+      if (!res || !Array.isArray(res.invoices)) {
+        console.warn('⚠️ Invalid API response structure:', { 
           hasRes: !!res, 
-          hasSuccess: res?.success, 
           isArray: Array.isArray(res?.invoices),
           response: res 
         });
-        throw new Error('Invalid response from API');
+        throw new Error(res?.message || 'Invalid response from API');
+      }
+
+      if (!res.success) {
+        console.warn('⚠️ API returned failure response:', res);
+        if (!res.invoices || res.invoices.length === 0) {
+          throw new Error(res.message || 'Failed to fetch invoices');
+        }
       }
 
       const apiInvoices = res.invoices;
@@ -1175,7 +1290,7 @@ export default function InvoicesScreen() {
         return;
       }
 
-      console.error('❌ Error loading invoices:', err);
+      console.warn('⚠️ Error loading invoices:', err);
       setError(err?.message || 'Failed to load invoices');
       setTransactions([]);
       setFilteredTransactions([]);

@@ -724,13 +724,13 @@ export const getInvoices = async (customerId?: number) => {
     debugLog('Get Invoices response status:', response.status);
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      console.error('Error fetching invoices:', err);
+      console.warn('⚠️ Error fetching invoices:', err);
       return { success: false, invoices: [], message: err.message || 'Failed to fetch invoices' };
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error in getInvoices:', error);
+    console.warn('⚠️ Error in getInvoices:', error);
     return { success: false, invoices: [] };
   }
 };
@@ -797,7 +797,7 @@ export const getInvoicesByCustomerAndDateRange = async (
     
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      console.error('Error fetching invoices:', err);
+      console.warn('⚠️ Error fetching invoices:', err);
       return { success: false, invoices: [], message: err.message || err.error || 'Failed to fetch invoices' };
     }
 

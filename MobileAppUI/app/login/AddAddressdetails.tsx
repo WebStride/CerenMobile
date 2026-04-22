@@ -13,6 +13,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -42,6 +43,7 @@ const SAVE_AS_OPTIONS = [
 export default function AddAddressDetailsScreen() {
   console.log("AddAddressDetailsScreen rendering");
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [saveAs, setSaveAs] = useState("home"); // Default to "home"
   const [houseNumber, setHouseNumber] = useState("");
   const [buildingBlock, setBuildingBlock] = useState("");
@@ -92,8 +94,12 @@ export default function AddAddressDetailsScreen() {
         landmark,
         latitude,
         longitude,
+        location,   // Map pin locality (CurrentLocation in DB)
+        address,    // Map pin street address (CurrentAddress in DB)
         saveAs: saveAs || "home", // Default to "home" if not selected
-        isDefault: false // New addresses are not default by default
+        // First-time registration: set as default so the top bar shows the pin location
+        // When coming from the location modal (existing user), keep isDefault false to avoid overriding their current default
+        isDefault: fromLocationModal !== "true"
       };
 
       console.log("Sending address details:", payload);
@@ -224,7 +230,7 @@ export default function AddAddressDetailsScreen() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,
@@ -245,7 +251,7 @@ export default function AddAddressDetailsScreen() {
           {/* Form Section */}
           <ScrollView
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 }}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: Math.max(insets.bottom + 24, 40) }}
           >
             <Text
               allowFontScaling={false}
@@ -472,7 +478,7 @@ export default function AddAddressDetailsScreen() {
             >
               Save Address as
             </Text>
-            <View className="flex-row mb-8">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 32 }}>
               {SAVE_AS_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -480,12 +486,11 @@ export default function AddAddressDetailsScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     paddingVertical: 8,
-                    paddingHorizontal: 20,
+                    paddingHorizontal: 14,
                     borderRadius: 22,
                     borderWidth: 1.5,
                     borderColor: saveAs === option.value ? "#BCD042" : "#EAEAEA",
                     backgroundColor: saveAs === option.value ? "#F9FBEF" : "#fff",
-                    marginRight: 14,
                   }}
                   onPress={() => setSaveAs(option.value)}
                   accessibilityLabel={option.label}

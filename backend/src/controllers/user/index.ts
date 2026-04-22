@@ -66,6 +66,8 @@ export async function submitUserAddress(req: AuthRequest, res: Response) {
                 SaveAs: saveAs || 'home',
                 Latitude: latitude,
                 Longitude: longitude,
+                CurrentLocation: req.body.location || null,
+                CurrentAddress: req.body.address || null,
                 IsDefault: isDefault,
                 Active: true,
                 UpdatedAt: new Date()
@@ -244,7 +246,9 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
         saveAs,
         latitude,
         longitude,
-        isDefault
+        isDefault,
+        location,
+        address
     } = req.body;
 
     // Validate required fields - only core location fields are mandatory
@@ -301,6 +305,8 @@ export async function updateUserAddress(req: AuthRequest, res: Response) {
                 SaveAs: saveAs || null,
                 Latitude: latitude || null,
                 Longitude: longitude || null,
+                CurrentLocation: req.body.location || existingAddress.CurrentLocation,
+                CurrentAddress: req.body.address || existingAddress.CurrentAddress,
                 IsDefault: resolvedIsDefault,
                 UpdatedAt: new Date()
             }

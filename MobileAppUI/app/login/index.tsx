@@ -9,6 +9,7 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import { checkCustomer, sendOtp } from "@/services/api";
@@ -29,6 +30,7 @@ const countryData = {
 
 export default function LoginNumberScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneError, setPhoneError] = useState("");
   const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
@@ -135,7 +137,7 @@ export default function LoginNumberScreen() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,
@@ -161,8 +163,6 @@ export default function LoginNumberScreen() {
                 fontWeight: "600",
                 fontSize: 26,
                 color: "#181725",
-                width: 332,
-                height: 29,
               }}
               className="mb-8"
             >
@@ -193,8 +193,6 @@ export default function LoginNumberScreen() {
                   fontWeight: "600",
                   fontSize: 16,
                   color: "#7C7C7C",
-                  width: 121,
-                  height: 29,
                 }}
                 className="mb-2"
               >

@@ -972,18 +972,23 @@ export default function AccountScreen() {
   };
 
   const openContactModal = () => {
-    const resolvedAddress = defaultAddress
-      ? [
-          defaultAddress.HouseNumber,
-          defaultAddress.BuildingBlock,
-          defaultAddress.Landmark,
-          defaultAddress.City,
-          defaultAddress.District,
-          defaultAddress.PinCode,
-        ]
-          .filter(Boolean)
-          .join(', ')
-      : userMasterAddress || '';
+    let resolvedAddress = userMasterAddress || '';
+    if (defaultAddress) {
+      if (defaultAddress.CurrentAddress && defaultAddress.CurrentLocation) {
+         resolvedAddress = `${defaultAddress.CurrentAddress}, ${defaultAddress.CurrentLocation}`;
+      } else {
+        resolvedAddress = [
+            defaultAddress.HouseNumber,
+            defaultAddress.BuildingBlock,
+            defaultAddress.Landmark,
+            defaultAddress.City,
+            defaultAddress.District,
+            defaultAddress.PinCode,
+          ]
+            .filter(Boolean)
+            .join(', ')
+      }
+    }
 
     setContactForm((prev) => ({
       ...prev,
@@ -1148,12 +1153,6 @@ export default function AccountScreen() {
     //   icon: 'document-text-outline',
     //   onPress: () => router.push('/invoices')
     // },
-    {
-      id: 'notifications',
-      title: 'Notifications',
-      icon: 'notifications-outline',
-      onPress: () => Alert.alert("Coming Soon", "Notifications feature is under development.")
-    },
     {
       id: 'about',
       title: 'About',
@@ -1336,7 +1335,9 @@ export default function AccountScreen() {
                 <Ionicons name="location" size={24} color="#16a34a" className="mr-3 mt-1" />
                 <Text className="text-gray-700 flex-1 leading-5">
                   {defaultAddress
-                    ? `${defaultAddress.HouseNumber || ''} ${defaultAddress.BuildingBlock || ''}, ${defaultAddress.Landmark || ''}, ${defaultAddress.City}, ${defaultAddress.District} - ${defaultAddress.PinCode || ''}`.trim()
+                    ? (defaultAddress.CurrentAddress && defaultAddress.CurrentLocation
+                      ? `${defaultAddress.CurrentAddress}, ${defaultAddress.CurrentLocation}`
+                      : `${defaultAddress.HouseNumber || ''} ${defaultAddress.BuildingBlock || ''}, ${defaultAddress.Landmark || ''}, ${defaultAddress.City}, ${defaultAddress.District} - ${defaultAddress.PinCode || ''}`.trim())
                     : userMasterAddress || "No address available"}
                 </Text>
               </View>
