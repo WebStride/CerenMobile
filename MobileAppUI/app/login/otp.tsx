@@ -11,6 +11,7 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import { useLocalSearchParams,  } from "expo-router";
@@ -20,10 +21,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { verify, sendOtp, register, getStoresForUser } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import { setAuthenticatedSession } from "@/utils/session";
+import { resetToRoute } from "@/utils/navigation";
 
 
 export default function VerificationScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { refreshCart } = useCart();
   const [code, setCode] = useState("");
   const params = useLocalSearchParams();
@@ -32,7 +35,7 @@ export default function VerificationScreen() {
   const [timer, setTimer] = useState(60); // 60 seconds countdown
   const [canResend, setCanResend] = useState(false);
   const { confirmation } = useAuth();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Start timer when component mounts
   useEffect(() => {
@@ -149,7 +152,7 @@ export default function VerificationScreen() {
                   await AsyncStorage.setItem('selectedStoreId', String(singleStore.CUSTOMERID));
                   await AsyncStorage.setItem('selectedStoreName', singleStore.CUSTOMERNAME);
                   console.log('🏪 Auto-selected single store:', singleStore.CUSTOMERNAME);
-                  router.replace({
+                  resetToRoute(router, {
                     pathname: '/(tabs)/shop',
                     params: {
                       customerId: String(singleStore.CUSTOMERID),
@@ -160,7 +163,7 @@ export default function VerificationScreen() {
                   // No stores - go to shop without store (catalog mode)
                   await AsyncStorage.removeItem('selectedStoreId');
                   await AsyncStorage.removeItem('selectedStoreName');
-                  router.replace('/(tabs)/shop');
+                  resetToRoute(router, '/(tabs)/shop');
                 } else {
                   // Multiple stores - show SelectStore page
                   router.push({
@@ -244,7 +247,7 @@ export default function VerificationScreen() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,
@@ -270,8 +273,6 @@ export default function VerificationScreen() {
                 fontWeight: "600",
                 fontSize: 26,
                 color: "#181725",
-                width: 332,
-                height: 29,
               }}
               className="mb-8"
             >
@@ -285,8 +286,6 @@ export default function VerificationScreen() {
                   fontWeight: "600",
                   fontSize: 16,
                   color: "#7C7C7C",
-                  width: 121,
-                  height: 29,
                 }}
                 className="mb-2"
               >

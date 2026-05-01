@@ -1,8 +1,23 @@
-Here is a refined and optimized version of your "copilot-instructions.md" as a Prompt Expert, including clear structure, concise language, and best practices for full-stack development and senior architect roles.
-
-***
-
 # Ceren Mobile App - AI Copilot Instructions
+
+## Mandatory Project References
+
+Before making recommendations, writing code, or reviewing changes, always anchor your work to these project documents:
+
+- `docs/architecture.md` is the source of truth for the system architecture, data model boundaries, authentication flow, and the critical distinction between `USERCUSTOMERMASTER.id` and `CUSTOMERMASTER.CUSTOMERID`.
+- `.github/design.md` is the source of truth for product design direction, mobile UX expectations, component behavior, and visual consistency.
+- `.github/memory/decisions.md` is the source of truth for project-specific AI memory when prior implementation decisions need to be preserved across sessions.
+- `.github/memory/lessons.md` and `.github/memory/anti-patterns.md` capture prior session learnings and repeated mistakes to avoid.
+
+Operational rules:
+
+- For backend, auth, cart, favourites, orders, invoices, store-selection, or database work, read and follow `docs/architecture.md` first.
+- For mobile screens, UI components, onboarding, forms, navigation flows, or UX decisions, read and follow `.github/design.md` first.
+- Before repeating an approach that previously caused bugs or churn, check `.github/memory/anti-patterns.md` and `.github/memory/lessons.md`.
+- If a new architecture or implementation decision should persist across sessions, record it in `.github/memory/decisions.md`.
+- For changes that touch both behavior and UI, follow both documents together.
+- If existing code conflicts with these documents, do not silently copy the inconsistency forward. Call it out and prefer the documented architecture and design intent unless the user explicitly asks otherwise.
+- Do not invent new product behavior, identity assumptions, or styling direction when the answer already exists in these files.
 
 ## Project Overview  
 This project is a Mobile Application for wholesalers to buy goods from us - a production company. The app allows users to browse products, place orders, and manage their accounts seamlessly. Using Google Maps API, users can locate nearby distributors and track deliveries in real-time. The backend is powered by a Node.js server with a MySQL database, ensuring robust data management and security. Prisma ORM is utilized for efficient database interactions, while RESTful APIs facilitate smooth communication between the frontend and backend. The app is built with React Native and Expo, providing a responsive and user-friendly interface across various devices. Using MSG91 SMS API, the app sends order confirmations and delivery updates via SMS to enhance user engagement and satisfaction and for otp verification during signup/login.

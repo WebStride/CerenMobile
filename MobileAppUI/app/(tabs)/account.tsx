@@ -28,6 +28,14 @@ import {
 } from "@/services/api";
 import { isGuestSession } from "@/utils/session";
 import { useCart } from "@/app/context/CartContext";
+import {
+  INDIA_COUNTRY_CODE,
+  sanitizeIndianMobileInput,
+  validateIndianMobile,
+  toIndianE164,
+  formatIndianMobileForDisplay,
+} from "@/utils/phoneNumber";
+import { useSubmissionGuard } from "@/utils/useSubmissionGuard";
 
 const { height, width } = Dimensions.get('window');
 
@@ -67,6 +75,7 @@ const LocationModal = ({
   onAddNewAddress?: () => void;
   onAddressSetAsDefault?: () => void;
 }) => {
+  const { isSubmitting: isSavingEdit, runWithGuard: runSaveEdit } = useSubmissionGuard();
   const [searchText, setSearchText] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
@@ -118,7 +127,7 @@ const LocationModal = ({
     setEditingAddress(address);
     setEditForm({
       name: address.Name || '',
-      phoneNumber: address.PhoneNumber || '',
+      phoneNumber: sanitizeIndianMobileInput(address.PhoneNumber || ''),
       houseNumber: address.HouseNumber || '',
       buildingBlock: address.BuildingBlock || '',
       landmark: address.Landmark || '',
@@ -161,28 +170,38 @@ const LocationModal = ({
     setMenuVisible(null);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingAddress) return;
+  const handleSaveEdit = () =>
+    runSaveEdit(async () => {
+      if (!editingAddress) return;
 
-    console.log('💾 Saving address edit:', editForm);
-    console.log('📍 Address ID:', editingAddress.DeliveryAddressID);
-
-    try {
-      const result = await updateUserAddress(editingAddress.DeliveryAddressID, editForm);
-      console.log('✅ Update result:', result);
-      if (result.success) {
-        await fetchUserAddresses();
-        setEditingAddress(null);
-        Alert.alert('Success', 'Address updated successfully');
-      } else {
-        console.error('❌ Update failed:', result.message);
-        Alert.alert('Error', result.message || 'Failed to update address');
+      const phoneError = validateIndianMobile(editForm.phoneNumber);
+      if (phoneError) {
+        Alert.alert('Invalid phone number', phoneError);
+        return;
       }
-    } catch (error) {
-      console.error('❌ Update error:', error);
-      Alert.alert('Error', 'Failed to update address');
-    }
-  };
+
+      console.log('💾 Saving address edit:', editForm);
+      console.log('📍 Address ID:', editingAddress.DeliveryAddressID);
+
+      try {
+        const result = await updateUserAddress(editingAddress.DeliveryAddressID, {
+          ...editForm,
+          phoneNumber: toIndianE164(editForm.phoneNumber),
+        });
+        console.log('✅ Update result:', result);
+        if (result.success) {
+          await fetchUserAddresses();
+          setEditingAddress(null);
+          Alert.alert('Success', 'Address updated successfully');
+        } else {
+          console.error('❌ Update failed:', result.message);
+          Alert.alert('Error', result.message || 'Failed to update address');
+        }
+      } catch (error) {
+        console.error('❌ Update error:', error);
+        Alert.alert('Error', 'Failed to update address');
+      }
+    });
 
   const handleCancelEdit = () => {
     setEditingAddress(null);
@@ -392,19 +411,38 @@ const LocationModal = ({
 
                     <View style={{ marginBottom: 12 }}>
                       <Text style={{ fontSize: 14, color: '#374151', marginBottom: 4 }}>Phone Number</Text>
-                      <TextInput
-                        style={{
-                          borderWidth: 1,
-                          borderColor: '#D1D5DB',
-                          borderRadius: 8,
-                          padding: 12,
-                          fontSize: 16
-                        }}
-                        value={editForm.phoneNumber}
-                        onChangeText={(text) => setEditForm(prev => ({ ...prev, phoneNumber: text }))}
-                        placeholder="Phone number"
-                        keyboardType="phone-pad"
-                      />
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: '#D1D5DB',
+                        borderRadius: 8,
+                        paddingHorizontal: 12,
+                        backgroundColor: '#FFFFFF'
+                      }}>
+                        <Text style={{ fontSize: 16, color: '#111827', fontWeight: '600', marginRight: 8 }}>
+                          {INDIA_COUNTRY_CODE}
+                        </Text>
+                        <TextInput
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            fontSize: 16
+                          }}
+                          value={editForm.phoneNumber}
+                          onChangeText={(text) => setEditForm(prev => ({ ...prev, phoneNumber: sanitizeIndianMobileInput(text) }))}
+                          placeholder="9876543210"
+                          keyboardType="phone-pad"
+                          autoComplete="tel"
+                          textContentType="telephoneNumber"
+                          maxLength={10}
+                        />
+                      </View>
+                      {!!editForm.phoneNumber && !!validateIndianMobile(editForm.phoneNumber) && (
+                        <Text style={{ color: '#DC2626', fontSize: 12, marginTop: 6 }}>
+                          {validateIndianMobile(editForm.phoneNumber)}
+                        </Text>
+                      )}
                     </View>
 
                     <View style={{ flexDirection: 'row', marginBottom: 12 }}>
@@ -512,24 +550,34 @@ const LocationModal = ({
                           padding: 12,
                           borderRadius: 8,
                           marginRight: 8,
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          opacity: isSavingEdit ? 0.6 : 1,
                         }}
                         onPress={handleCancelEdit}
+                        disabled={isSavingEdit}
                       >
                         <Text style={{ color: '#374151', fontWeight: '600' }}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={{
                           flex: 1,
-                          backgroundColor: '#16a34a',
+                          backgroundColor: isSavingEdit ? '#9CA3AF' : '#16a34a',
                           padding: 12,
                           borderRadius: 8,
                           marginLeft: 8,
                           alignItems: 'center'
                         }}
                         onPress={handleSaveEdit}
+                        disabled={isSavingEdit}
                       >
-                        <Text style={{ color: 'white', fontWeight: '600' }}>Save</Text>
+                        {isSavingEdit ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={{ color: 'white', fontWeight: '600' }}>Saving...</Text>
+                          </View>
+                        ) : (
+                          <Text style={{ color: 'white', fontWeight: '600' }}>Save</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -633,7 +681,7 @@ const LocationModal = ({
                                 fontSize: 13,
                                 marginBottom: 2
                               }}>
-                                {address.PhoneNumber}
+                                {formatIndianMobileForDisplay(address.PhoneNumber)}
                               </Text>
                             )}
                           </View>
@@ -799,18 +847,7 @@ export default function AccountScreen() {
 
   // Phone formatter utility: "+917077404655" -> "+91 70774 04655"
   const formatPhoneNumber = (phone: string): string => {
-    if (!phone) return "Phone not available";
-    // Remove all spaces first
-    const cleaned = phone.replace(/\s/g, '');
-    // Check if it starts with +91
-    if (cleaned.startsWith('+91')) {
-      const number = cleaned.substring(3);
-      // Format as +91 XXXXX XXXXX
-      if (number.length === 10) {
-        return `+91 ${number.substring(0, 5)} ${number.substring(5)}`;
-      }
-    }
-    return phone; // Return as-is if format doesn't match
+    return formatIndianMobileForDisplay(phone);
   };
 
   // Fetch store name and phone number from AsyncStorage
@@ -948,23 +985,28 @@ export default function AccountScreen() {
   };
 
   const openContactModal = () => {
-    const resolvedAddress = defaultAddress
-      ? [
-          defaultAddress.HouseNumber,
-          defaultAddress.BuildingBlock,
-          defaultAddress.Landmark,
-          defaultAddress.City,
-          defaultAddress.District,
-          defaultAddress.PinCode,
-        ]
-          .filter(Boolean)
-          .join(', ')
-      : userMasterAddress || '';
+    let resolvedAddress = userMasterAddress || '';
+    if (defaultAddress) {
+      if (defaultAddress.CurrentAddress && defaultAddress.CurrentLocation) {
+         resolvedAddress = `${defaultAddress.CurrentAddress}, ${defaultAddress.CurrentLocation}`;
+      } else {
+        resolvedAddress = [
+            defaultAddress.HouseNumber,
+            defaultAddress.BuildingBlock,
+            defaultAddress.Landmark,
+            defaultAddress.City,
+            defaultAddress.District,
+            defaultAddress.PinCode,
+          ]
+            .filter(Boolean)
+            .join(', ')
+      }
+    }
 
     setContactForm((prev) => ({
       ...prev,
       name: isGuest ? '' : (storeName || ''),
-      phoneNumber: isGuest ? '' : (phoneNumber || ''),
+      phoneNumber: isGuest ? '' : sanitizeIndianMobileInput(phoneNumber || ''),
       address: isGuest ? '' : resolvedAddress,
       message: '',
     }));
@@ -978,6 +1020,12 @@ export default function AccountScreen() {
       return;
     }
 
+    const phoneError = validateIndianMobile(contactForm.phoneNumber);
+    if (phoneError) {
+      Alert.alert('Invalid phone number', phoneError);
+      return;
+    }
+
     setContactSubmitting(true);
     try {
       // Get current date time in format YYYY-MM-DD HH:MM
@@ -985,10 +1033,7 @@ export default function AccountScreen() {
       const dateTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
       // Format phone number for international format
-      let formattedPhone = contactForm.phoneNumber.trim();
-      if (!formattedPhone.startsWith('+') && !formattedPhone.startsWith('91')) {
-        formattedPhone = '91' + formattedPhone;
-      }
+      const formattedPhone = toIndianE164(contactForm.phoneNumber);
 
       // Send WhatsApp notification via MSG91
       const whatsappResult = await sendCustomerCareWhatsApp({
@@ -1005,7 +1050,7 @@ export default function AccountScreen() {
       // Also submit to backend API (optional - for record keeping)
       const result = await submitContactUs({
         name: contactForm.name.trim(),
-        phoneNumber: contactForm.phoneNumber.trim(),
+        phoneNumber: formattedPhone,
         address: contactForm.address.trim(),
         message: contactForm.message.trim(),
         requestType: contactForm.requestType,
@@ -1121,12 +1166,6 @@ export default function AccountScreen() {
     //   icon: 'document-text-outline',
     //   onPress: () => router.push('/invoices')
     // },
-    {
-      id: 'notifications',
-      title: 'Notifications',
-      icon: 'notifications-outline',
-      onPress: () => Alert.alert("Coming Soon", "Notifications feature is under development.")
-    },
     {
       id: 'about',
       title: 'About',
@@ -1309,7 +1348,9 @@ export default function AccountScreen() {
                 <Ionicons name="location" size={24} color="#16a34a" className="mr-3 mt-1" />
                 <Text className="text-gray-700 flex-1 leading-5">
                   {defaultAddress
-                    ? `${defaultAddress.HouseNumber || ''} ${defaultAddress.BuildingBlock || ''}, ${defaultAddress.Landmark || ''}, ${defaultAddress.City}, ${defaultAddress.District} - ${defaultAddress.PinCode || ''}`.trim()
+                    ? (defaultAddress.CurrentAddress && defaultAddress.CurrentLocation
+                      ? `${defaultAddress.CurrentAddress}, ${defaultAddress.CurrentLocation}`
+                      : `${defaultAddress.HouseNumber || ''} ${defaultAddress.BuildingBlock || ''}, ${defaultAddress.Landmark || ''}, ${defaultAddress.City}, ${defaultAddress.District} - ${defaultAddress.PinCode || ''}`.trim())
                     : userMasterAddress || "No address available"}
                 </Text>
               </View>
@@ -1374,13 +1415,24 @@ export default function AccountScreen() {
               onChangeText={(text) => setContactForm((prev) => ({ ...prev, name: text }))}
               style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, marginBottom: 10 }}
             />
-            <TextInput
-              placeholder="Phone Number"
-              value={contactForm.phoneNumber}
-              onChangeText={(text) => setContactForm((prev) => ({ ...prev, phoneNumber: text }))}
-              keyboardType="phone-pad"
-              style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, padding: 12, marginBottom: 10 }}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, marginBottom: 10 }}>
+              <Text style={{ color: '#111827', fontSize: 16, fontWeight: '600', marginRight: 8 }}>{INDIA_COUNTRY_CODE}</Text>
+              <TextInput
+                placeholder="9876543210"
+                value={contactForm.phoneNumber}
+                onChangeText={(text) => setContactForm((prev) => ({ ...prev, phoneNumber: sanitizeIndianMobileInput(text) }))}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
+                maxLength={10}
+                style={{ flex: 1, paddingVertical: 12 }}
+              />
+            </View>
+            {!!contactForm.phoneNumber && !!validateIndianMobile(contactForm.phoneNumber) && (
+              <Text style={{ color: '#DC2626', fontSize: 12, marginBottom: 10 }}>
+                {validateIndianMobile(contactForm.phoneNumber)}
+              </Text>
+            )}
             <TextInput
               placeholder="Address"
               value={contactForm.address}

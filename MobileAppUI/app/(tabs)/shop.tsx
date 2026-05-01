@@ -38,6 +38,14 @@ import {
 import { useCart } from "../context/CartContext";
 import { isGuestSession } from "@/utils/session";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
+import { QuantitySelector } from "@/components/QuantitySelector";
+import {
+  sanitizeIndianMobileInput,
+  validateIndianMobile,
+  toIndianE164,
+  formatIndianMobileForDisplay,
+} from "@/utils/phoneNumber";
+import { useSubmissionGuard } from "@/utils/useSubmissionGuard";
 
 const { height, width } = Dimensions.get('window');
 
@@ -89,6 +97,29 @@ const fallbackImages = [
   require("../../assets/images/LocationThumbnail.png"),
   require("../../assets/images/HomeLogo.png"),
 ];
+const HOME_RAIL_PADDING_LEFT = 16;
+const HOME_PRODUCT_CARD_WIDTH = 160;
+const HOME_PRODUCT_CARD_SPACING = 16;
+const HOME_PRODUCT_CARD_ITEM_SIZE = HOME_PRODUCT_CARD_WIDTH + HOME_PRODUCT_CARD_SPACING;
+const HOME_CATEGORY_CARD_WIDTH = 192;
+const HOME_CATEGORY_CARD_SPACING = 12;
+const HOME_CATEGORY_CARD_ITEM_SIZE = HOME_CATEGORY_CARD_WIDTH + HOME_CATEGORY_CARD_SPACING;
+
+const createHorizontalItemLayout = (itemSize: number, leadingPadding = 0) =>
+  (_data: ArrayLike<unknown> | null | undefined, index: number) => ({
+    length: itemSize,
+    offset: leadingPadding + itemSize * index,
+    index,
+  });
+
+const getHomeProductItemLayout = createHorizontalItemLayout(
+  HOME_PRODUCT_CARD_ITEM_SIZE,
+  HOME_RAIL_PADDING_LEFT,
+);
+const getHomeCategoryItemLayout = createHorizontalItemLayout(
+  HOME_CATEGORY_CARD_ITEM_SIZE,
+  HOME_RAIL_PADDING_LEFT,
+);
 
 // ---------- Fixed Location Selection Modal ----------
 const LocationModal = ({
@@ -104,6 +135,7 @@ const LocationModal = ({
   onAddNewAddress?: () => void;
   onAddressSetAsDefault?: () => void;
 }) => {
+  const { isSubmitting: isSavingEdit, runWithGuard: runSaveEdit } = useSubmissionGuard();
   const [searchText, setSearchText] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
@@ -160,7 +192,7 @@ const LocationModal = ({
     setEditingAddress(address);
     setEditForm({
       name: address.Name || '',
-      phoneNumber: address.PhoneNumber || '',
+      phoneNumber: sanitizeIndianMobileInput(address.PhoneNumber || ''),
       houseNumber: address.HouseNumber || '',
       buildingBlock: address.BuildingBlock || '',
       landmark: address.Landmark || '',
@@ -201,22 +233,32 @@ const LocationModal = ({
     setMenuVisible(null);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingAddress) return;
+  const handleSaveEdit = () =>
+    runSaveEdit(async () => {
+      if (!editingAddress) return;
 
-    try {
-      const result = await updateUserAddress(editingAddress.DeliveryAddressID, editForm);
-      if (result.success) {
-        await fetchUserAddresses();
-        setEditingAddress(null);
-        Alert.alert('Success', 'Address updated successfully');
-      } else {
-        Alert.alert('Error', result.message || 'Failed to update address');
+      const phoneError = validateIndianMobile(editForm.phoneNumber);
+      if (phoneError) {
+        Alert.alert('Invalid phone number', phoneError);
+        return;
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update address');
-    }
-  };
+
+      try {
+        const result = await updateUserAddress(editingAddress.DeliveryAddressID, {
+          ...editForm,
+          phoneNumber: toIndianE164(editForm.phoneNumber),
+        });
+        if (result.success) {
+          await fetchUserAddresses();
+          setEditingAddress(null);
+          Alert.alert('Success', 'Address updated successfully');
+        } else {
+          Alert.alert('Error', result.message || 'Failed to update address');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to update address');
+      }
+    });
 
   const handleCancelEdit = () => {
     setEditingAddress(null);
@@ -314,42 +356,6 @@ const LocationModal = ({
               paddingBottom: 20
             }}
           >
-            {/* Use Current Location */}
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 24,
-                paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: '#F3F4F6'
-              }}
-              onPress={handleUseCurrentLocation}
-              activeOpacity={0.7}
-            >
-              <View style={{
-                backgroundColor: '#DCFCE7',
-                padding: 12,
-                borderRadius: 50,
-                marginRight: 16
-              }}>
-                <Ionicons name="location" size={20} color="#16a34a" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{
-                  color: '#16a34a',
-                  fontSize: 16,
-                  fontWeight: '600',
-                  marginBottom: 4
-                }}>Use your current location</Text>
-                <Text style={{
-                  color: '#6B7280',
-                  fontSize: 14
-                }}>Greenville</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#888" />
-            </TouchableOpacity>
-
             {/* Add New Address */}
             <TouchableOpacity
               style={{
@@ -413,14 +419,214 @@ const LocationModal = ({
             ) : savedAddresses.length > 0 ? (
               savedAddresses.map((address) => (
                 editingAddress?.DeliveryAddressID === address.DeliveryAddressID ? (
-                  // Edit Form (keeping existing edit form code)
+                  // Inline Edit Form
                   <View key={address.DeliveryAddressID} style={{
                     paddingHorizontal: 24,
                     paddingVertical: 16,
                     borderBottomWidth: 1,
-                    borderBottomColor: '#F3F4F6'
+                    borderBottomColor: '#F3F4F6',
+                    backgroundColor: '#F9FAFB'
                   }}>
-                    {/* Edit form content remains the same */}
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 14 }}>
+                      Edit Address
+                    </Text>
+
+                    {/* Name */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Full Name</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.name}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, name: v }))}
+                      placeholder="Name"
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* Phone */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Phone Number</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.phoneNumber}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, phoneNumber: v }))}
+                      placeholder="10-digit mobile number"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                    />
+
+                    {/* House Number */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>House / Flat No.</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.houseNumber}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, houseNumber: v }))}
+                      placeholder="House / Flat No."
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* Building / Block */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Building / Block</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.buildingBlock}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, buildingBlock: v }))}
+                      placeholder="Building / Block / Apartment"
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* Landmark */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Landmark</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.landmark}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, landmark: v }))}
+                      placeholder="Landmark (optional)"
+                      placeholderTextColor="#9CA3AF"
+                    />
+
+                    {/* City + District row */}
+                    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>City</Text>
+                        <TextInput
+                          style={{
+                            borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                            paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                            color: '#111827', backgroundColor: 'white'
+                          }}
+                          value={editForm.city}
+                          onChangeText={(v) => setEditForm(prev => ({ ...prev, city: v }))}
+                          placeholder="City"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>District</Text>
+                        <TextInput
+                          style={{
+                            borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                            paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                            color: '#111827', backgroundColor: 'white'
+                          }}
+                          value={editForm.district}
+                          onChangeText={(v) => setEditForm(prev => ({ ...prev, district: v }))}
+                          placeholder="District"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      </View>
+                    </View>
+
+                    {/* Pin Code */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Pin Code</Text>
+                    <TextInput
+                      style={{
+                        borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
+                        paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
+                        color: '#111827', backgroundColor: 'white', marginBottom: 10
+                      }}
+                      value={editForm.pinCode}
+                      onChangeText={(v) => setEditForm(prev => ({ ...prev, pinCode: v }))}
+                      placeholder="6-digit pin code"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                    />
+
+                    {/* Save As pills */}
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>Save As</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                      {['home', 'work', 'other'].map((label) => (
+                        <TouchableOpacity
+                          key={label}
+                          onPress={() => setEditForm(prev => ({ ...prev, saveAs: label }))}
+                          style={{
+                            paddingHorizontal: 16, paddingVertical: 8,
+                            borderRadius: 20, borderWidth: 1.5,
+                            borderColor: editForm.saveAs === label ? '#BCD042' : '#E5E7EB',
+                            backgroundColor: editForm.saveAs === label ? '#F7FDE5' : 'white'
+                          }}
+                        >
+                          <Text style={{
+                            fontSize: 13, fontWeight: '500', textTransform: 'capitalize',
+                            color: editForm.saveAs === label ? '#5A7A00' : '#6B7280'
+                          }}>
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Set as default toggle */}
+                    <TouchableOpacity
+                      onPress={() => setEditForm(prev => ({ ...prev, isDefault: !prev.isDefault }))}
+                      style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{
+                        width: 20, height: 20, borderRadius: 4, borderWidth: 1.5,
+                        borderColor: editForm.isDefault ? '#BCD042' : '#D1D5DB',
+                        backgroundColor: editForm.isDefault ? '#BCD042' : 'white',
+                        alignItems: 'center', justifyContent: 'center', marginRight: 8
+                      }}>
+                        {editForm.isDefault && (
+                          <Ionicons name="checkmark" size={13} color="white" />
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 14, color: '#374151' }}>Set as default address</Text>
+                    </TouchableOpacity>
+
+                    {/* Buttons */}
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <TouchableOpacity
+                        onPress={handleCancelEdit}
+                        style={{
+                          flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1,
+                          borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: 'white',
+                          opacity: isSavingEdit ? 0.6 : 1,
+                        }}
+                        disabled={isSavingEdit}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#6B7280' }}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleSaveEdit}
+                        style={{
+                          flex: 1, paddingVertical: 12, borderRadius: 10,
+                          backgroundColor: isSavingEdit ? '#A8B77B' : '#BCD042', alignItems: 'center'
+                        }}
+                        disabled={isSavingEdit}
+                        activeOpacity={0.8}
+                      >
+                        {isSavingEdit ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <ActivityIndicator size="small" color="#1A1A1A" style={{ marginRight: 8 }} />
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A1A' }}>Saving...</Text>
+                          </View>
+                        ) : (
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A1A' }}>Save</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : (
                   // Address Display
@@ -511,7 +717,8 @@ const LocationModal = ({
                             address.HouseNumber,
                             address.BuildingBlock,
                             address.Landmark,
-                            `${address.City}, ${address.District}`,
+                            address.CurrentAddress,
+                            address.CurrentLocation || `${address.City}, ${address.District}`,
                             address.PinCode
                           ].filter(Boolean).join(', ')}
                         </Text>
@@ -521,7 +728,7 @@ const LocationModal = ({
                             fontSize: 12,
                             marginTop: 4
                           }}>
-                            {[address.Name, address.PhoneNumber].filter(Boolean).join(' • ')}
+                          {[address.Name, address.PhoneNumber ? formatIndianMobileForDisplay(address.PhoneNumber) : null].filter(Boolean).join(' • ')}
                           </Text>
                         )}
                       </View>
@@ -802,7 +1009,7 @@ const ProductCard = React.memo(({
   sectionKey: string;
   index: number;
 }) => {
-  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, setQuantity } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const router = useRouter();
 
@@ -812,23 +1019,17 @@ const ProductCard = React.memo(({
   const minOrder = item.minOrderQuantity || (item as any).minimumOrderQuantity || 1;
 
   const [showControls, setShowControls] = useState(!!cartItem);
-  const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
-  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
 
   useEffect(() => {
     if (cartItem) {
-      setQtyInput(String(cartItem.quantity));
-      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
-      setQtyInput(String(minOrder));
-      setTempInput(String(minOrder));
     }
-  }, [cartItem, showControls, minOrder]);
+  }, [cartItem, showControls]);
 
   const handleProductPress = useCallback(() => {
     router.push({
@@ -882,93 +1083,30 @@ const ProductCard = React.memo(({
       return;
     }
 
-    const qty = Math.max(Number(qtyInput), minOrder);
-    
-    // Add the item with the correct quantity in one call
+    // Add the item with MOQ
     addToCart({
       productId: item.productId,
       productName: item.productName,
-      price: item.price || 0, // Use 0 if price is null (catalog mode)
+      price: item.price || 0,
       image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
       productUnits: item.productUnits,
       unitsOfMeasurement: item.unitsOfMeasurement,
-    }, qty);
+    }, minOrder);
     
     setShowControls(true);
-  }, [item, addToCart, qtyInput, minOrder, isCustomerExists]);
+  }, [item, addToCart, minOrder, isCustomerExists]);
 
-  const handleInputChange = useCallback((val: string) => {
-    // Check if user is registered before allowing cart access
+  const handleSetQuantity = useCallback((qty: number) => {
     if (!isCustomerExists) {
       Alert.alert(
         'Registration Required',
         'Please register in the app to access the add to cart feature.',
-        [
-          { text: 'OK', style: 'cancel' }
-        ]
+        [{ text: 'OK', style: 'cancel' }]
       );
       return;
     }
-
-    // Just update temporary display without validation
-    const onlyDigits = val.replace(/[^0-9]/g, "");
-    setTempInput(onlyDigits);
-  }, [isCustomerExists]);
-
-  // Validate and apply changes when user finishes editing
-  const handleBlur = useCallback(() => {
-    if (!isCustomerExists) return;
-
-    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
-
-    // If empty or below MOQ, snap to minimum quantity
-    if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      const snapQty = minOrder;
-      setTempInput(String(snapQty));
-      setQtyInput(String(snapQty));
-      
-      // Update cart to minimum quantity
-      if (cartItem) {
-        const diff = snapQty - cartItem.quantity;
-        if (diff > 0) {
-          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-        } else if (diff < 0) {
-          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-        }
-      } else {
-        addToCart({
-          productId: item.productId,
-          productName: item.productName,
-          price: item.price || 0,
-          image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
-          productUnits: item.productUnits,
-          unitsOfMeasurement: item.unitsOfMeasurement,
-        }, snapQty);
-      }
-      return;
-    }
-
-    const numVal = Number(onlyDigits);
-    setQtyInput(String(numVal));
-
-    if (!cartItem && numVal >= minOrder) {
-      addToCart({
-        productId: item.productId,
-        productName: item.productName,
-        price: item.price || 0,
-        image: typeof (item as any).image === 'number' ? '' : (item.image as string | null),
-        productUnits: item.productUnits,
-        unitsOfMeasurement: item.unitsOfMeasurement,
-      }, numVal);
-    } else if (cartItem) {
-      const diff = numVal - cartItem.quantity;
-      if (diff > 0) {
-        for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-      } else if (diff < 0) {
-        for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-      }
-    }
-  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder, isCustomerExists]);
+    setQuantity(item.productId, qty);
+  }, [isCustomerExists, setQuantity, item.productId]);
 
   const handleDecrease = useCallback(() => {
     // Check if user is registered before allowing cart access
@@ -1009,21 +1147,35 @@ const ProductCard = React.memo(({
   return (
     <View
       key={uniqueInstanceId}
-      className="bg-white rounded-xl p-3 mr-4 w-40 border border-gray-100"
+      className="bg-white rounded-xl p-3 border border-gray-100"
+      style={{ minHeight: 292, marginRight: HOME_PRODUCT_CARD_SPACING, width: HOME_PRODUCT_CARD_WIDTH }}
     >
       <TouchableOpacity
         onPress={handleProductPress}
-        className="flex-1 items-center mb-2 relative"
+        style={{ alignItems: 'center', marginBottom: 10, position: 'relative' }}
         activeOpacity={0.7}
       >
-        <Image
-          source={getImageSource()}
-          placeholder={blurhash}
-          contentFit="contain"
-          transition={200}
-          cachePolicy="memory-disk"
-          style={{ width: 112, height: 112, marginBottom: 8, backgroundColor: '#f3f4f6' }}
-        />
+        <View
+          style={{
+            width: 112,
+            height: 112,
+            borderRadius: 12,
+            backgroundColor: '#f3f4f6',
+            overflow: 'hidden',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <Image
+            source={getImageSource()}
+            placeholder={blurhash}
+            contentFit="contain"
+            transition={200}
+            cachePolicy="memory-disk"
+            style={{ width: '100%', height: '100%' }}
+          />
+        </View>
         <TouchableOpacity
           onPress={handleFavouriteToggle}
           className="absolute top-0 right-0 bg-white/80 rounded-full p-1.5 shadow-sm"
@@ -1037,7 +1189,7 @@ const ProductCard = React.memo(({
         </TouchableOpacity>
       </TouchableOpacity>
 
-      <Text className="text-base font-semibold text-gray-900" numberOfLines={1}>
+      <Text className="text-base font-semibold text-gray-900 mt-1" numberOfLines={1}>
         {item.productName}
       </Text>
       <Text className="text-gray-500 text-xs mb-1">
@@ -1075,79 +1227,14 @@ const ProductCard = React.memo(({
       {/* FIXED: Quantity Controls - Only show for products with pricing */}
       {(item.price !== null && item.price !== undefined && item.price > 0) && (
         showControls ? (
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#15803d', // green-700
-            borderRadius: 25,
-            paddingHorizontal: 4,
-            paddingVertical: 6, // Increased vertical padding
-            height: 40, // Fixed height for consistency
-          }}>
-          <TouchableOpacity
-            onPress={handleDecrease}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Ionicons name="remove" size={20} color="#fff" />
-          </TouchableOpacity>
-          
-          {/* FIXED: Text Input Container - Better Android support */}
-          <View style={{
-            flex: 1,
-            marginHorizontal: 4,
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: 48, // Ensure minimum width
-            height: 32, // Fixed height
-          }}>
-            <TextInput
-              value={tempInput}
-              onChangeText={handleInputChange}
-              onBlur={handleBlur}
-              keyboardType="number-pad"
-              maxLength={3}
-              style={{
-                width: '100%',
-                height: 32, // Explicit height
-                textAlign: 'center',
-                fontSize: 16,
-                fontWeight: 'bold',
-                color: 'white',
-                backgroundColor: 'transparent',
-                borderWidth: 0,
-                padding: 0, // Remove padding to prevent text cutoff
-                margin: 0,
-                includeFontPadding: false, // Android specific - prevents text cutoff
-                textAlignVertical: 'center', // Android specific - centers text vertically
-              }}
-              selectionColor="#fff"
-              placeholder={String(minOrder)}
-              placeholderTextColor="rgba(255,255,255,0.5)"
-              multiline={false}
-              numberOfLines={1}
-            />
-          </View>
-          
-          <TouchableOpacity
-            onPress={handleIncrease}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Ionicons name="add" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
+          <QuantitySelector
+            quantity={cartItem?.quantity ?? minOrder}
+            minQuantity={minOrder}
+            productName={item.productName}
+            onDecrease={handleDecrease}
+            onIncrease={handleIncrease}
+            onSetQuantity={handleSetQuantity}
+          />
         ) : (
           <TouchableOpacity
             style={{
@@ -1191,7 +1278,8 @@ const GroceryCategoryCard = ({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
-      className={`rounded-xl flex-row items-center justify-start mr-3 px-3 py-2 w-48 h-auto ${getRandomColor()} gap-x-3`}
+      className={`rounded-xl flex-row items-center justify-start px-3 py-2 h-auto ${getRandomColor()} gap-x-3`}
+      style={{ marginRight: HOME_CATEGORY_CARD_SPACING, width: HOME_CATEGORY_CARD_WIDTH }}
     >
       <Image 
         source={typeof item.categoryImage === 'string' ? { uri: item.categoryImage } : (item.categoryImage || defaultImage)} 
@@ -1235,9 +1323,10 @@ const HomeScreen = () => {
   const getLocationDisplay = () => {
     // Priority 1: Show default delivery address if available
     if (defaultAddress) {
-      if (defaultAddress.CurrentLocation && defaultAddress.CurrentAddress) {
-        return `${defaultAddress.CurrentAddress}, ${defaultAddress.CurrentLocation}`;
-      }
+      // Prefer pin-selected location data (either field is sufficient)
+      const pinDisplay = [defaultAddress.CurrentAddress, defaultAddress.CurrentLocation].filter(Boolean).join(', ');
+      if (pinDisplay) return pinDisplay;
+
       const parts = [
         defaultAddress.HouseNumber,
         defaultAddress.BuildingBlock,
@@ -1878,6 +1967,7 @@ const HomeScreen = () => {
                   data={exclusiveOffers}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeProductItemLayout}
                   keyExtractor={(item, index) => `exclusive_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
@@ -1907,6 +1997,7 @@ const HomeScreen = () => {
                   data={bestSelling}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeProductItemLayout}
                   keyExtractor={(item, index) => `bestselling_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
@@ -1936,6 +2027,7 @@ const HomeScreen = () => {
                   data={newProducts}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeProductItemLayout}
                   keyExtractor={(item, index) => `newproducts_${item.productId ?? index}`}
                   renderItem={({ item, index }) => (
                     <ProductCard
@@ -1967,6 +2059,7 @@ const HomeScreen = () => {
                       data={buyAgainProducts}
                       horizontal
                       showsVerticalScrollIndicator={false}
+                      getItemLayout={getHomeProductItemLayout}
                       keyExtractor={(item, index) => `buyagain_${item.productId ?? index}`}
                       renderItem={({ item, index }) => (
                         <ProductCard
@@ -1998,6 +2091,7 @@ const HomeScreen = () => {
                   data={categories}
                   horizontal
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={getHomeCategoryItemLayout}
                   keyExtractor={(item) => item.categoryId.toString()}
                   renderItem={({ item }) => <GroceryCategoryCard item={item} onPress={() => handleCategoryPress(item)} />}
                   contentContainerStyle={{ paddingLeft: 16, paddingBottom: 32 }}

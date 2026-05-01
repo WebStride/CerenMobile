@@ -8,6 +8,8 @@ const appEnv = (process.env.APP_ENV || process.env.NODE_ENV || 'development').tr
 const envFile = `.env.${appEnv}`;
 const envPath = path.resolve(__dirname, envFile);
 
+const getEnvValue = (name, fallback = '') => process.env[name] || fallback;
+
 if (fs.existsSync(envPath)) {
   console.log(`🎯 app.config: loading env ${envFile}`);
   dotenv.config({ path: envPath });
@@ -20,8 +22,13 @@ if (fs.existsSync(envPath)) {
 
 module.exports = ({ config }) => {
   // Read the env vars you said you use in your .env
-  const androidKey = process.env.EXPO_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
-  const iosKey = process.env.EXPO_GOOGLE_MAPS_API_KEY_IOS || process.env.GOOGLE_MAPS_API_KEY_IOS || '';
+  const androidKey = getEnvValue('EXPO_GOOGLE_MAPS_API_KEY', getEnvValue('GOOGLE_MAPS_API_KEY'));
+  const iosKey = getEnvValue('EXPO_GOOGLE_MAPS_API_KEY_IOS', getEnvValue('GOOGLE_MAPS_API_KEY_IOS'));
+  const publicApiUrl = getEnvValue('EXPO_PUBLIC_API_URL', config.expo?.extra?.EXPO_PUBLIC_API_URL || '');
+  const publicIntegratedNo = getEnvValue('EXPO_PUBLIC_INTEGRATED_NO');
+  const publicAdminToNumber = getEnvValue('EXPO_PUBLIC_ADMIN_TO_NUMBER');
+  const publicMsg91AuthKey = getEnvValue('EXPO_PUBLIC_MSG91_AUTH_KEY');
+  const publicMsg91WhatsappUrl = getEnvValue('EXPO_PUBLIC_MSG91_WHATSAPP_URL');
 
   // Build plugins array conditionally: only add react-native-maps plugin
   // when the package provides an app.plugin.js (config plugin). This avoids
@@ -80,7 +87,11 @@ module.exports = ({ config }) => {
         // Backwards compatibility key used in some screens
         GOOGLE_MAPS_API_KEY: iosKey || androidKey || (config.expo?.extra && config.expo.extra.GOOGLE_MAPS_API_KEY) || '',
         // Optional API base for proxying map requests to your backend (e.g. http://192.168.1.5:3002)
-        EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || config.expo?.extra?.EXPO_PUBLIC_API_URL || '',
+        EXPO_PUBLIC_API_URL: publicApiUrl,
+        EXPO_PUBLIC_INTEGRATED_NO: publicIntegratedNo,
+        EXPO_PUBLIC_ADMIN_TO_NUMBER: publicAdminToNumber,
+        EXPO_PUBLIC_MSG91_AUTH_KEY: publicMsg91AuthKey,
+        EXPO_PUBLIC_MSG91_WHATSAPP_URL: publicMsg91WhatsappUrl,
       },
       // Plugins array assembled above (may or may not contain react-native-maps)
       plugins: basePlugins,

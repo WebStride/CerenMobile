@@ -5,6 +5,7 @@
 
 interface InvoiceItem {
   ProductID?: number;
+  ProductName?: string;
   SaleQty?: number;
   Price?: number;
   TaxableValue?: number;
@@ -31,6 +32,8 @@ interface InvoiceData {
   details: {
     invoiceNo?: string;
     invoiceId?: number;
+    orderId?: number | string;
+    orderNumber?: string;
     saleAmount?: number;
     balanceAmount?: number;
     obAmount?: number;
@@ -248,7 +251,18 @@ export const generateInvoicePDF = (
         </div>
 
         <!-- Invoice Title -->
-        <div class="invoice-title">Tax Invoice - Customer</div>
+        <div class="invoice-title">Tax Invoice</div>
+
+        <!-- Invoice Info -->
+        <div style="margin-bottom: 20px; font-size: 14px; background: #f9fafb; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between;">
+          <div>
+            <div style="margin-bottom: 4px;"><strong>Invoice No:</strong> ${escapeHtml(invoice.details?.invoiceNo || invoice.id)}</div>
+            <div style="margin-bottom: 4px;"><strong>Order No:</strong> ${escapeHtml(String(invoice.details?.orderNumber || (invoice.details?.orderId ? `#${invoice.details?.orderId}` : 'N/A')))}</div>
+          </div>
+          <div style="text-align: right;">
+            <div><strong>Date:</strong> ${invoice.date ? formatDate(invoice.date) : 'N/A'}</div>
+          </div>
+        </div>
 
         <!-- Items Table -->
         <table class="table">

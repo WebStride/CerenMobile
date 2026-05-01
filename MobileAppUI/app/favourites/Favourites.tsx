@@ -4,15 +4,15 @@ import {
   Text, 
   TouchableOpacity, 
   FlatList, 
-  SafeAreaView,
-  Alert,
-  TextInput
+  Alert
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFavourites } from "../context/FavouritesContext";
 import { useCart } from "../context/CartContext";
+import { QuantitySelector } from "@/components/QuantitySelector";
 
 const defaultImage = require("../../assets/images/Banana.png");
 
@@ -22,7 +22,7 @@ const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 export default function FavouritesScreen() {
   const router = useRouter();
   const { favourites, removeFromFavourites } = useFavourites();
-  const { cart, addToCart, increaseQuantity, decreaseQuantity } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, setQuantity } = useCart();
 
   const handleAddAllToCart = () => {
     if (favourites.length === 0) return;
@@ -60,17 +60,14 @@ export default function FavouritesScreen() {
 
   const FavouriteItem = ({ item }: { item: any }) => {
     const [showControls, setShowControls] = useState(false);
-    const [qtyInput, setQtyInput] = useState("");
     const cartItem = cart.find(x => x.productId === item.productId);
     const minOrder = item.minQuantity || 1;
     
     useEffect(() => {
       if (cartItem) {
         setShowControls(true);
-        setQtyInput(cartItem.quantity.toString());
       } else {
         setShowControls(false);
-        setQtyInput("");
       }
     }, [cartItem]);
 
@@ -122,29 +119,9 @@ export default function FavouritesScreen() {
       }
     }, [cartItem, item.productId, minOrder, decreaseQuantity]);
 
-    const handleQtyInputChange = useCallback((text: string) => {
-      setQtyInput(text);
-    }, []);
-
-    const handleQtyInputBlur = useCallback(() => {
-      if (cartItem) {
-        const newQty = parseInt(qtyInput, 10);
-        if (isNaN(newQty) || newQty < minOrder) {
-          Alert.alert(
-            "Invalid Quantity",
-            `Quantity must be at least ${minOrder}.`,
-            [{ text: "OK", onPress: () => setQtyInput(cartItem.quantity.toString()) }]
-          );
-        } else if (newQty !== cartItem.quantity) {
-          const diff = newQty - cartItem.quantity;
-          if (diff > 0) {
-            for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-          } else {
-            for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-          }
-        }
-      }
-    }, [cartItem, qtyInput, minOrder, item.productId, increaseQuantity, decreaseQuantity]);
+    const handleSetQuantity = useCallback((qty: number) => {
+      setQuantity(item.productId, qty);
+    }, [item.productId]);
     
     return (
       <View className="flex-row py-4 px-4 bg-white border-b border-gray-100">
@@ -203,22 +180,14 @@ export default function FavouritesScreen() {
                 <Text className="text-white font-semibold text-sm">Add</Text>
               </TouchableOpacity>
             ) : (
-              <View className="flex-row items-center bg-green-700 rounded-full px-2 py-1">
-                <TouchableOpacity onPress={handleDecrease} className="px-2 py-1">
-                  <Text className="text-white font-bold text-lg">-</Text>
-                </TouchableOpacity>
-                <TextInput
-                  value={qtyInput}
-                  onChangeText={handleQtyInputChange}
-                  onBlur={handleQtyInputBlur}
-                  keyboardType="number-pad"
-                  className="text-white font-semibold text-center mx-1"
-                  style={{ minWidth: 30 }}
-                />
-                <TouchableOpacity onPress={handleIncrease} className="px-2 py-1">
-                  <Text className="text-white font-bold text-lg">+</Text>
-                </TouchableOpacity>
-              </View>
+              <QuantitySelector
+                quantity={cartItem?.quantity ?? minOrder}
+                minQuantity={minOrder}
+                productName={item.productName}
+                onDecrease={handleDecrease}
+                onIncrease={handleIncrease}
+                onSetQuantity={handleSetQuantity}
+              />
             )}
           </View>
         </View>

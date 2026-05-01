@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.geocode = exports.placeDetails = exports.placeAutocomplete = void 0;
 const SERVER_KEY = process.env.GOOGLE_MAPS_SERVER_KEY || process.env.EXPO_GOOGLE_MAPS_SERVER_KEY || '';
 const proxyFetch = (url) => __awaiter(void 0, void 0, void 0, function* () {
-    // Prefer global fetch (Node 18+). If unavailable, try to require 'node-fetch'.
     let fetchFn = global.fetch;
     if (typeof fetchFn !== 'function') {
         try {
@@ -65,11 +64,13 @@ exports.placeDetails = placeDetails;
 const geocode = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const address = req.query.address;
-        if (!address)
-            return res.status(400).json({ error: 'missing address' });
+        const latlng = req.query.latlng;
+        if (!address && !latlng)
+            return res.status(400).json({ error: 'missing address or latlng' });
         if (!SERVER_KEY)
             return res.status(500).json({ error: 'server-side Google Maps key not configured' });
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${SERVER_KEY}`;
+        const queryParam = address ? `address=${encodeURIComponent(address)}` : `latlng=${encodeURIComponent(latlng)}`;
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?${queryParam}&key=${SERVER_KEY}`;
         const { status, json } = yield proxyFetch(url);
         return res.status(status).json(json);
     }
@@ -84,3 +85,4 @@ exports.default = {
     placeDetails: exports.placeDetails,
     geocode: exports.geocode,
 };
+//# sourceMappingURL=maps.js.map

@@ -65,9 +65,6 @@ const OrderDetailScreen = () => {
   const [showOrderAgainModal, setShowOrderAgainModal] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // Debug: Log route parameters
-  console.log('📋 Route Params:', { orderId, orderNumber, orderStatus, routeOrderDate, routeDeliveryDate });
-
   useEffect(() => {
 
     let mounted = true;
@@ -81,17 +78,7 @@ const OrderDetailScreen = () => {
     (async () => {
       try {
         const res: ApiOrderItemsResponse = await getOrderItems(id) as ApiOrderItemsResponse;
-        console.log("coming as params",routeOrderDate, routeDeliveryDate);
         if (!mounted) return;
-        console.log('API response for order items:', res);
-        if (res && Array.isArray((res as any).orderItems) && (res as any).orderItems.length > 0) {
-          try {
-            console.log('Raw first orderItem JSON:', JSON.stringify((res as any).orderItems[0]));
-            console.log('Raw orderItem keys:', Object.keys((res as any).orderItems[0]));
-          } catch (e) {
-            console.warn('Could not stringify orderItems[0]', e);
-          }
-        }
         if (!res || !res.orderItems) {
           setOrderItems([]);
           setError('No items found for this order');
@@ -107,10 +94,6 @@ const OrderDetailScreen = () => {
             productImage: ai.ProductImage ?? null,
           }));
           setOrderItems(mapped);
-          console.log('Mapped order items (UI):', mapped);
-          mapped.forEach(mi => {
-            console.log(`OrderItem ${mi.id} -> productName: ${mi.productName}, productImage: ${mi.productImage}`);
-          });
         }
       } catch (err) {
         console.error('Error loading order items:', err);
@@ -127,14 +110,10 @@ const OrderDetailScreen = () => {
   useEffect(() => {
     const fetchDefaultAddress = async () => {
       try {
-        console.log('📍 Fetching default address...');
         const response = await getDefaultAddress();
-        console.log('📍 Default address response:', JSON.stringify(response, null, 2));
         if (response.success && response.address) {
-          console.log('✅ Default address fetched:', response.address);
           setDefaultAddress(response.address);
         } else {
-          console.log('⚠️ No default address found or API returned unsuccessful');
           setDefaultAddress('not_found');
         }
       } catch (err) {
@@ -173,8 +152,8 @@ const OrderDetailScreen = () => {
 
   const ItemRow = ({ item }: { item: OrderItem }) => (
     <View className="py-3 border-b border-gray-100">
-      <View className="flex-row justify-between items-center">
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 12 }}>
           <Image 
             source={item.productImage ? { uri: item.productImage } : placeholderImage}
             placeholder={blurhash}
@@ -183,8 +162,10 @@ const OrderDetailScreen = () => {
             cachePolicy="memory-disk"
             style={{ width: 64, height: 64, borderRadius: 8, marginRight: 12, backgroundColor: '#f3f4f6' }} 
           />
-          <View>
-            <Text className="text-base font-semibold text-gray-900">{item.productName ?? 'Unknown Product'}</Text>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text className="text-base font-semibold text-gray-900" numberOfLines={2} ellipsizeMode="tail">
+              {item.productName ?? 'Unknown Product'}
+            </Text>
             <Text className="text-sm text-gray-500">Qty: {item.quantity}</Text>
             {item.status ? (
               <Text className="text-sm text-gray-500">Status: {item.status}</Text>
@@ -194,23 +175,62 @@ const OrderDetailScreen = () => {
             ) : null}
           </View>
         </View>
-        <Text className="text-lg font-bold text-gray-900">₹{item.price.toFixed(2)}</Text>
+        <Text
+          className="text-lg font-bold text-gray-900"
+          style={{ flexShrink: 0, textAlign: 'right', paddingTop: 4 }}
+        >
+          ₹{item.price.toFixed(2)}
+        </Text>
       </View>
     </View>
   );
 
-  const DetailRow = ({ label, value, isLast = false }: {
+  const DetailRow = ({ label, value, isLast = false, multiline = false }: {
     label: string;
     value: string | number;
     isLast?: boolean;
-  }) => (
-    <View className={`flex-row justify-between py-2 ${!isLast ? 'border-b border-gray-100' : ''}`}>
-      <Text className="text-gray-600 text-sm font-medium">{label}</Text>
-      <Text className="text-gray-900 text-sm font-semibold">
-        {typeof value === 'number' ? `₹${value.toFixed(2)}` : value}
-      </Text>
-    </View>
-  );
+    multiline?: boolean;
+  }) => {
+    const displayValue = typeof value === 'number' ? `₹${value.toFixed(2)}` : value;
+
+    if (multiline) {
+      return (
+        <View className={`py-3 ${!isLast ? 'border-b border-gray-100' : ''}`}>
+          <Text className="text-gray-600 text-sm font-medium mb-2">{label}</Text>
+          <Text className="text-gray-900 text-sm font-semibold leading-6">
+            {displayValue}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View className={`py-3 ${!isLast ? 'border-b border-gray-100' : ''}`}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Text className="text-gray-600 text-sm font-medium" style={{ flexShrink: 0, paddingRight: 12 }}>
+            {label}
+          </Text>
+          <Text className="text-gray-900 text-sm font-semibold" style={{ flex: 1, textAlign: 'right' }}>
+            {displayValue}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const deliveryAddressValue =
+    defaultAddress === null
+      ? 'Loading...'
+      : defaultAddress === 'not_found' || defaultAddress === 'error'
+        ? 'No delivery address set'
+        : (() => {
+            const parts = [];
+            if (defaultAddress.HouseNumber) parts.push(defaultAddress.HouseNumber);
+            if (defaultAddress.BuildingBlock) parts.push(defaultAddress.BuildingBlock);
+            if (defaultAddress.Landmark) parts.push(defaultAddress.Landmark);
+            if (defaultAddress.City) parts.push(defaultAddress.City);
+            return parts.length > 0 ? parts.join(', ') : 'No address available';
+          })();
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
@@ -279,21 +299,9 @@ const OrderDetailScreen = () => {
           <DetailRow label="Order Date" value={routeOrderDate && String(routeOrderDate).trim() ? new Date(routeOrderDate as string).toLocaleDateString() : '--'} />
           <DetailRow 
             label="Delivery Address" 
-            value={
-              defaultAddress === null 
-                ? 'Loading...' 
-                : defaultAddress === 'not_found' || defaultAddress === 'error'
-                  ? 'No delivery address set'
-                  : (() => {
-                      const parts = [];
-                      if (defaultAddress.HouseNumber) parts.push(defaultAddress.HouseNumber);
-                      if (defaultAddress.BuildingBlock) parts.push(defaultAddress.BuildingBlock);
-                      if (defaultAddress.Landmark) parts.push(defaultAddress.Landmark);
-                      if (defaultAddress.City) parts.push(defaultAddress.City);
-                      return parts.length > 0 ? parts.join(', ') : 'No address available';
-                    })()
-            }
+            value={deliveryAddressValue}
             isLast={true}
+            multiline={true}
           />
         </View>
 
@@ -331,19 +339,6 @@ const OrderDetailScreen = () => {
           >
             <Text className="text-white font-semibold text-base">
               Order Again
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            className="flex-1 bg-white border border-green-600 py-4 rounded-xl items-center shadow-sm"
-            activeOpacity={0.8}
-            onPress={() => {
-              // Share or contact support
-              console.log("Get help");
-            }}
-          >
-            <Text className="text-green-600 font-semibold text-base">
-              Get Help
             </Text>
           </TouchableOpacity>
         </View>

@@ -62,6 +62,8 @@ function submitUserAddress(req, res) {
                     SaveAs: saveAs || 'home',
                     Latitude: latitude,
                     Longitude: longitude,
+                    CurrentLocation: req.body.location || null,
+                    CurrentAddress: req.body.address || null,
                     IsDefault: isDefault,
                     Active: true,
                     UpdatedAt: new Date()
@@ -225,7 +227,7 @@ function updateUserAddress(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a;
         const { addressId } = req.params;
-        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, latitude, longitude, isDefault } = req.body;
+        const { name, phoneNumber, city, district, houseNumber, buildingBlock, pinCode, landmark, saveAs, latitude, longitude, isDefault, location, address } = req.body;
         // Validate required fields - only core location fields are mandatory
         if (!city || !district || !pinCode) {
             return res.status(400).json({
@@ -274,6 +276,8 @@ function updateUserAddress(req, res) {
                     SaveAs: saveAs || null,
                     Latitude: latitude || null,
                     Longitude: longitude || null,
+                    CurrentLocation: req.body.location || existingAddress.CurrentLocation,
+                    CurrentAddress: req.body.address || existingAddress.CurrentAddress,
                     IsDefault: resolvedIsDefault,
                     UpdatedAt: new Date()
                 }

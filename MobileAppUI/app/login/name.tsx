@@ -9,6 +9,7 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { images } from "@/constants/images";
 import { register } from "@/services/api";
@@ -16,6 +17,7 @@ import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedV
 
 export default function LoginNameScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const phoneNumber = params.phoneNumber as string;
   
@@ -64,7 +66,7 @@ export default function LoginNameScreen() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,
@@ -91,8 +93,6 @@ export default function LoginNameScreen() {
                 fontWeight: "600",
                 fontSize: 26,
                 color: "#181725",
-                width: 332,
-                height: 29,
               }}
               className="mb-8"
             >
@@ -107,8 +107,6 @@ export default function LoginNameScreen() {
                   fontWeight: "600",
                   fontSize: 16,
                   color: "#7C7C7C",
-                  width: 121,
-                  height: 29,
                 }}
                 className="mb-2"
               >

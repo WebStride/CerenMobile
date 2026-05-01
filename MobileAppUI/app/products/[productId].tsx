@@ -4,12 +4,15 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   TextInput,
   Alert,
   Dimensions,
-  FlatList
+  FlatList,
+  Modal,
+  KeyboardAvoidingView,
+  Platform
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -17,6 +20,7 @@ import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
 import { getProductsByCatalog, getSimilarProductsApi, checkCustomerExists } from "@/services/api";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
+import { QuantitySelector } from "@/components/QuantitySelector";
 
 const { width } = Dimensions.get('window');
 const defaultImage = require("../../assets/images/Banana.png");
@@ -71,7 +75,7 @@ const ProductCard = React.memo(({
   sectionKey: string;
   index: number;
 }) => {
-  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, setQuantity: setCartQuantity } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const router = useRouter();
   
@@ -81,23 +85,17 @@ const ProductCard = React.memo(({
   const minOrder = item.minOrderQuantity || 1;
   
   const [showControls, setShowControls] = useState(!!cartItem);
-  const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
-  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
 
   useEffect(() => {
     if (cartItem) {
-      setQtyInput(String(cartItem.quantity));
-      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
-      setQtyInput(String(minOrder));
-      setTempInput(String(minOrder));
     }
-  }, [cartItem, showControls, minOrder]);
+  }, [cartItem, showControls]);
 
   const getImageSource = (imageUrl: string | null) => {
     if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
@@ -134,84 +132,20 @@ const ProductCard = React.memo(({
   }, [isProductFavourite, item, minOrder, addToFavourites, removeFromFavourites]);
 
   const handleAddToCartPress = useCallback(() => {
-    const qty = Math.max(Number(qtyInput), minOrder);
-    if (qty !== Number(qtyInput)) {
-      Alert.alert(
-        "Minimum Order Quantity",
-        `Minimum order for ${item.productName} is ${minOrder}. Adding ${qty} to cart.`
-      );
-    }
-    for (let i = 0; i < qty; i++) {
-      addToCart({
-        productId: item.productId,
-        productName: item.productName,
-        price: item.price,
-        image: item.image,
-        productUnits: item.productUnits,
-        unitsOfMeasurement: item.unitsOfMeasurement,
-      });
-    }
+    addToCart({
+      productId: item.productId,
+      productName: item.productName,
+      price: item.price,
+      image: item.image,
+      productUnits: item.productUnits,
+      unitsOfMeasurement: item.unitsOfMeasurement,
+    }, minOrder);
     setShowControls(true);
-  }, [item, addToCart, qtyInput, minOrder]);
+  }, [item, addToCart, minOrder]);
 
-  const handleInputChange = useCallback((val: string) => {
-    const onlyDigits = val.replace(/[^0-9]/g, "");
-    setTempInput(onlyDigits);
-  }, []);
-
-  const handleBlur = useCallback(() => {
-    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
-
-    if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      const snapQty = minOrder;
-      setTempInput(String(snapQty));
-      setQtyInput(String(snapQty));
-      
-      if (cartItem) {
-        const diff = snapQty - cartItem.quantity;
-        if (diff > 0) {
-          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-        } else if (diff < 0) {
-          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-        }
-      } else {
-        for (let i = 0; i < snapQty; i++) {
-          addToCart({
-            productId: item.productId,
-            productName: item.productName,
-            price: item.price,
-            image: item.image,
-            productUnits: item.productUnits,
-            unitsOfMeasurement: item.unitsOfMeasurement,
-          });
-        }
-      }
-      return;
-    }
-
-    const numVal = Number(onlyDigits);
-    setQtyInput(String(numVal));
-    
-    if (!cartItem && numVal >= minOrder) {
-      for (let i = 0; i < numVal; i++) {
-        addToCart({
-          productId: item.productId,
-          productName: item.productName,
-          price: item.price,
-          image: item.image,
-          productUnits: item.productUnits,
-          unitsOfMeasurement: item.unitsOfMeasurement,
-        });
-      }
-    } else if (cartItem) {
-      const diff = numVal - cartItem.quantity;
-      if (diff > 0) {
-        for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-      } else if (diff < 0) {
-        for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-      }
-    }
-  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder]);
+  const handleSetQuantity = useCallback((qty: number) => {
+    setCartQuantity(item.productId, qty);
+  }, [setCartQuantity, item.productId]);
 
   const handleDecrease = useCallback(() => {
     if (cartItem && cartItem.quantity > minOrder) {
@@ -237,7 +171,7 @@ const ProductCard = React.memo(({
     >
       <TouchableOpacity
         onPress={handleProductPress}
-        className="flex-1 items-center mb-2 relative"
+        className="items-center mb-2 relative"
         activeOpacity={0.7}
       >
         <Image
@@ -283,7 +217,7 @@ const ProductCard = React.memo(({
             className="bg-orange-100 border border-orange-300 rounded-lg px-2 py-1"
             activeOpacity={0.7}
           >
-            <Text className="text-gray-500 text-xs text-center font-semibold text-orange-600">
+            <Text className="text-xs text-center font-semibold text-orange-600">
               Price on Request
             </Text>
           </TouchableOpacity>
@@ -301,79 +235,14 @@ const ProductCard = React.memo(({
       {isCustomerExists && item.price > 0 && (
         <>
           {showControls ? (
-          // FIXED: Better Android compatibility for quantity controls
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#15803d',
-            borderRadius: 25,
-            paddingHorizontal: 4,
-            paddingVertical: 6,
-            height: 40,
-          }}>
-            <TouchableOpacity
-              onPress={handleDecrease}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Ionicons name="remove" size={20} color="#fff" />
-            </TouchableOpacity>
-            
-            <View style={{
-              flex: 1,
-              marginHorizontal: 4,
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: 48,
-              height: 32,
-            }}>
-              <TextInput
-                value={tempInput}
-                onChangeText={handleInputChange}
-                onBlur={handleBlur}
-                keyboardType="number-pad"
-                maxLength={3}
-                style={{
-                  width: '100%',
-                  height: 32,
-                  textAlign: 'center',
-                  fontSize: 16,
-                  fontWeight: 'bold',
-                  color: 'white',
-                  backgroundColor: 'transparent',
-                  borderWidth: 0,
-                  padding: 0,
-                  margin: 0,
-                  includeFontPadding: false,
-                  textAlignVertical: 'center',
-                }}
-                selectionColor="#fff"
-                placeholder={String(minOrder)}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                multiline={false}
-                numberOfLines={1}
-              />
-            </View>
-            
-            <TouchableOpacity
-              onPress={handleIncrease}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
+            <QuantitySelector
+              quantity={cartItem?.quantity ?? minOrder}
+              minQuantity={minOrder}
+              productName={item.productName}
+              onDecrease={handleDecrease}
+              onIncrease={handleIncrease}
+              onSetQuantity={handleSetQuantity}
+            />
         ) : (
           <TouchableOpacity
             style={{
@@ -389,12 +258,16 @@ const ProductCard = React.memo(({
             onPress={handleAddToCartPress}
             activeOpacity={0.8}
           >
-            <Text style={{
-              color: 'white',
-              fontWeight: '600',
-              fontSize: 14
-            }}>
-              Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
+            <Text 
+              style={{
+                color: 'white',
+                fontWeight: '600',
+                fontSize: 14
+              }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              Add {minOrder > 1 ? `${minOrder} ` : ''}to Cart
             </Text>
           </TouchableOpacity>
         )}
@@ -484,6 +357,8 @@ export default function ProductDetailsScreen() {
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
   const [showMainPriceRequestModal, setShowMainPriceRequestModal] = useState(false);
+  const [showQtyModal, setShowQtyModal] = useState(false);
+  const [modalQtyInput, setModalQtyInput] = useState("");
   const flatListRef = useRef<FlatList>(null);
 
   const isProductFavourite = isFavourite(currentProduct.productId);
@@ -603,25 +478,15 @@ export default function ProductDetailsScreen() {
     }
   }, [isProductFavourite, currentProduct, addToFavourites, removeFromFavourites]);
 
-  // FIXED: Proper MOQ validation with smooth editing using tempInput
-  const handleTextInputChange = useCallback((text: string) => {
-    const onlyDigits = text.replace(/[^0-9]/g, "");
-    setTempQuantity(onlyDigits);
-  }, []);
-
-  const handleTextInputBlur = useCallback(() => {
-    const onlyDigits = tempQuantity.replace(/[^0-9]/g, "");
-    
-    if (onlyDigits === "" || Number(onlyDigits) < currentProduct.minOrderQuantity) {
-      const snapQty = currentProduct.minOrderQuantity;
-      setTempQuantity(String(snapQty));
-      setQuantity(snapQty);
-      return;
-    }
-    
-    const numValue = Number(onlyDigits);
-    setQuantity(numValue);
-  }, [tempQuantity, currentProduct.minOrderQuantity]);
+  // Modal-based quantity editing for main screen
+  const handleQtyModalConfirm = useCallback(() => {
+    const onlyDigits = modalQtyInput.replace(/[^0-9]/g, "");
+    const numValue = onlyDigits === "" ? 0 : Number(onlyDigits);
+    const finalQty = Math.max(numValue, currentProduct.minOrderQuantity);
+    setQuantity(finalQty);
+    setTempQuantity(String(finalQty));
+    setShowQtyModal(false);
+  }, [modalQtyInput, currentProduct.minOrderQuantity]);
 
   const handleDecrease = useCallback(() => {
     const newQuantity = quantity - 1;
@@ -715,9 +580,6 @@ export default function ProductDetailsScreen() {
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <Ionicons name="share-outline" size={24} color="#374151" />
         </TouchableOpacity>
       </View>
 
@@ -928,26 +790,26 @@ export default function ProductDetailsScreen() {
                 />
               </TouchableOpacity>
               
-              <TextInput
-                value={tempQuantity}
-                onChangeText={handleTextInputChange}
-                onBlur={handleTextInputBlur}
+              <TouchableOpacity
+                onPress={() => { setModalQtyInput(tempQuantity); setShowQtyModal(true); }}
                 style={{
                   marginHorizontal: 16,
                   width: 64,
                   height: 48,
-                  textAlign: 'center',
-                  fontSize: 20,
-                  fontWeight: 'bold',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   borderWidth: 2,
                   borderColor: '#d1d5db',
                   borderRadius: 8,
                   backgroundColor: 'white'
                 }}
-                keyboardType="numeric"
-                maxLength={3}
-                selectTextOnFocus={true}
-              />
+              >
+                <Text style={{
+                  fontSize: 20,
+                  fontWeight: 'bold',
+                  color: '#111827',
+                }}>{tempQuantity}</Text>
+              </TouchableOpacity>
               
               <TouchableOpacity
                 onPress={handleIncrease}
@@ -1194,20 +1056,20 @@ export default function ProductDetailsScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ height: 220 }}>
+          <View style={{ minHeight: 260 }}>
             <FlatList
               data={similarProducts}
               renderItem={renderSimilarProduct}
               keyExtractor={(item, index) => `similar_${item.productId}_${index}`}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 0 }}
+              contentContainerStyle={{ paddingHorizontal: 0, paddingVertical: 4 }}
             />
           </View>
         </View>
       </ScrollView>
 
-      {/* Add To Basket Button - Only for registered users */}
+      {/* Add To Cart Button - Only for registered users */}
       {isCustomerExists && currentProduct.price > 0 && (
         <View style={{
           paddingHorizontal: 16,
@@ -1237,7 +1099,7 @@ export default function ProductDetailsScreen() {
               fontSize: 18,
               fontWeight: 'bold'
             }}>
-              Add To Basket
+              Add to Cart
             </Text>
           </TouchableOpacity>
         </View>
@@ -1250,6 +1112,93 @@ export default function ProductDetailsScreen() {
         productId={currentProduct.productId}
         productName={currentProduct.productName}
       />
+
+      {/* Main quantity edit modal */}
+      <Modal
+        visible={showQtyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQtyModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}
+            activeOpacity={1}
+            onPress={() => setShowQtyModal(false)}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: 16,
+                padding: 24,
+                width: 280,
+                alignItems: 'center',
+              }}
+              onPress={() => {}}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 }}>
+                Set Quantity
+              </Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+                Min: {currentProduct.minOrderQuantity}
+              </Text>
+              <TextInput
+                value={modalQtyInput}
+                onChangeText={setModalQtyInput}
+                keyboardType="number-pad"
+                autoFocus
+                selectTextOnFocus
+                maxLength={4}
+                style={{
+                  width: '100%',
+                  height: 48,
+                  borderWidth: 2,
+                  borderColor: '#d1d5db',
+                  borderRadius: 8,
+                  textAlign: 'center',
+                  fontSize: 20,
+                  fontWeight: 'bold',
+                  color: '#111827',
+                  marginBottom: 20,
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                <TouchableOpacity
+                  onPress={() => setShowQtyModal(false)}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#d1d5db',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#374151', fontWeight: '500' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleQtyModalConfirm}
+                  style={{
+                    flex: 1,
+                    height: 44,
+                    borderRadius: 8,
+                    backgroundColor: '#15803d',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: 'white', fontWeight: '600' }}>Update</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }

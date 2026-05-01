@@ -7,8 +7,10 @@ import {
   FlatList, 
   ActivityIndicator, 
   Alert,
-  SafeAreaView
+  Modal,
+  useWindowDimensions
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -138,13 +140,15 @@ const generateMockProducts = (subcategoryId: number, count: number, startIndex: 
 const ProductCard = React.memo(({ 
   item, 
   isCustomerExists,
-  index 
+  index,
+  cardWidth,
 }: { 
   item: Product, 
   isCustomerExists: boolean,
-  index: number 
+  index: number,
+  cardWidth: number,
 }) => {
-  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCart();
+  const { cart, addToCart, increaseQuantity, decreaseQuantity, removeFromCart, setQuantity } = useCart();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const router = useRouter();
   
@@ -153,21 +157,18 @@ const ProductCard = React.memo(({
   const minOrder = item.minOrderQuantity;
   
   const [showControls, setShowControls] = useState(!!cartItem);
-  const [qtyInput, setQtyInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
-  const [tempInput, setTempInput] = useState(cartItem ? String(cartItem.quantity) : String(minOrder));
   const [showPriceRequestModal, setShowPriceRequestModal] = useState(false);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [quantityInput, setQuantityInput] = useState("");
+  const imageSize = Math.max(84, Math.min(112, cardWidth - 40));
 
   useEffect(() => {
     if (cartItem) {
-      setQtyInput(String(cartItem.quantity));
-      setTempInput(String(cartItem.quantity));
       if (!showControls) {
         setShowControls(true);
       }
     } else {
       setShowControls(false);
-      setQtyInput(String(minOrder));
-      setTempInput(String(minOrder));
     }
   }, [cartItem, showControls, minOrder]);
 
@@ -200,94 +201,59 @@ const ProductCard = React.memo(({
     }
   }, [isProductFavourite, item, minOrder, addToFavourites, removeFromFavourites]);
 
-  // Enhanced Add to Cart with MOQ validation
   const handleAddToCartPress = useCallback(() => {
-    const qty = Math.max(Number(qtyInput), minOrder);
-    
-    if (qty > Number(qtyInput)) {
-      Alert.alert(
-        "Minimum Order Quantity", 
-        `Minimum order for ${item.productName} is ${minOrder}. Adding ${qty} to cart.`,
-        [{ text: "OK" }]
-      );
-    }
-    
-    for (let i = 0; i < qty; i++) {
-      addToCart({
-        productId: item.productId,
-        productName: item.productName,
-        price: item.price,
-        image: item.image,
-        productUnits: item.productUnits,
-        unitsOfMeasurement: item.unitsOfMeasurement,
-      });
-    }
+    addToCart({
+      productId: item.productId,
+      productName: item.productName,
+      price: item.price,
+      image: item.image,
+      productUnits: item.productUnits,
+      unitsOfMeasurement: item.unitsOfMeasurement,
+    }, minOrder);
     setShowControls(true);
-  }, [item, addToCart, qtyInput, minOrder]);
+  }, [item, addToCart, minOrder]);
 
-  // Enhanced input validation with MOQ - using temporary state
-  const handleInputChange = useCallback((val: string) => {
-    // Just update temporary display without validation
-    const onlyDigits = val.replace(/[^0-9]/g, "");
-    setTempInput(onlyDigits);
+  const handleSetQuantity = useCallback((qty: number) => {
+    setQuantity(item.productId, qty);
+  }, [setQuantity, item.productId]);
+
+  const openQuantityModal = useCallback(() => {
+    setQuantityInput(String(cartItem?.quantity ?? minOrder));
+    setShowQuantityModal(true);
+  }, [cartItem?.quantity, minOrder]);
+
+  const closeQuantityModal = useCallback(() => {
+    setShowQuantityModal(false);
+    setQuantityInput("");
   }, []);
 
-  // Validate and apply changes when user finishes editing
-  const handleBlur = useCallback(() => {
-    const onlyDigits = tempInput.replace(/[^0-9]/g, "");
+  const confirmQuantityModal = useCallback(() => {
+    const numVal = parseInt(quantityInput, 10);
 
-    // If empty or below MOQ, snap to minimum quantity
-    if (onlyDigits === "" || Number(onlyDigits) < minOrder) {
-      const snapQty = minOrder;
-      setTempInput(String(snapQty));
-      setQtyInput(String(snapQty));
-      
-      // Update cart to minimum quantity
-      if (cartItem) {
-        const diff = snapQty - cartItem.quantity;
-        if (diff > 0) {
-          for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-        } else if (diff < 0) {
-          for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-        }
-      } else {
-        for (let i = 0; i < snapQty; i++) {
-          addToCart({
-            productId: item.productId,
-            productName: item.productName,
-            price: item.price,
-            image: item.image,
-            productUnits: item.productUnits,
-            unitsOfMeasurement: item.unitsOfMeasurement,
-          });
-        }
-      }
+    if (isNaN(numVal) || numVal === 0) {
+      Alert.alert(
+        "Invalid Quantity",
+        `Please enter a valid quantity. Minimum order quantity for ${item.productName} is ${minOrder}.`,
+        [{ text: "OK" }]
+      );
       return;
     }
 
-    const numVal = Number(onlyDigits);
-    setQtyInput(String(numVal));
-    
-    if (!cartItem && numVal >= minOrder) {
-      for (let i = 0; i < numVal; i++) {
-        addToCart({
-          productId: item.productId,
-          productName: item.productName,
-          price: item.price,
-          image: item.image,
-          productUnits: item.productUnits,
-          unitsOfMeasurement: item.unitsOfMeasurement,
-        });
-      }
-    } else if (cartItem) {
-      const diff = numVal - cartItem.quantity;
-      if (diff > 0) {
-        for (let i = 0; i < diff; i++) increaseQuantity(item.productId);
-      } else if (diff < 0) {
-        for (let i = 0; i < Math.abs(diff); i++) decreaseQuantity(item.productId);
-      }
+    if (numVal < minOrder) {
+      Alert.alert(
+        "Minimum Order Quantity",
+        `Minimum order quantity for ${item.productName} is ${minOrder}.`,
+        [{ text: "OK" }]
+      );
+      return;
     }
-  }, [tempInput, item, cartItem, addToCart, increaseQuantity, decreaseQuantity, minOrder]);
+
+    setShowQuantityModal(false);
+    setQuantityInput("");
+    if (numVal !== (cartItem?.quantity ?? minOrder)) {
+      handleSetQuantity(numVal);
+    }
+  }, [cartItem?.quantity, handleSetQuantity, item.productName, minOrder, quantityInput]);
 
   // Enhanced decrease with MOQ validation
   const handleDecrease = useCallback(() => {
@@ -316,7 +282,18 @@ const ProductCard = React.memo(({
   };
 
   return (
-    <View className="bg-white rounded-xl p-3 m-2 border border-gray-100 min-w-0 flex-1">
+    <View
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 14,
+        width: cardWidth,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
+        overflow: 'hidden',
+      }}
+    >
       {/* Clickable Product Image Area */}
       <TouchableOpacity
         onPress={handleProductPress}
@@ -329,7 +306,7 @@ const ProductCard = React.memo(({
           contentFit="contain"
           transition={200}
           cachePolicy="memory-disk"
-          style={{ width: 80, height: 80, marginBottom: 8, backgroundColor: '#f3f4f6' }}
+          style={{ width: imageSize, height: imageSize, marginBottom: 8, backgroundColor: '#f3f4f6' }}
         />
         {/* Favourite Heart Icon */}
         <TouchableOpacity
@@ -391,79 +368,167 @@ const ProductCard = React.memo(({
       {/* FIXED: Add to Cart Button OR Quantity Controls - Only for registered users with pricing */}
       {(isCustomerExists && item.price > 0) ? (
         showControls ? (
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#15803d', // green-700
-            borderRadius: 20,
-            paddingHorizontal: 4,
-            paddingVertical: 4,
-            height: 32, // Fixed height for consistency
-          }}>
-            <TouchableOpacity
-              onPress={handleDecrease}
+          <>
+            <View
               style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
+                width: '100%',
+                alignSelf: 'stretch',
+                flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'space-between',
+                backgroundColor: '#15803d',
+                borderRadius: 20,
+                paddingHorizontal: 4,
+                paddingVertical: 4,
+                height: 36,
               }}
             >
-              <Ionicons name="remove" size={16} color="#fff" />
-            </TouchableOpacity>
-            
-            {/* FIXED: Text Input Container - Better Android support */}
-            <View style={{
-              flex: 1,
-              marginHorizontal: 4,
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: 32, // Ensure minimum width for 2-digit numbers
-              height: 24, // Fixed height
-            }}>
-              <TextInput
-                value={tempInput}
-                onChangeText={handleInputChange}
-                onBlur={handleBlur}
-                keyboardType="number-pad"
-                maxLength={3}
+              <TouchableOpacity
+                onPress={handleDecrease}
                 style={{
-                  width: '100%',
-                  height: 24, // Explicit height matching container
-                  textAlign: 'center',
-                  fontSize: 14, // Slightly smaller font for compact card
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: 'rgba(255,255,255,0.16)',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Ionicons name="remove" size={18} color="#fff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={openQuantityModal}
+                style={{
+                  flex: 1,
+                  marginHorizontal: 4,
+                  height: 28,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Text style={{
+                  fontSize: 15,
                   fontWeight: 'bold',
                   color: 'white',
-                  backgroundColor: 'transparent',
-                  borderWidth: 0,
-                  padding: 0, // Remove padding to prevent text cutoff
-                  margin: 0,
-                  includeFontPadding: false, // Android specific - prevents text cutoff
-                  textAlignVertical: 'center', // Android specific - centers text vertically
+                  textAlign: 'center',
+                }}>
+                  {cartItem?.quantity ?? minOrder}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleIncrease}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: 'rgba(255,255,255,0.16)',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
-                selectionColor="#fff"
-                placeholder={String(minOrder)}
-                placeholderTextColor="rgba(255,255,255,0.5)"
-                multiline={false}
-                numberOfLines={1}
-              />
+              >
+                <Ionicons name="add" size={18} color="#fff" />
+              </TouchableOpacity>
             </View>
-            
-            <TouchableOpacity
-              onPress={handleIncrease}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
+
+            <Modal
+              visible={showQuantityModal}
+              transparent
+              animationType="fade"
+              onRequestClose={closeQuantityModal}
             >
-              <Ionicons name="add" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+                activeOpacity={1}
+                onPress={closeQuantityModal}
+              >
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={() => {}}
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 16,
+                    padding: 24,
+                    width: 280,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
+                    elevation: 8,
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 4 }}>
+                    Update Quantity
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#666', marginBottom: 16 }} numberOfLines={2}>
+                    {item.productName}
+                  </Text>
+                  {minOrder > 1 && (
+                    <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                      Minimum order: {minOrder}
+                    </Text>
+                  )}
+                  <TextInput
+                    value={quantityInput}
+                    onChangeText={(val) => setQuantityInput(val.replace(/[^0-9]/g, ''))}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    onSubmitEditing={confirmQuantityModal}
+                    autoFocus
+                    selectTextOnFocus
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: '#15803d',
+                      borderRadius: 8,
+                      padding: 12,
+                      fontSize: 22,
+                      fontWeight: 'bold',
+                      textAlign: 'center',
+                      color: '#1a1a1a',
+                      marginBottom: 20,
+                    }}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity
+                      onPress={closeQuantityModal}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: '#e5e7eb',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 15, color: '#666', fontWeight: '600' }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={confirmQuantityModal}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 8,
+                        backgroundColor: '#15803d',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 15, color: '#fff', fontWeight: '700' }}>
+                        Update
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
+          </>
         ) : (
           <TouchableOpacity
             style={{
@@ -474,7 +539,7 @@ const ProductCard = React.memo(({
               paddingHorizontal: 8,
               alignItems: 'center',
               justifyContent: 'center',
-              height: 32, // Same height as controls
+              height: 36,
             }}
             onPress={handleAddToCartPress}
             activeOpacity={0.8}
@@ -482,7 +547,7 @@ const ProductCard = React.memo(({
             <Text style={{
               color: 'white',
               fontWeight: '600',
-              fontSize: 12
+              fontSize: 11
             }}>
               Add {minOrder > 1 ? `${minOrder}` : ''} to Cart
             </Text>
@@ -507,8 +572,8 @@ const SubcategoryItem = ({
     onPress={onPress}
     style={{
       alignItems: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
       borderBottomWidth: 1,
       borderBottomColor: '#f3f4f6',
       backgroundColor: isSelected ? '#f0fdf4' : 'white',
@@ -519,9 +584,9 @@ const SubcategoryItem = ({
   >
     {/* FIXED: Properly Circular Image Container */}
     <View style={{
-      width: 64,
-      height: 64,
-      borderRadius: 32, // Half of width/height for perfect circle
+      width: 56,
+      height: 56,
+      borderRadius: 28, // Half of width/height for perfect circle
       backgroundColor: '#f9fafb', // Light background in case image doesn't load
       borderWidth: isSelected ? 3 : 2,
       borderColor: isSelected ? '#16a34a' : '#e5e7eb',
@@ -535,7 +600,7 @@ const SubcategoryItem = ({
         style={{
           width: '100%',
           height: '100%',
-          borderRadius: 32, // Match container border radius
+          borderRadius: 28, // Match container border radius
         }}
         resizeMode="cover" // CHANGED: cover ensures image fills the circle properly
       />
@@ -544,12 +609,12 @@ const SubcategoryItem = ({
     {/* FIXED: Better text styling */}
     <Text 
       style={{
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '500',
         color: isSelected ? '#15803d' : '#374151',
         textAlign: 'center',
-        lineHeight: 14,
-        maxWidth: 80, // Prevent text from being too wide
+        lineHeight: 13,
+        maxWidth: 70,
       }}
       numberOfLines={2}
       ellipsizeMode="tail"
@@ -563,6 +628,7 @@ const CategoryProductsScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { cartCount } = useCart();
+  const { width: screenWidth } = useWindowDimensions();
   
   // Get category info from params or use defaults
   const categoryId = parseInt(params.categoryId as string) || 1;
@@ -582,6 +648,10 @@ const CategoryProductsScreen = () => {
   const [isCustomerExists, setIsCustomerExists] = useState<boolean | null>(null);
 
   const ITEMS_PER_PAGE = 20;
+  const sidebarWidth = screenWidth < 360 ? 78 : 84;
+  const gridHorizontalPadding = 8;
+  const productPanelWidth = Math.max(screenWidth - sidebarWidth - 1, 220);
+  const cardWidth = Math.floor(productPanelWidth - gridHorizontalPadding * 2);
 
   // Check customer existence
   useEffect(() => {
@@ -747,8 +817,9 @@ const CategoryProductsScreen = () => {
       item={item} 
       isCustomerExists={isCustomerExists || false}
       index={index}
+      cardWidth={cardWidth}
     />
-  ), [isCustomerExists]);
+  ), [cardWidth, isCustomerExists]);
 
   const renderSubcategory = useCallback(({ item }: { item: Subcategory }) => (
     <SubcategoryItem
@@ -809,7 +880,7 @@ const CategoryProductsScreen = () => {
       <View className="flex-1 flex-row">
         {/* FIXED: Left Side - Subcategories with better styling */}
         <View style={{
-          width: 100, // Slightly wider to accommodate circular images better
+          width: sidebarWidth,
           backgroundColor: '#f9fafb',
           borderRightWidth: 1,
           borderRightColor: '#e5e7eb'
@@ -862,14 +933,13 @@ const CategoryProductsScreen = () => {
               data={filteredProducts}
               renderItem={renderProduct}
               keyExtractor={(item) => `category_${item.productId}`}
-              numColumns={2}
+              numColumns={1}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ 
-                paddingHorizontal: 8,
-                paddingBottom: cartCount > 0 ? 120 : 20,
+                paddingHorizontal: gridHorizontalPadding,
+                paddingBottom: cartCount > 0 ? 160 : 24,
                 flexGrow: 1
               }}
-              columnWrapperStyle={{ justifyContent: 'space-between' }}
               onEndReached={loadMoreProducts}
               onEndReachedThreshold={0.1}
               ListFooterComponent={renderFooter}

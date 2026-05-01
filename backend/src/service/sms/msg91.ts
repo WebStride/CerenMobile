@@ -7,9 +7,14 @@ const MSG91_OTP_LENGTH = process.env.MSG91_OTP_LENGTH || '4';
 const MSG91_OTP_EXPIRY = process.env.MSG91_OTP_EXPIRY || '3'; // minutes
 const MSG91_OTP_SEND_URL = 'https://control.msg91.com/api/v5/otp';
 const MSG91_OTP_VERIFY_URL = 'https://control.msg91.com/api/v5/otp/verify';
+const TEST_OTP_BYPASS_CODE = process.env.TEST_OTP_BYPASS_CODE || '123456';
 
 // Test phone numbers that bypass OTP verification (comma separated in env)
 const TEST_PHONE_NUMBERS = (process.env.TEST_PHONE_NUMBERS || '').split(',').map(p => p.trim()).filter(Boolean);
+
+function isNonProductionEnv(): boolean {
+    return ['development', 'staging'].includes(process.env.NODE_ENV || '');
+}
 
 /**
  * Format phone number for MSG91 API (requires digits only, no + prefix)
@@ -137,9 +142,9 @@ export async function verifyOtp(
 ): Promise<{ success: boolean; message: string }> {
     const formattedPhone = formatPhoneForMsg91(phoneNumber);
     
-    // Test bypass: Accept '123456' OTP only in development environment
-    if (process.env.NODE_ENV === 'development' && otp === '123456') {
-        console.log('🎯 Dev test OTP 123456 accepted - bypassing MSG91 verification');
+    // Test bypass: accept a fixed OTP in non-production environments.
+    if (isNonProductionEnv() && otp === TEST_OTP_BYPASS_CODE) {
+        console.log(`🎯 Test OTP ${TEST_OTP_BYPASS_CODE} accepted in ${process.env.NODE_ENV || 'unknown'} - bypassing MSG91 verification`);
         return {
             success: true,
             message: 'Test OTP verified'

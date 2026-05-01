@@ -152,9 +152,10 @@ const InvoiceDetailModal = ({
   onClose: () => void;
   transaction: any;
 }) => {
-  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
-  const [loadingItems, setLoadingItems] = useState(false);
+    const insets = useSafeAreaInsets();
   const [downloading, setDownloading] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
 
   console.log("Invoice Modal - visible:", visible, "transaction:", transaction?.id);
 
@@ -353,7 +354,6 @@ const InvoiceDetailModal = ({
               </View>
 
               {/* Order Number */}
-              {(transaction.details.orderNumber || transaction.details.orderId) && (
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
@@ -365,11 +365,9 @@ const InvoiceDetailModal = ({
                     color: '#111827',
                     fontSize: 14
                   }}>
-                    {transaction.details.orderNumber || `#${transaction.details.orderId}`}
+                    {transaction.details?.orderNumber || (transaction.details?.orderId ? `#${transaction.details.orderId}` : 'N/A')}
                   </Text>
                 </View>
-              )}
-
               {/* Invoice Status */}
               <View style={{
                 flexDirection: 'row',
@@ -447,9 +445,9 @@ const InvoiceDetailModal = ({
                       {/* Right: stacked rows (labels left, values right) */}
                       <View style={{ flex: 1 }}>
                         {/* Product Name (full width) */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <View style={{ marginBottom: 8 }}>
                           <Text style={{ fontWeight: '600', color: '#111827', fontSize: 14 }}>Product Name</Text>
-                          <Text style={{ color: '#6B7280', fontSize: 14 }}>{item.ProductName || 'Unknown Product'}</Text>
+                          <Text numberOfLines={2} style={{ color: '#6B7280', fontSize: 14, marginTop: 2 }}>{item.ProductName || 'Unknown Product'}</Text>
                         </View>
 
                         {/* Sales Qty */}
@@ -509,53 +507,69 @@ const InvoiceDetailModal = ({
             </View>
           </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={{
-            padding: 24,
-            borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            flexDirection: 'row',
-            gap: 12
-          }}>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: downloading ? '#9CA3AF' : '#059669',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center'
-              }}
-              onPress={handleDownloadPDF}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
-              ) : null}
-              <Text style={{
-                color: 'white',
-                fontWeight: '600',
-                fontSize: 16
-              }}>{downloading ? 'Generating...' : 'Download PDF'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: '#F3F4F6',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center'
-              }}
-              onPress={handleDownloadPDF}
-            >
-              <Text style={{
-                color: '#374151',
-                fontWeight: '600',
-                fontSize: 16
-              }}>Share Invoice</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Action Buttons */}
+            <View style={{
+              padding: 24,
+              paddingBottom: Math.max(insets.bottom, 24),
+              borderTopWidth: 1,
+              borderTopColor: '#E5E7EB',
+              flexDirection: 'row',
+              gap: 12
+            }}>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: downloading ? '#9CA3AF' : '#059669',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadPDF}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+                ) : null}
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >{downloading ? 'Generating...' : 'Download PDF'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: '#F3F4F6',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadPDF}
+              >
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: '#374151',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >Share Invoice</Text>
+              </TouchableOpacity>
+            </View>
         </View>
       </View>
     </Modal>
@@ -572,6 +586,7 @@ const PaymentDetailModal = ({
   onClose: () => void;
   transaction: any;
 }) => {
+  const insets = useSafeAreaInsets();
   const [downloading, setDownloading] = useState(false);
   console.log("Payment Modal - visible:", visible, "transaction:", transaction?.id);
 
@@ -702,25 +717,25 @@ const PaymentDetailModal = ({
                 alignItems: 'center',
                 marginBottom: 12
               }}>
-                <View>
+                <View style={{ flex: 1, marginRight: 12 }}>
                   <Text style={{
-                    fontSize: 24,
+                    fontSize: 18,
                     fontWeight: 'bold',
                     color: '#15803D',
                     marginBottom: 4
-                  }}>
+                  }} numberOfLines={1}>
                     {transaction.id}
                   </Text>
                   <Text style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     color: '#16A34A'
-                  }}>
+                  }} numberOfLines={1}>
                     {formatDateTime(transaction.details.paymentDate)}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={{
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: 'bold',
                     color: '#15803D',
                     marginBottom: 4
@@ -731,7 +746,9 @@ const PaymentDetailModal = ({
                     backgroundColor: transaction.details.status === 'Success' ? '#BBF7D0' : '#FECACA',
                     paddingHorizontal: 12,
                     paddingVertical: 4,
-                    borderRadius: 20
+                    borderRadius: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
                     <Text style={{
                       color: transaction.details.status === 'Success' ? '#15803D' : '#DC2626',
@@ -744,55 +761,147 @@ const PaymentDetailModal = ({
                 </View>
               </View>
             </View>
+
+            {/* Payment Information */}
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              marginBottom: 24,
+              overflow: 'hidden'
+            }}>
+              <View style={{
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                backgroundColor: '#F9FAFB',
+                borderBottomWidth: 1,
+                borderBottomColor: '#E5E7EB'
+              }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>Payment Information</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Payment Method</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.paymentMethod}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Transaction ID</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.transactionId}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Reference No.</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.bankReference}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>Paid By</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{transaction.details.paidBy}</Text>
+              </View>
+            </View>
+
+            {/* Amount Breakdown */}
+            {(transaction.details.upiAmount > 0 || transaction.details.cashAmount > 0 || transaction.details.chequeAmount > 0) && (
+              <View style={{
+                backgroundColor: 'white',
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#E5E7EB',
+                marginBottom: 24,
+                overflow: 'hidden'
+              }}>
+                <View style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  backgroundColor: '#F9FAFB',
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#E5E7EB'
+                }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>Amount Breakdown</Text>
+                </View>
+                {transaction.details.upiAmount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>UPI</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>₹{transaction.details.upiAmount.toFixed(2)}</Text>
+                  </View>
+                )}
+                {transaction.details.cashAmount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' }}>
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>Cash</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>₹{transaction.details.cashAmount.toFixed(2)}</Text>
+                  </View>
+                )}
+                {transaction.details.chequeAmount > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+                    <Text style={{ fontSize: 14, color: '#6B7280' }}>Cheque</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#059669' }}>₹{transaction.details.chequeAmount.toFixed(2)}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={{
-            padding: 24,
-            borderTopWidth: 1,
-            borderTopColor: '#E5E7EB',
-            flexDirection: 'row',
-            gap: 12
-          }}>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: downloading ? '#9CA3AF' : '#059669',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center'
-              }}
-              onPress={handleDownloadReceipt}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
-              ) : null}
-              <Text style={{
-                color: 'white',
-                fontWeight: '600',
-                fontSize: 16
-              }}>{downloading ? 'Generating...' : 'Download Receipt'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={{
-                flex: 1,
-                backgroundColor: '#F3F4F6',
-                paddingVertical: 16,
-                borderRadius: 12,
-                alignItems: 'center'
-              }}
-              onPress={handleDownloadReceipt}
-            >
-              <Text style={{
-                color: '#374151',
-                fontWeight: '600',
-                fontSize: 16
-              }}>Share Receipt</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Action Buttons */}
+            <View style={{
+              padding: 24,
+              paddingBottom: Math.max(insets.bottom, 24),
+              borderTopWidth: 1,
+              borderTopColor: '#E5E7EB',
+              flexDirection: 'row',
+              gap: 12
+            }}>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: downloading ? '#9CA3AF' : '#059669',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadReceipt}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+                ) : null}
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >{downloading ? 'Generating...' : 'Download Receipt'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{
+                  flex: 1,
+                  backgroundColor: '#F3F4F6',
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 56
+                }}
+                onPress={handleDownloadReceipt}
+              >
+                <Text 
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    color: '#374151',
+                    fontWeight: '600',
+                    fontSize: 13,
+                    textAlign: 'center',
+                    paddingHorizontal: 4
+                  }}
+                >Share Receipt</Text>
+              </TouchableOpacity>
+            </View>
         </View>
       </View>
     </Modal>
@@ -845,6 +954,10 @@ const TransactionRow = ({
   };
 
   const transactionIndex = transaction.details?.transactionIndex;
+  const orderNumber = transaction.details?.orderNumber || (transaction.details?.orderId ? `#${transaction.details.orderId}` : null);
+  const summaryLabel = transaction.type === "invoice"
+    ? (orderNumber ? `Order Number: ${orderNumber}` : transaction.description)
+    : transaction.description;
 
   return (
     <TouchableOpacity
@@ -922,7 +1035,7 @@ const TransactionRow = ({
       {/* Description and Balance */}
       <View className="flex-row justify-between items-center pt-2 border-t border-gray-200">
         <Text className="text-sm text-gray-600 flex-1">
-          {transaction.description}
+          {summaryLabel}
         </Text>
         <View className="items-end ml-2">
           <Text className="text-xs text-gray-500">{transaction.type === "balance" ? "Opening" : "Current"} Balance</Text>
@@ -958,6 +1071,14 @@ export default function InvoicesScreen() {
   const [downloadingStatement, setDownloadingStatement] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null); // null = checking, true = guest, false = logged in
 
+  // Keep only the latest invoice request authoritative so quick filter changes cannot leave stale data onscreen.
+  const latestLoadRequestIdRef = React.useRef(0);
+  const latestFilterStateRef = React.useRef({
+    selectedFilter,
+    startDate,
+    endDate,
+  });
+
   // Check guest session on mount
   useEffect(() => {
     const checkGuestSession = async () => {
@@ -967,15 +1088,81 @@ export default function InvoicesScreen() {
     checkGuestSession();
   }, []);
 
+  useEffect(() => {
+    latestFilterStateRef.current = {
+      selectedFilter,
+      startDate,
+      endDate,
+    };
+  }, [selectedFilter, startDate, endDate]);
+
+  const getStartOfDay = (date: Date) => {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+    return normalizedDate;
+  };
+
+  const getEndOfDay = (date: Date) => {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(23, 59, 59, 999);
+    return normalizedDate;
+  };
+
+  const getDateRangeForFilter = (
+    filterKey: string,
+    customStartDate: Date = startDate,
+    customEndDate: Date = endDate
+  ) => {
+    const now = new Date();
+    let fromDate = new Date(now);
+    let toDate = new Date(now);
+
+    switch (filterKey) {
+      case '7days':
+        fromDate.setDate(fromDate.getDate() - 7);
+        break;
+      case '30days':
+        fromDate.setDate(fromDate.getDate() - 30);
+        break;
+      case '3months':
+        fromDate.setDate(fromDate.getDate() - 90);
+        break;
+      case 'custom':
+        fromDate = new Date(customStartDate);
+        toDate = new Date(customEndDate);
+        break;
+      default:
+        fromDate.setDate(fromDate.getDate() - 90);
+        break;
+    }
+
+    const normalizedFromDate = getStartOfDay(fromDate);
+    const normalizedToDate = getEndOfDay(toDate);
+
+    if (normalizedFromDate.getTime() <= normalizedToDate.getTime()) {
+      return {
+        fromDate: normalizedFromDate,
+        toDate: normalizedToDate,
+      };
+    }
+
+    return {
+      fromDate: getStartOfDay(customEndDate),
+      toDate: getEndOfDay(customStartDate),
+    };
+  };
+
   // Load invoices helper: accepts optional custom date range (Date objects)
   const loadInvoices = async (fromDate?: Date, toDate?: Date) => {
+    const requestId = latestLoadRequestIdRef.current + 1;
+    latestLoadRequestIdRef.current = requestId;
     setLoading(true);
     setError(null);
     try {
       console.log('📊 Loading invoices from API...');
 
-      const toDt = toDate || new Date();
-      const fromDt = fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const toDt = getEndOfDay(toDate || new Date());
+      const fromDt = getStartOfDay(fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
 
       const fromDateTime = fromDt.getTime().toString();
       const toDateTime = toDt.getTime().toString();
@@ -986,17 +1173,29 @@ export default function InvoicesScreen() {
 
       console.log('📥 API Response:', JSON.stringify(res, null, 2));
 
-      if (!res || !res.success || !Array.isArray(res.invoices)) {
-        console.error('❌ Invalid API response structure:', { 
+      if (!res || !Array.isArray(res.invoices)) {
+        console.warn('⚠️ Invalid API response structure:', { 
           hasRes: !!res, 
-          hasSuccess: res?.success, 
           isArray: Array.isArray(res?.invoices),
           response: res 
         });
-        throw new Error('Invalid response from API');
+        throw new Error(res?.message || 'Invalid response from API');
+      }
+
+      if (!res.success) {
+        console.warn('⚠️ API returned failure response:', res);
+        if (!res.invoices || res.invoices.length === 0) {
+          throw new Error(res.message || 'Failed to fetch invoices');
+        }
       }
 
       const apiInvoices = res.invoices;
+
+      if (latestLoadRequestIdRef.current !== requestId) {
+        console.log('⏭️ Ignoring stale invoice response for request:', requestId);
+        return;
+      }
+
       console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
 
       // Log the first invoice structure to see actual field names
@@ -1086,13 +1285,30 @@ export default function InvoicesScreen() {
       setTransactions(allTransactions);
       setFilteredTransactions(allTransactions);
     } catch (err: any) {
-      console.error('❌ Error loading invoices:', err);
+      if (latestLoadRequestIdRef.current !== requestId) {
+        console.log('⏭️ Ignoring stale invoice error for request:', requestId);
+        return;
+      }
+
+      console.warn('⚠️ Error loading invoices:', err);
       setError(err?.message || 'Failed to load invoices');
       setTransactions([]);
       setFilteredTransactions([]);
     } finally {
-      setLoading(false);
+      if (latestLoadRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
+  };
+
+  const loadInvoicesForFilter = async (
+    filterKey: string,
+    customStartDate: Date = startDate,
+    customEndDate: Date = endDate
+  ) => {
+    const { fromDate, toDate } = getDateRangeForFilter(filterKey, customStartDate, customEndDate);
+    console.log('🔁 Loading invoices for filter:', filterKey, { fromDate, toDate });
+    await loadInvoices(fromDate, toDate);
   };
 
   // Use useFocusEffect to reload invoices whenever the screen comes into focus
@@ -1100,17 +1316,21 @@ export default function InvoicesScreen() {
   useFocusEffect(
     useCallback(() => {
       if (isGuest === false) {
+        const {
+          selectedFilter: focusedFilter,
+          startDate: focusedStartDate,
+          endDate: focusedEndDate,
+        } = latestFilterStateRef.current;
         console.log('📊 Invoices screen focused - reloading invoices...');
-        loadInvoices();
+        loadInvoicesForFilter(focusedFilter, focusedStartDate, focusedEndDate);
       }
     }, [isGuest])
   );
 
-  // Re-fetch invoices when custom date range is selected (only if confirmed not guest)
+  // Fetch invoices whenever the active date filter changes.
   useEffect(() => {
-    if (isGuest === false && selectedFilter === 'custom') {
-      console.log('🔁 Custom date range selected - re-fetching invoices for range:', startDate, endDate);
-      loadInvoices(startDate, endDate);
+    if (isGuest === false) {
+      loadInvoicesForFilter(selectedFilter, startDate, endDate);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFilter, startDate, endDate, isGuest]);
@@ -1138,49 +1358,22 @@ export default function InvoicesScreen() {
 
   const filterTransactions = () => {
     let filtered = [...transactions];
-    const now = new Date();
+    const { fromDate, toDate } = getDateRangeForFilter(selectedFilter);
     
     console.log('🔍 Filtering transactions:', {
       total: transactions.length,
       filter: selectedFilter,
-      currentDate: now.toISOString(),
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      fromDate: fromDate.toISOString(),
+      toDate: toDate.toISOString()
     });
-    
-    switch (selectedFilter) {
-      case "7days":
-        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        filtered = transactions.filter(transaction => 
-          transaction.type === "balance" || new Date(transaction.date!) >= sevenDaysAgo
-        );
-        break;
-      case "30days":
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        filtered = transactions.filter(transaction => 
-          transaction.type === "balance" || new Date(transaction.date!) >= thirtyDaysAgo
-        );
-        break;
-      case "3months":
-        // For mock data testing, show all transactions (6 months back)
-        const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
-        filtered = transactions.filter(transaction => 
-          transaction.type === "balance" || new Date(transaction.date!) >= sixMonthsAgo
-        );
-        break;
-      case "custom":
-        filtered = transactions.filter(transaction => {
-          if (transaction.type === "balance") return true;
-          if (!transaction.date) return false;
-          const transactionDate = new Date(transaction.date);
-          // Normalize dates to compare only date parts (ignore time)
-          const txDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), transactionDate.getDate());
-          const fromDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-          const toDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-          return txDate >= fromDate && txDate <= toDate;
-        });
-        break;
-    }
+
+    filtered = transactions.filter(transaction => {
+      if (transaction.type === 'balance') return true;
+      if (!transaction.date) return false;
+
+      const transactionDate = new Date(transaction.date);
+      return transactionDate >= fromDate && transactionDate <= toDate;
+    });
     
     // Apply status filter
     if (selectedStatus && selectedStatus !== 'all') {
@@ -1307,8 +1500,9 @@ export default function InvoicesScreen() {
         });
       };
 
-      const dateRangeText = `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
-      const filenameDate = formatDateForFilename(endDate.toISOString());
+      const activeDateRange = getDateRangeForFilter(selectedFilter);
+      const dateRangeText = `${formatDateForDisplay(activeDateRange.fromDate)} to ${formatDateForDisplay(activeDateRange.toDate)}`;
+      const filenameDate = formatDateForFilename(activeDateRange.toDate.toISOString());
 
       // Get customer name from AsyncStorage (store name)
       console.log('📝 DEBUG: Retrieving store name from AsyncStorage...');

@@ -9,11 +9,18 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { images } from "@/constants/images";
 import { checkCustomer, sendOtp } from "@/services/api";
 import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedView";
 import { setGuestSession } from "@/utils/session";
+import { goBackOrFallback, resetToRoute } from "@/utils/navigation";
+import {
+  sanitizeIndianMobileInput,
+  validateIndianMobile,
+  toIndianE164,
+} from "@/utils/phoneNumber";
 
 
 const countryData = {
@@ -23,22 +30,37 @@ const countryData = {
 
 export default function LoginNumberScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [isExistingUser, setIsExistingUser] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const isButtonDisabled = phoneNumber.length < 10;
+  const isButtonDisabled = !!validateIndianMobile(phoneNumber) || loading;
+
+  const validatePhoneField = () => {
+    const error = validateIndianMobile(phoneNumber);
+    setPhoneError(error || "");
+    return !error;
+  };
 
   const handleSkipLogin = async () => {
     await setGuestSession();
-    router.replace("/(tabs)/shop");
+    resetToRoute(router, "/(tabs)/shop");
   };
 
 
   const handleNext = async () => {
+    const error = validateIndianMobile(phoneNumber);
+    if (error) {
+      setPhoneError(error);
+      Alert.alert("Invalid mobile number", error);
+      return;
+    }
+
     try {
       setLoading(true);
-      const fullPhoneNumber = `${countryData.code}${phoneNumber}`;
+      const fullPhoneNumber = toIndianE164(phoneNumber);
       
       // Check customer existence if not already checked
       let userExists = isExistingUser;
@@ -46,7 +68,7 @@ export default function LoginNumberScreen() {
         console.log('[LoginNumberScreen] Checking customer existence before proceeding...');
         const resp = await checkCustomer(fullPhoneNumber);
         console.log('[LoginNumberScreen] checkCustomer response:', resp);
-        userExists = resp.success && resp.exists;
+        userExists = Boolean(resp.success && resp.exists);
         setIsExistingUser(userExists);
       }
       
@@ -74,8 +96,16 @@ export default function LoginNumberScreen() {
 
   const handlePhoneBlur = async () => {
     try {
-      if (phoneNumber.length < 10) return;
-      const fullPhoneNumber = `${countryData.code}${phoneNumber}`;
+      if (!phoneNumber) {
+        setPhoneError("");
+        return;
+      }
+
+      if (!validatePhoneField()) {
+        return;
+      }
+
+      const fullPhoneNumber = toIndianE164(phoneNumber);
       console.log('[LoginNumberScreen] Starting checkCustomer for:', fullPhoneNumber);
       const resp = await checkCustomer(fullPhoneNumber);
       console.log('[LoginNumberScreen] checkCustomer response:', resp);
@@ -107,7 +137,7 @@ export default function LoginNumberScreen() {
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 60,
+                top: insets.top + 12,
                 left: 18,
                 width: 10,
                 height: 18,
@@ -115,7 +145,7 @@ export default function LoginNumberScreen() {
                 alignItems: "center",
                 zIndex: 10,
               }}
-              onPress={() => router.push("/OnboardingScreen")}
+              onPress={() => goBackOrFallback(router, "/OnboardingScreen")}
               accessibilityLabel="Back"
             >
               <Image
@@ -133,8 +163,6 @@ export default function LoginNumberScreen() {
                 fontWeight: "600",
                 fontSize: 26,
                 color: "#181725",
-                width: 332,
-                height: 29,
               }}
               className="mb-8"
             >
@@ -165,8 +193,6 @@ export default function LoginNumberScreen() {
                   fontWeight: "600",
                   fontSize: 16,
                   color: "#7C7C7C",
-                  width: 121,
-                  height: 29,
                 }}
                 className="mb-2"
               >
@@ -177,16 +203,31 @@ export default function LoginNumberScreen() {
                 <Text className="text-base text-[#24262B] tracking-widest mr-2">{countryData.code}</Text>
                 <TextInput
                   className="flex-1 text-base text-[#24262B] tracking-widest"
-                  placeholder="Enter number"
+                  placeholder="9876543210"
                   placeholderTextColor="#8F959E"
-                  keyboardType="number-pad"
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
                   maxLength={10}
                   value={phoneNumber}
-                  onChangeText={setPhoneNumber}
+                  onChangeText={(text) => {
+                    setPhoneNumber(sanitizeIndianMobileInput(text));
+                    if (phoneError) {
+                      setPhoneError(validateIndianMobile(text) || "");
+                    }
+                    if (isExistingUser !== null) {
+                      setIsExistingUser(null);
+                    }
+                  }}
                   onBlur={handlePhoneBlur}
                   returnKeyType="done"
                 />
               </View>
+              {!!phoneError && (
+                <Text style={{ color: "#DC2626", fontSize: 12, marginTop: 8 }}>
+                  {phoneError}
+                </Text>
+              )}
             </View>
           </View>
           {/* Next Button (at the bottom, not inside inputs) */}
