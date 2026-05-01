@@ -21,6 +21,7 @@ import KeyboardAvoidingAnimatedView from "@/components/KeyboardAvoidingAnimatedV
 import { getStoresForUser } from "@/services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { resetToRoute } from "@/utils/navigation";
+import { useSubmissionGuard } from "@/utils/useSubmissionGuard";
 
 type Store = {
   CUSTOMERID: number;
@@ -33,6 +34,7 @@ type Store = {
 export default function SelectStore() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isSubmitting, runWithGuard } = useSubmissionGuard();
   const [saveAs, setSaveAs] = useState("");
   const [houseNumber, setHouseNumber] = useState("");
   const [buildingBlock, setBuildingBlock] = useState("");
@@ -91,69 +93,66 @@ export default function SelectStore() {
     load();
     return () => { mounted = false; };
   }, []);
-  const handleSelectStore = async () => {
-    if (!stores || stores.length === 0 || !selectedStoreId) {
-      Alert.alert('No Store Selected', 'Please select a store to continue.');
-      return;
-    }
-    
-    try {
-      // Store the selected store info and hasMultipleStores flag
-      const selected = stores.find((s) => s.CUSTOMERID === selectedStoreId);
-      if (selected) {
-        await AsyncStorage.setItem('selectedStoreId', String(selected.CUSTOMERID));
-        await AsyncStorage.setItem('selectedStoreName', selected.CUSTOMERNAME);
-        await AsyncStorage.setItem('hasMultipleStores', String(stores.length > 1));
-        console.log('✅ Selected store:', selected.CUSTOMERNAME, '(ID:', selected.CUSTOMERID, ')');
-      }
-      
-      // Navigate to shop with store context
-      resetToRoute(router, {
-        pathname: '/(tabs)/shop',
-        params: {
-          customerId: selected ? String(selected.CUSTOMERID) : '',
-          storeName: selected ? selected.CUSTOMERNAME : '',
-        }
-      });
-    } catch (error) {
-      console.error('Error selecting store:', error);
-      Alert.alert('Error', 'Failed to select store. Please try again.');
-    }
-  };
-
-  const handleContinueWithoutStore = async () => {
-    try {
-      console.log('⚠️ [handleContinueWithoutStore] User clicked Continue to Browse');
-      
-      // Clear any previously selected store - THIS IS CRITICAL
-      await AsyncStorage.removeItem('selectedStoreId');
-      await AsyncStorage.removeItem('selectedStoreName');
-      
-      // Verify it's cleared
-      const verifyCleared = await AsyncStorage.getItem('selectedStoreId');
-      console.log('✅ [handleContinueWithoutStore] Verified selectedStoreId is cleared:', verifyCleared);
-      
-      if (verifyCleared !== null) {
-        console.error('❌ [handleContinueWithoutStore] FAILED TO CLEAR selectedStoreId!');
-        Alert.alert('Error', 'Failed to clear store selection. Please try again.');
+  const handleSelectStore = () =>
+    runWithGuard(async () => {
+      if (!stores || stores.length === 0 || !selectedStoreId) {
+        Alert.alert('No Store Selected', 'Please select a store to continue.');
         return;
       }
-      
-      console.log('⚠️ [handleContinueWithoutStore] Continuing without store - products will show WITHOUT pricing');
-      
-      // Navigate to shop WITHOUT customerId (will show products without pricing)
-      resetToRoute(router, {
-        pathname: '/(tabs)/shop',
-        params: {
-          customerId: '', // Empty customerId means no pricing
-          noPricing: 'true', // Flag to indicate catalog mode
+
+      try {
+        const selected = stores.find((s) => s.CUSTOMERID === selectedStoreId);
+        if (selected) {
+          await AsyncStorage.setItem('selectedStoreId', String(selected.CUSTOMERID));
+          await AsyncStorage.setItem('selectedStoreName', selected.CUSTOMERNAME);
+          await AsyncStorage.setItem('hasMultipleStores', String(stores.length > 1));
+          console.log('✅ Selected store:', selected.CUSTOMERNAME, '(ID:', selected.CUSTOMERID, ')');
         }
-      });
-    } catch (error) {
-      console.error('❌ [handleContinueWithoutStore] Error:', error);
-      Alert.alert('Error', 'Failed to continue. Please try again.');
-    }
-  };
+
+        resetToRoute(router, {
+          pathname: '/(tabs)/shop',
+          params: {
+            customerId: selected ? String(selected.CUSTOMERID) : '',
+            storeName: selected ? selected.CUSTOMERNAME : '',
+          }
+        });
+      } catch (error) {
+        console.error('Error selecting store:', error);
+        Alert.alert('Error', 'Failed to select store. Please try again.');
+      }
+    });
+
+  const handleContinueWithoutStore = () =>
+    runWithGuard(async () => {
+      try {
+        console.log('⚠️ [handleContinueWithoutStore] User clicked Continue to Browse');
+
+        await AsyncStorage.removeItem('selectedStoreId');
+        await AsyncStorage.removeItem('selectedStoreName');
+
+        const verifyCleared = await AsyncStorage.getItem('selectedStoreId');
+        console.log('✅ [handleContinueWithoutStore] Verified selectedStoreId is cleared:', verifyCleared);
+
+        if (verifyCleared !== null) {
+          console.error('❌ [handleContinueWithoutStore] FAILED TO CLEAR selectedStoreId!');
+          Alert.alert('Error', 'Failed to clear store selection. Please try again.');
+          return;
+        }
+
+        console.log('⚠️ [handleContinueWithoutStore] Continuing without store - products will show WITHOUT pricing');
+
+        resetToRoute(router, {
+          pathname: '/(tabs)/shop',
+          params: {
+            customerId: '',
+            noPricing: 'true',
+          }
+        });
+      } catch (error) {
+        console.error('❌ [handleContinueWithoutStore] Error:', error);
+        Alert.alert('Error', 'Failed to continue. Please try again.');
+      }
+    });
   return (
     <KeyboardAvoidingAnimatedView style={{ flex: 1, backgroundColor : "#FFFFFF" }} behavior="padding">
 
@@ -253,6 +252,7 @@ export default function SelectStore() {
                   <TouchableOpacity
                     key={s.CUSTOMERID}
                     onPress={() => setSelectedStoreId(s.CUSTOMERID)}
+                    disabled={isSubmitting}
                     style={{
                       padding: 12,
                       borderRadius: 8,
@@ -277,53 +277,89 @@ export default function SelectStore() {
               // Show "Select Store" button when stores are available
               <TouchableOpacity
                 style={{
-                  backgroundColor: "#BCD042",
+                  backgroundColor: isSubmitting ? "#A8B77B" : "#BCD042",
                   height: 48,
                   borderRadius: 14,
                   alignItems: "center",
                   justifyContent: "center",
                   marginBottom: 24,
+                  opacity: isSubmitting ? 0.8 : 1,
                 }}
                 onPress={handleSelectStore}
+                disabled={loading || isSubmitting || !selectedStoreId}
                 accessibilityLabel="Select Store"
                 activeOpacity={0.85}
               >
-                <Text
-                  style={{
-                    color: "#fff",
-                    fontFamily: "Open Sans",
-                    fontWeight: "700",
-                    fontSize: 18,
-                  }}
-                >
-                  Select Store
-                </Text>
+                {isSubmitting ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ActivityIndicator color="#fff" size="small" style={{ marginRight: 8 }} />
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontFamily: "Open Sans",
+                        fontWeight: "700",
+                        fontSize: 18,
+                      }}
+                    >
+                      Opening...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontFamily: "Open Sans",
+                      fontWeight: "700",
+                      fontSize: 18,
+                    }}
+                  >
+                    Select Store
+                  </Text>
+                )}
               </TouchableOpacity>
             ) : (
               // Show "Continue to Browse" button when no stores
               <TouchableOpacity
                 style={{
-                  backgroundColor: "#BCD042",
+                  backgroundColor: isSubmitting ? "#A8B77B" : "#BCD042",
                   height: 48,
                   borderRadius: 14,
                   alignItems: "center",
                   justifyContent: "center",
                   marginBottom: 16,
+                  opacity: isSubmitting ? 0.8 : 1,
                 }}
                 onPress={handleContinueWithoutStore}
+                disabled={loading || isSubmitting}
                 accessibilityLabel="Continue to Browse Products"
                 activeOpacity={0.85}
               >
-                <Text
-                  style={{
-                    color: "#fff",
-                    fontFamily: "Open Sans",
-                    fontWeight: "700",
-                    fontSize: 18,
-                  }}
-                >
-                  Continue to Browse
-                </Text>
+                {isSubmitting ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ActivityIndicator color="#fff" size="small" style={{ marginRight: 8 }} />
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontFamily: "Open Sans",
+                        fontWeight: "700",
+                        fontSize: 18,
+                      }}
+                    >
+                      Continuing...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontFamily: "Open Sans",
+                      fontWeight: "700",
+                      fontSize: 18,
+                    }}
+                  >
+                    Continue to Browse
+                  </Text>
+                )}
               </TouchableOpacity>
             )}
             
