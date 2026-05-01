@@ -12,6 +12,7 @@ import {
   Linking,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -19,6 +20,7 @@ import { images } from "@/constants/images";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { sendAddressDetails, getStoresForUser } from "@/services/api";
 import { resetToRoute } from "@/utils/navigation";
+import { useSubmissionGuard } from "@/utils/useSubmissionGuard";
 
 const TEXT_SCALE_LIMIT = 1.1;
 
@@ -44,6 +46,7 @@ export default function AddAddressDetailsScreen() {
   console.log("AddAddressDetailsScreen rendering");
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isSubmitting, runWithGuard } = useSubmissionGuard();
   const [saveAs, setSaveAs] = useState("home"); // Default to "home"
   const [houseNumber, setHouseNumber] = useState("");
   const [buildingBlock, setBuildingBlock] = useState("");
@@ -74,84 +77,92 @@ export default function AddAddressDetailsScreen() {
   const longitude = Array.isArray(longitudeParam) ? longitudeParam[0] : longitudeParam || "";
 
   console.log("📍 AddAddressDetails - Received params:", { phoneNumber, name, location, city, district, address, fromLocationModal, latitude, longitude });
-  const handleSaveAddress = async () => {
-    try {
-          console.log("Received params:", params);
+  const handleSaveAddress = () =>
+    runWithGuard(async () => {
+      try {
+        console.log("Received params:", params);
 
-      // if (!phoneNumber || !name) {
-      //   Alert.alert("Error", "Phone number or name is missing. Please log in again.");
-      //   return;
-      // }
+        // if (!phoneNumber || !name) {
+        //   Alert.alert("Error", "Phone number or name is missing. Please log in again.");
+        //   return;
+        // }
 
-      const payload = {
-        name,
-        phoneNumber,
-        city, // Use the properly typed city variable
-        district, // Use the properly typed district variable
-        houseNumber,
-        buildingBlock,
-        pinCode,
-        landmark,
-        latitude,
-        longitude,
-        location,   // Map pin locality (CurrentLocation in DB)
-        address,    // Map pin street address (CurrentAddress in DB)
-        saveAs: saveAs || "home", // Default to "home" if not selected
-        // First-time registration: set as default so the top bar shows the pin location
-        // When coming from the location modal (existing user), keep isDefault false to avoid overriding their current default
-        isDefault: fromLocationModal !== "true"
-      };
+        const payload = {
+          name,
+          phoneNumber,
+          city,
+          district,
+          houseNumber,
+          buildingBlock,
+          pinCode,
+          landmark,
+          latitude,
+          longitude,
+          location,
+          address,
+          saveAs: saveAs || "home",
+          isDefault: fromLocationModal !== "true",
+        };
 
-      console.log("Sending address details:", payload);
+        console.log("Sending address details:", payload);
 
-      const response = await sendAddressDetails(payload);
+        const response = await sendAddressDetails(payload);
 
-      if (response.success) {
-        // Check if this is a new user requiring verification
-        const isNewUser = (response as any).requiresVerification === true;
-        
-        Alert.alert(
-          "Success",
-          isNewUser 
-            ? "Your details have been sent to admin for verification. You will be notified once approved."
-            : response.message || "Address saved successfully!",
-          [
-            {
-              text: "OK",
-              onPress: async () => {
-                if (fromLocationModal === "true") {
-                  // User came from location modal, navigate back to home screen
-                  console.log("🏠 Navigating back to home screen after adding address");
-                  resetToRoute(router, "/(tabs)/shop");
-                } else {
-                  // Normal login flow: check store count before deciding navigation
-                  console.log("🔐 Normal login flow, checking stores...");
-                  try {
-                    const storesRes = await getStoresForUser();
-                    if (storesRes.success && Array.isArray(storesRes.stores)) {
-                      // Store the hasMultipleStores flag
-                      await AsyncStorage.setItem('hasMultipleStores', String(storesRes.stores.length > 1));
-                      
-                      if (storesRes.stores.length === 1) {
-                        // Only one store - auto-select and go directly to shop
-                        const singleStore = storesRes.stores[0];
-                        await AsyncStorage.setItem('selectedStoreId', String(singleStore.CUSTOMERID));
-                        await AsyncStorage.setItem('selectedStoreName', singleStore.CUSTOMERNAME);
-                        console.log('🏪 Auto-selected single store:', singleStore.CUSTOMERNAME);
-                        resetToRoute(router, {
-                          pathname: '/(tabs)/shop',
-                          params: {
-                            customerId: String(singleStore.CUSTOMERID),
-                            storeName: singleStore.CUSTOMERNAME,
-                          }
-                        });
-                      } else if (storesRes.stores.length === 0) {
-                        // No stores - go to shop without store (catalog mode)
-                        await AsyncStorage.removeItem('selectedStoreId');
-                        await AsyncStorage.removeItem('selectedStoreName');
-                        resetToRoute(router, '/(tabs)/shop');
+        if (response.success) {
+          const isNewUser = (response as any).requiresVerification === true;
+
+          Alert.alert(
+            "Success",
+            isNewUser
+              ? "Your details have been sent to admin for verification. You will be notified once approved."
+              : response.message || "Address saved successfully!",
+            [
+              {
+                text: "OK",
+                onPress: async () => {
+                  if (fromLocationModal === "true") {
+                    console.log("🏠 Navigating back to home screen after adding address");
+                    resetToRoute(router, "/(tabs)/shop");
+                  } else {
+                    console.log("🔐 Normal login flow, checking stores...");
+                    try {
+                      const storesRes = await getStoresForUser();
+                      if (storesRes.success && Array.isArray(storesRes.stores)) {
+                        await AsyncStorage.setItem("hasMultipleStores", String(storesRes.stores.length > 1));
+
+                        if (storesRes.stores.length === 1) {
+                          const singleStore = storesRes.stores[0];
+                          await AsyncStorage.setItem("selectedStoreId", String(singleStore.CUSTOMERID));
+                          await AsyncStorage.setItem("selectedStoreName", singleStore.CUSTOMERNAME);
+                          console.log("🏪 Auto-selected single store:", singleStore.CUSTOMERNAME);
+                          resetToRoute(router, {
+                            pathname: "/(tabs)/shop",
+                            params: {
+                              customerId: String(singleStore.CUSTOMERID),
+                              storeName: singleStore.CUSTOMERNAME,
+                            },
+                          });
+                        } else if (storesRes.stores.length === 0) {
+                          await AsyncStorage.removeItem("selectedStoreId");
+                          await AsyncStorage.removeItem("selectedStoreName");
+                          resetToRoute(router, "/(tabs)/shop");
+                        } else {
+                          router.push({
+                            pathname: "/login/SelectStore",
+                            params: {
+                              city,
+                              district,
+                              location,
+                              address,
+                              name,
+                              phoneNumber,
+                              fromLocationModal,
+                              latitude,
+                              longitude,
+                            },
+                          });
+                        }
                       } else {
-                        // Multiple stores - show SelectStore page
                         router.push({
                           pathname: "/login/SelectStore",
                           params: {
@@ -163,12 +174,12 @@ export default function AddAddressDetailsScreen() {
                             phoneNumber,
                             fromLocationModal,
                             latitude,
-                            longitude
+                            longitude,
                           },
                         });
                       }
-                    } else {
-                      // Failed to fetch stores, fallback to SelectStore page
+                    } catch (storeError) {
+                      console.error("Error checking stores:", storeError);
                       router.push({
                         pathname: "/login/SelectStore",
                         params: {
@@ -180,41 +191,23 @@ export default function AddAddressDetailsScreen() {
                           phoneNumber,
                           fromLocationModal,
                           latitude,
-                          longitude
+                          longitude,
                         },
                       });
                     }
-                  } catch (storeError) {
-                    console.error('Error checking stores:', storeError);
-                    // Fallback to SelectStore page on error
-                    router.push({
-                      pathname: "/login/SelectStore",
-                      params: {
-                        city,
-                        district,
-                        location,
-                        address,
-                        name,
-                        phoneNumber,
-                        fromLocationModal,
-                        latitude,
-                        longitude
-                      },
-                    });
                   }
-                }
+                },
               },
-            },
-          ]
-        );
-      } else {
-        Alert.alert("Error", response.message || "Failed to send details. Please try again.");
+            ]
+          );
+        } else {
+          Alert.alert("Error", response.message || "Failed to send details. Please try again.");
+        }
+      } catch (error) {
+        console.error("Error saving address details:", error);
+        Alert.alert("Error", "An unexpected error occurred. Please try again.");
       }
-    } catch (error) {
-      console.error("Error saving address details:", error);
-      Alert.alert("Error", "An unexpected error occurred. Please try again.");
-    }
-  };
+    });
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "#FFFFFF" }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -688,29 +681,49 @@ export default function AddAddressDetailsScreen() {
             {/* Save Address Button */}
             <TouchableOpacity
               style={{
-                backgroundColor: "#BCD042",
+                backgroundColor: isSubmitting ? "#A8B77B" : "#BCD042",
                 height: 48,
                 borderRadius: 14,
                 alignItems: "center",
                 justifyContent: "center",
                 marginBottom: 24,
+                opacity: isSubmitting ? 0.8 : 1,
               }}
               onPress={handleSaveAddress}
+              disabled={isSubmitting}
               accessibilityLabel="Save Address"
               activeOpacity={0.85}
             >
-              <Text
-                allowFontScaling={false}
-                maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
-                style={{
-                  color: "#fff",
-                  fontFamily: "Open Sans",
-                  fontWeight: "700",
-                  fontSize: 18,
-                }}
-              >
-                Save Address
-              </Text>
+              {isSubmitting ? (
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <ActivityIndicator color="#fff" size="small" style={{ marginRight: 8 }} />
+                  <Text
+                    allowFontScaling={false}
+                    maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                    style={{
+                      color: "#fff",
+                      fontFamily: "Open Sans",
+                      fontWeight: "700",
+                      fontSize: 18,
+                    }}
+                  >
+                    Saving...
+                  </Text>
+                </View>
+              ) : (
+                <Text
+                  allowFontScaling={false}
+                  maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
+                  style={{
+                    color: "#fff",
+                    fontFamily: "Open Sans",
+                    fontWeight: "700",
+                    fontSize: 18,
+                  }}
+                >
+                  Save Address
+                </Text>
+              )}
             </TouchableOpacity>
           </ScrollView>
         </View>

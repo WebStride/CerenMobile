@@ -1,6 +1,10 @@
 import type { Href, Router } from "expo-router";
 
 export const resetToRoute = (router: Router, href: Href) => {
+  if (router.canDismiss()) {
+    router.dismissAll();
+  }
+
   router.replace(href);
 };
 

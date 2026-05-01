@@ -45,6 +45,7 @@ import {
   toIndianE164,
   formatIndianMobileForDisplay,
 } from "@/utils/phoneNumber";
+import { useSubmissionGuard } from "@/utils/useSubmissionGuard";
 
 const { height, width } = Dimensions.get('window');
 
@@ -134,6 +135,7 @@ const LocationModal = ({
   onAddNewAddress?: () => void;
   onAddressSetAsDefault?: () => void;
 }) => {
+  const { isSubmitting: isSavingEdit, runWithGuard: runSaveEdit } = useSubmissionGuard();
   const [searchText, setSearchText] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
@@ -231,31 +233,32 @@ const LocationModal = ({
     setMenuVisible(null);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingAddress) return;
+  const handleSaveEdit = () =>
+    runSaveEdit(async () => {
+      if (!editingAddress) return;
 
-    const phoneError = validateIndianMobile(editForm.phoneNumber);
-    if (phoneError) {
-      Alert.alert('Invalid phone number', phoneError);
-      return;
-    }
-
-    try {
-      const result = await updateUserAddress(editingAddress.DeliveryAddressID, {
-        ...editForm,
-        phoneNumber: toIndianE164(editForm.phoneNumber),
-      });
-      if (result.success) {
-        await fetchUserAddresses();
-        setEditingAddress(null);
-        Alert.alert('Success', 'Address updated successfully');
-      } else {
-        Alert.alert('Error', result.message || 'Failed to update address');
+      const phoneError = validateIndianMobile(editForm.phoneNumber);
+      if (phoneError) {
+        Alert.alert('Invalid phone number', phoneError);
+        return;
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update address');
-    }
-  };
+
+      try {
+        const result = await updateUserAddress(editingAddress.DeliveryAddressID, {
+          ...editForm,
+          phoneNumber: toIndianE164(editForm.phoneNumber),
+        });
+        if (result.success) {
+          await fetchUserAddresses();
+          setEditingAddress(null);
+          Alert.alert('Success', 'Address updated successfully');
+        } else {
+          Alert.alert('Error', result.message || 'Failed to update address');
+        }
+      } catch (error) {
+        Alert.alert('Error', 'Failed to update address');
+      }
+    });
 
   const handleCancelEdit = () => {
     setEditingAddress(null);
@@ -597,8 +600,10 @@ const LocationModal = ({
                         onPress={handleCancelEdit}
                         style={{
                           flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1,
-                          borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: 'white'
+                          borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: 'white',
+                          opacity: isSavingEdit ? 0.6 : 1,
                         }}
+                        disabled={isSavingEdit}
                         activeOpacity={0.7}
                       >
                         <Text style={{ fontSize: 14, fontWeight: '600', color: '#6B7280' }}>Cancel</Text>
@@ -607,11 +612,19 @@ const LocationModal = ({
                         onPress={handleSaveEdit}
                         style={{
                           flex: 1, paddingVertical: 12, borderRadius: 10,
-                          backgroundColor: '#BCD042', alignItems: 'center'
+                          backgroundColor: isSavingEdit ? '#A8B77B' : '#BCD042', alignItems: 'center'
                         }}
+                        disabled={isSavingEdit}
                         activeOpacity={0.8}
                       >
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A1A' }}>Save</Text>
+                        {isSavingEdit ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <ActivityIndicator size="small" color="#1A1A1A" style={{ marginRight: 8 }} />
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A1A' }}>Saving...</Text>
+                          </View>
+                        ) : (
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A1A' }}>Save</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>

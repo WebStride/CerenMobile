@@ -35,6 +35,7 @@ import {
   toIndianE164,
   formatIndianMobileForDisplay,
 } from "@/utils/phoneNumber";
+import { useSubmissionGuard } from "@/utils/useSubmissionGuard";
 
 const { height, width } = Dimensions.get('window');
 
@@ -74,6 +75,7 @@ const LocationModal = ({
   onAddNewAddress?: () => void;
   onAddressSetAsDefault?: () => void;
 }) => {
+  const { isSubmitting: isSavingEdit, runWithGuard: runSaveEdit } = useSubmissionGuard();
   const [searchText, setSearchText] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
@@ -168,37 +170,38 @@ const LocationModal = ({
     setMenuVisible(null);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingAddress) return;
+  const handleSaveEdit = () =>
+    runSaveEdit(async () => {
+      if (!editingAddress) return;
 
-    const phoneError = validateIndianMobile(editForm.phoneNumber);
-    if (phoneError) {
-      Alert.alert('Invalid phone number', phoneError);
-      return;
-    }
-
-    console.log('💾 Saving address edit:', editForm);
-    console.log('📍 Address ID:', editingAddress.DeliveryAddressID);
-
-    try {
-      const result = await updateUserAddress(editingAddress.DeliveryAddressID, {
-        ...editForm,
-        phoneNumber: toIndianE164(editForm.phoneNumber),
-      });
-      console.log('✅ Update result:', result);
-      if (result.success) {
-        await fetchUserAddresses();
-        setEditingAddress(null);
-        Alert.alert('Success', 'Address updated successfully');
-      } else {
-        console.error('❌ Update failed:', result.message);
-        Alert.alert('Error', result.message || 'Failed to update address');
+      const phoneError = validateIndianMobile(editForm.phoneNumber);
+      if (phoneError) {
+        Alert.alert('Invalid phone number', phoneError);
+        return;
       }
-    } catch (error) {
-      console.error('❌ Update error:', error);
-      Alert.alert('Error', 'Failed to update address');
-    }
-  };
+
+      console.log('💾 Saving address edit:', editForm);
+      console.log('📍 Address ID:', editingAddress.DeliveryAddressID);
+
+      try {
+        const result = await updateUserAddress(editingAddress.DeliveryAddressID, {
+          ...editForm,
+          phoneNumber: toIndianE164(editForm.phoneNumber),
+        });
+        console.log('✅ Update result:', result);
+        if (result.success) {
+          await fetchUserAddresses();
+          setEditingAddress(null);
+          Alert.alert('Success', 'Address updated successfully');
+        } else {
+          console.error('❌ Update failed:', result.message);
+          Alert.alert('Error', result.message || 'Failed to update address');
+        }
+      } catch (error) {
+        console.error('❌ Update error:', error);
+        Alert.alert('Error', 'Failed to update address');
+      }
+    });
 
   const handleCancelEdit = () => {
     setEditingAddress(null);
@@ -547,24 +550,34 @@ const LocationModal = ({
                           padding: 12,
                           borderRadius: 8,
                           marginRight: 8,
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          opacity: isSavingEdit ? 0.6 : 1,
                         }}
                         onPress={handleCancelEdit}
+                        disabled={isSavingEdit}
                       >
                         <Text style={{ color: '#374151', fontWeight: '600' }}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={{
                           flex: 1,
-                          backgroundColor: '#16a34a',
+                          backgroundColor: isSavingEdit ? '#9CA3AF' : '#16a34a',
                           padding: 12,
                           borderRadius: 8,
                           marginLeft: 8,
                           alignItems: 'center'
                         }}
                         onPress={handleSaveEdit}
+                        disabled={isSavingEdit}
                       >
-                        <Text style={{ color: 'white', fontWeight: '600' }}>Save</Text>
+                        {isSavingEdit ? (
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={{ color: 'white', fontWeight: '600' }}>Saving...</Text>
+                          </View>
+                        ) : (
+                          <Text style={{ color: 'white', fontWeight: '600' }}>Save</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
