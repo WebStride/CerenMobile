@@ -1,4 +1,4 @@
-package com.amitavpanda.mobileappui
+package com.ceren.ceren
 
 import android.app.Application
 import android.content.res.Configuration
