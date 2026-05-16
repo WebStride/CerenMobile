@@ -5,6 +5,13 @@ import { FavouritesProvider } from "./context/FavouritesContext";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import OfflineNotice from "../components/OfflineNotice";
 
+// Silence verbose logs in production builds.
+if (!__DEV__) {
+  console.log = () => {};
+  console.debug = () => {};
+  console.info = () => {};
+}
+
 // Runtime safety shim: wrap the global Response constructor to avoid a
 // RangeError when some code (or a failed network request) produces a
 // Response with an invalid status like 0. This is a temporary measure

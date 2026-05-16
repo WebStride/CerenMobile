@@ -1,22 +1,19 @@
 {
   "expo": {
-    "name": "MobileAppUI",
-    "slug": "MobileAppUI",
+    "name": "Ceren",
+    "slug": "mobileappui",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "backgroundColor": "#BCD042",
-    "icon": "./assets/images/splash-icon.png",
+    "icon": "./assets/images/adaptive-icon.png",
     "scheme": "mobileappui",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "projectId": "34cbcac0-891d-4910-b667-1d0762dfa52b",
+    "projectId": "4723d436-4ca1-433e-91dc-708913375cfa",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ceren.ceren",
-      "config": {
-        "googleMapsApiKey": "AIzaSyCWsxdSVg2E95OJOJNELLhrs9pyGFWwZ2o"
-      }
+      "bundleIdentifier": "com.ceren.ceren"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,15 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.ceren.ceren",
-      "permissions": [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_EXTERNAL_STORAGE"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyCLugNuaKypDiHsK8_aWubkwFUO893_SQc"
-        }
-      }
+      "permissions": []
     },
     "web": {
       "bundler": "metro",
@@ -59,12 +48,8 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "34cbcac0-891d-4910-b667-1d0762dfa52b"
-      },
-      "GOOGLE_MAPS_API_KEY_ANDROID": "AIzaSyCLugNuaKypDiHsK8_aWubkwFUO893_SQc",
-      "GOOGLE_MAPS_API_KEY_IOS": "AIzaSyCWsxdSVg2E95OJOJNELLhrs9pyGFWwZ2o",
-      "GOOGLE_MAPS_API_KEY": "AIzaSyCWsxdSVg2E95OJOJNELLhrs9pyGFWwZ2o",
-      "EXPO_PUBLIC_API_URL": "https://api-staging.cerenmobile.com"
+        "projectId": "4723d436-4ca1-433e-91dc-708913375cfa"
+      }
     }
   }
 }

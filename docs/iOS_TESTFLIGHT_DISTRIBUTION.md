@@ -57,14 +57,17 @@ Open `MobileAppUI/app.json` and confirm:
 
 ### 5. Create the App in App Store Connect (if not done)
 
-- Go to: https://appstoreconnect.apple.com
-- Click **My Apps → + → New App**
-- Fill in:
-  - Platform: iOS
-  - Name: Ceren
-  - Bundle ID: `com.ceren.ceren`
-  - SKU: `ceren001` (or any unique identifier)
-- Click **Create**
+- If the app already exists in App Store Connect with Bundle ID `com.ceren.ceren` and Apple ID `6758958090`, do not create a new app record.
+- Use the existing app record from the client account.
+- If it does not exist yet, then:
+  - Go to: https://appstoreconnect.apple.com
+  - Click **My Apps → + → New App**
+  - Fill in:
+    - Platform: iOS
+    - Name: Ceren
+    - Bundle ID: `com.ceren.ceren`
+    - SKU: `ceren001` (or any unique identifier)
+  - Click **Create**
 
 ### 6. Clear any old credentials (if rebuilding fresh)
 

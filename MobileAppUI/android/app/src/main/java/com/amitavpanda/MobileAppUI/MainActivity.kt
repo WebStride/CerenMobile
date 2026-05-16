@@ -1,4 +1,4 @@
-package com.amitavpanda.mobileappui
+package com.ceren.ceren
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

@@ -128,6 +128,8 @@ export async function getOrderItemsByOrderId(orderId: number) {
         });
 
         const serializedOrderItems = JSON.parse(JSON.stringify(orderItemsWithNames, jsonReplacer));
+        
+        console.log('📊 Found order items count:', orderItems.length);
 
         return {
             success: true,
