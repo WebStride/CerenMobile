@@ -87,13 +87,17 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.amitavpanda.mobileappui'
+    namespace 'com.ceren.ceren'
     defaultConfig {
-        applicationId 'com.amitavpanda.mobileappui'
+        applicationId 'com.ceren.ceren'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0.0"
+
+        manifestPlaceholders = [
+            GOOGLE_MAPS_API_KEY: (System.getenv('EXPO_GOOGLE_MAPS_API_KEY') ?: findProperty('GOOGLE_MAPS_API_KEY') ?: '')
+        ]
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

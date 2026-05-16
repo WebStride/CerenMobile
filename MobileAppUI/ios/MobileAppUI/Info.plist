@@ -4,10 +4,12 @@
   <dict>
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
+    <key>GMSApiKey</key>
+    <string>AIzaSyCWsxdSVg2E95OJOJNELLhrs9pyGFWwZ2o</string>
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>MobileAppUI</string>
+    <string>Ceren</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -28,7 +30,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>mobileappui</string>
-          <string>com.amitavpanda.MobileAppUI</string>
+          <string>com.ceren.ceren</string>
         </array>
       </dict>
     </array>
