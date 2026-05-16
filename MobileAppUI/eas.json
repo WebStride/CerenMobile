@@ -19,6 +19,10 @@
     },
     "testflight": {
       "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "APP_ENV": "production"
+      },
       "ios": {
         "simulator": false
       },
@@ -28,12 +32,19 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "APP_ENV": "production"
+      },
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "distribution": "store"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight": {}
   }
 }
