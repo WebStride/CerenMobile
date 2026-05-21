@@ -9,7 +9,6 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   TextInput,
-  Linking,
   ScrollView,
   Alert,
   ActivityIndicator,
@@ -663,7 +662,7 @@ export default function AddAddressDetailsScreen() {
                 allowFontScaling={false}
                 maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                 style={{ color: "#53B175" }}
-                onPress={() => Linking.openURL("https://your.terms.url")}
+                onPress={() => router.push("/account/terms")}
               >
                 Terms of Service
               </Text>
@@ -672,7 +671,7 @@ export default function AddAddressDetailsScreen() {
                 allowFontScaling={false}
                 maxFontSizeMultiplier={TEXT_SCALE_LIMIT}
                 style={{ color: "#53B175" }}
-                onPress={() => Linking.openURL("https://your.privacy.url")}
+                onPress={() => router.push("/account/privacy")}
               >
                 Privacy Policy.
               </Text>

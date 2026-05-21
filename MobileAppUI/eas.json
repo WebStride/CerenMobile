@@ -24,10 +24,8 @@
         "APP_ENV": "production"
       },
       "ios": {
-        "simulator": false
-      },
-      "android": {
-        "buildType": "apk"
+        "simulator": false,
+        "image": "macos-sequoia-15.5-xcode-26.0"
       }
     },
     "production": {
@@ -39,7 +37,8 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "distribution": "store"
+        "distribution": "store",
+        "image": "macos-sequoia-15.5-xcode-26.0"
       }
     }
   },
