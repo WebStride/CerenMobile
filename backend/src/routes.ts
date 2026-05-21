@@ -1,6 +1,6 @@
 import { Express, Request, Response } from "express";
 import { register, verifyPhoneNumber, refreshToken, logout, validateToken, testOTP, checkCustomerPublic, sendOtpController } from "./controllers/auth";
-import { submitUserAddress, getUserAddresses, setDefaultAddress, getDefaultAddress, updateUserAddress, deleteUserAddress, getUserMasterAddress } from "./controllers/user";
+import { submitUserAddress, getUserAddresses, setDefaultAddress, getDefaultAddress, updateUserAddress, deleteUserAddress, getUserMasterAddress, deleteAccount } from "./controllers/user";
 import {
     getExclusiveProductsList,
     getBestSelling,
@@ -49,6 +49,7 @@ function routes(app: Express) {
     app.get("/user/master-address", authenticateToken, getUserMasterAddress);
     app.put("/user/addresses/:addressId", authenticateToken, updateUserAddress);
     app.delete("/user/addresses/:addressId", authenticateToken, deleteUserAddress);
+    app.delete("/user/account", authenticateToken, deleteAccount);
 
     // Product routes (guest browsing allowed)
     app.get("/products/exclusive", getExclusiveProductsList);
