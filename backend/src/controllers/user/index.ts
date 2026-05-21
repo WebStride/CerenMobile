@@ -425,7 +425,7 @@ export async function deleteAccount(req: AuthRequest, res: Response) {
             where: { id: userId },
             data: {
                 name: '[deleted]',
-                phoneNumber: null,
+                phoneNumber: '[deleted]',
                 address: null,
             }
         });
