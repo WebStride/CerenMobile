@@ -403,6 +403,58 @@ export async function deleteUserAddress(req: AuthRequest, res: Response) {
     }
 }
 
+// Delete user account (soft delete — anonymize PII, remove transient data)
+export async function deleteAccount(req: AuthRequest, res: Response) {
+    try {
+        const authenticatedUserId = req.user?.userId;
+        if (!authenticatedUserId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const userId = parseInt(authenticatedUserId);
+
+        // Find the customer record linked to this user
+        const customer = await prisma.cUSTOMERMASTER.findFirst({
+            where: { USERID: userId }
+        });
+
+        const customerId = customer?.CUSTOMERID;
+
+        // Anonymize the auth user record
+        await prisma.uSERCUSTOMERMASTER.update({
+            where: { id: userId },
+            data: {
+                name: '[deleted]',
+                phoneNumber: null,
+                address: null,
+            }
+        });
+
+        // If a CustomerMaster record exists, soft-delete it
+        if (customerId) {
+            await prisma.cUSTOMERMASTER.update({
+                where: { CUSTOMERID: customerId },
+                data: {
+                    CUSTOMERNAME: '[deleted]',
+                    PHONENO: null,
+                    ADDRESS: null,
+                    GSTIN: null,
+                    ACTIVE: false,
+                }
+            });
+
+        }
+
+        res.json({ success: true, message: 'Account deleted successfully' });
+    } catch (error: any) {
+        console.error('Error deleting account:', error);
+        res.status(500).json({
+            error: 'Failed to delete account',
+            details: error.message
+        });
+    }
+}
+
 // Get USERCUSTOMERMASTER address for authenticated user
 export async function getUserMasterAddress(req: AuthRequest, res: Response) {
     try {

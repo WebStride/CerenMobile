@@ -86,6 +86,7 @@ module.exports = ({ config }) => {
       },
       infoPlist: {
         ...(config.ios?.infoPlist || {}),
+        ITSAppUsesNonExemptEncryption: false,
         NSLocationWhenInUseUsageDescription:
           config.ios?.infoPlist?.NSLocationWhenInUseUsageDescription ||
           'We need your location to show nearby distributors and set your address',
