@@ -13,10 +13,7 @@
     "projectId": "4723d436-4ca1-433e-91dc-708913375cfa",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ceren.ceren",
-      "config": {
-        "googleMapsApiKey": "AIzaSyCWsxdSVg2E95OJOJNELLhrs9pyGFWwZ2o"
-      }
+      "bundleIdentifier": "com.ceren.ceren"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,15 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.ceren.ceren",
-      "permissions": [
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_EXTERNAL_STORAGE"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyCLugNuaKypDiHsK8_aWubkwFUO893_SQc"
-        }
-      }
+      "permissions": []
     },
     "web": {
       "bundler": "metro",
