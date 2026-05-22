@@ -2,10 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { isGuestSession } from '@/utils/session';
 
-const DEBUG_API_LOGS = __DEV__;
-
 const debugLog = (...args: unknown[]) => {
-  if (DEBUG_API_LOGS) {
+  if (__DEV__) {
     console.log(...args);
   }
 };
@@ -1117,6 +1115,29 @@ export const deleteUserAddress = async (addressId: number) => {
   }
 };
 
+export const deleteAccount = async () => {
+  try {
+    const response = await fetch(`${apiUrl}/user/account`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': await getAccessToken(),
+        'x-refresh-token': await getRefreshToken(),
+      }
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { success: false, message: err.error || 'Failed to delete account' };
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    return { success: false, message: 'Failed to delete account' };
+  }
+};
+
 // Place order via external API
 export const placeOrder = async (
   customerId: number,
@@ -1131,7 +1152,7 @@ export const placeOrder = async (
 ): Promise<{ success: boolean; message?: string; data?: any }> => {
   try {
     const endpoint = `${apiUrl}/orders/place`;
-    console.log('📦 Place Order API call:', endpoint);
+    if (__DEV__) console.log('📦 Place Order API call:', endpoint);
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -1148,11 +1169,11 @@ export const placeOrder = async (
       }),
     });
 
-    console.log('Place Order response status:', response.status);
+    if (__DEV__) console.log('Place Order response status:', response.status);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Error placing order:', errorData);
+      if (__DEV__) console.error('Error placing order:', errorData);
       return {
         success: false,
         message: errorData.error || errorData.message || 'Failed to place order',
@@ -1160,7 +1181,7 @@ export const placeOrder = async (
     }
 
     const data = await response.json();
-    console.log('✅ Order placed successfully:', data);
+    if (__DEV__) console.log('✅ Order placed successfully:', data);
     return data;
   } catch (error: any) {
     console.error('Error in placeOrder:', error);
@@ -1227,33 +1248,23 @@ export const sendCustomerCareWhatsApp = async (
   payload: CustomerCarePayload
 ): Promise<{ success: boolean; message?: string }> => {
   try {
-    // Get environment variables (must use EXPO_PUBLIC_ prefix for Expo/React Native)
-    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO;
     const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER;
     const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY;
     const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL;
 
-    console.log('📞 Customer Care WhatsApp Config:', { 
-      INTEGRATED_NO, 
-      ADMIN_TO_NUMBER, 
-      hasAuthKey: !!MSG91_AUTH_KEY,
-      MSG91_WHATSAPP_URL
-    });
-
-    if (!MSG91_AUTH_KEY) {
-      console.error('MSG91_AUTH_KEY is not configured for customer care');
+    if (!MSG91_AUTH_KEY || !MSG91_WHATSAPP_URL || !INTEGRATED_NO || !ADMIN_TO_NUMBER) {
+      if (__DEV__) console.error('MSG91 config missing for customer care');
       return {
         success: false,
         message: 'Configuration error. Please contact support.',
       };
     }
 
-    // Truncate address to ~150-200 chars for template
     const truncatedAddress = payload.address.length > 200 
       ? payload.address.substring(0, 197) + '...' 
       : payload.address;
 
-    // Truncate message to reasonable length
     const truncatedMessage = payload.message.length > 200 
       ? payload.message.substring(0, 197) + '...' 
       : payload.message;
@@ -1288,7 +1299,7 @@ export const sendCustomerCareWhatsApp = async (
       },
     };
 
-    console.log('📞 Sending Customer Care WhatsApp:', JSON.stringify(requestBody, null, 2));
+    if (__DEV__) console.log('📞 Sending Customer Care WhatsApp');
 
     const response = await fetch(
       MSG91_WHATSAPP_URL,
@@ -1303,9 +1314,9 @@ export const sendCustomerCareWhatsApp = async (
     );
 
     const data = await response.json().catch(() => ({}));
-    console.log('📞 MSG91 Customer Care Response:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
+      if (__DEV__) console.error('MSG91 Customer Care failed:', data);
       return {
         success: false,
         message: data.message || 'Failed to send customer care request',
@@ -1317,7 +1328,7 @@ export const sendCustomerCareWhatsApp = async (
       message: 'Customer care request sent successfully',
     };
   } catch (error: any) {
-    console.error('Error sending customer care request via WhatsApp:', error);
+    if (__DEV__) console.error('Error sending customer care request via WhatsApp:', error);
     return {
       success: false,
       message: error?.message || 'Network error',
@@ -1339,22 +1350,13 @@ export const sendPriceRequestWhatsApp = async (
   payload: PriceRequestPayload
 ): Promise<{ success: boolean; message?: string }> => {
   try {
-    // Get environment variables (must use EXPO_PUBLIC_ prefix for Expo/React Native)
-    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO;
     const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER;
     const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY;
     const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL;
 
-    console.log('📱 MSG91 Config:', { 
-      INTEGRATED_NO, 
-      ADMIN_TO_NUMBER, 
-      hasAuthKey: !!MSG91_AUTH_KEY,
-      authKeyLength: MSG91_AUTH_KEY.length,
-      MSG91_WHATSAPP_URL
-    });
-
-    if (!MSG91_AUTH_KEY) {
-      console.error('MSG91_AUTH_KEY is not configured');
+    if (!MSG91_AUTH_KEY || !MSG91_WHATSAPP_URL || !INTEGRATED_NO || !ADMIN_TO_NUMBER) {
+      if (__DEV__) console.error('MSG91 config missing for price request');
       return {
         success: false,
         message: 'Configuration error. Please contact support.',
@@ -1391,7 +1393,7 @@ export const sendPriceRequestWhatsApp = async (
       },
     };
 
-    console.log('📱 Sending WhatsApp price request:', JSON.stringify(requestBody, null, 2));
+    if (__DEV__) console.log('📱 Sending WhatsApp price request');
 
     const response = await fetch(
       MSG91_WHATSAPP_URL,
@@ -1406,9 +1408,9 @@ export const sendPriceRequestWhatsApp = async (
     );
 
     const data = await response.json().catch(() => ({}));
-    console.log('📱 MSG91 Response:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
+      if (__DEV__) console.error('MSG91 Price request failed:', data);
       return {
         success: false,
         message: data.message || 'Failed to send price request',
@@ -1420,7 +1422,7 @@ export const sendPriceRequestWhatsApp = async (
       message: 'Price request sent successfully',
     };
   } catch (error: any) {
-    console.error('Error sending price request via WhatsApp:', error);
+    if (__DEV__) console.error('Error sending price request via WhatsApp:', error);
     return {
       success: false,
       message: error?.message || 'Network error',
@@ -1437,17 +1439,16 @@ export const sendNewRegistrationWhatsApp = async (payload: {
   customerId?: string | number;
 }): Promise<{ success: boolean; message?: string }> => {
   try {
-    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO || '919606998203';
+    const INTEGRATED_NO = process.env.EXPO_PUBLIC_INTEGRATED_NO;
     const ADMIN_TO_NUMBER = process.env.EXPO_PUBLIC_ADMIN_TO_NUMBER;
     const MSG91_AUTH_KEY = process.env.EXPO_PUBLIC_MSG91_AUTH_KEY;
     const MSG91_WHATSAPP_URL = process.env.EXPO_PUBLIC_MSG91_WHATSAPP_URL;
 
-    if (!MSG91_AUTH_KEY) {
-      console.error('MSG91_AUTH_KEY is not configured');
+    if (!MSG91_AUTH_KEY || !MSG91_WHATSAPP_URL || !INTEGRATED_NO || !ADMIN_TO_NUMBER) {
+      if (__DEV__) console.error('MSG91 config missing for registration alert');
       return { success: false, message: 'Configuration error. Please contact support.' };
     }
 
-    // Truncate address to ~200 chars
     const truncatedAddress = payload.address.length > 200
       ? payload.address.substring(0, 197) + '...'
       : payload.address;
@@ -1492,11 +1493,12 @@ export const sendNewRegistrationWhatsApp = async (payload: {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (__DEV__) console.error('Registration alert failed:', data);
       return { success: false, message: data.message || 'Failed to send registration alert' };
     }
     return { success: true, message: 'Registration alert sent successfully' };
   } catch (error: any) {
-    console.error('Error sending registration WhatsApp alert:', error);
+    if (__DEV__) console.error('Error sending registration WhatsApp alert:', error);
     return { success: false, message: error?.message || 'Network error' };
   }
 };

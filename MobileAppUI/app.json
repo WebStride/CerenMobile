@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "backgroundColor": "#BCD042",
     "icon": "./assets/images/adaptive-icon.png",
-    "scheme": "mobileappui",
+    "scheme": "ceren",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "projectId": "4723d436-4ca1-433e-91dc-708913375cfa",

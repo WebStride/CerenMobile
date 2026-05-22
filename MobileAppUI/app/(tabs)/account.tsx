@@ -24,7 +24,8 @@ import {
   getDefaultAddress,
   getUserMasterAddress,
   submitContactUs,
-  sendCustomerCareWhatsApp
+  sendCustomerCareWhatsApp,
+  deleteAccount as deleteAccountApi,
 } from "@/services/api";
 import { isGuestSession } from "@/utils/session";
 import { useCart } from "@/app/context/CartContext";
@@ -936,25 +937,8 @@ export default function AccountScreen() {
             text: "Clear & Re-login",
             style: "destructive",
             onPress: async () => {
-              console.log("🧹 Clearing stored data and redirecting to login...");
               await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'userData']);
               router.push("/OnboardingScreen");
-            }
-          },
-          {
-            text: "Debug",
-            onPress: async () => {
-              // Debug AsyncStorage contents
-              const accessToken = await AsyncStorage.getItem('accessToken');
-              const refreshToken = await AsyncStorage.getItem('refreshToken');
-              const userDataStored = await AsyncStorage.getItem('userData');
-              console.log("🔍 Debug Info:");
-              console.log("- Access Token:", accessToken ? "Present" : "Missing");
-              console.log("- Refresh Token:", refreshToken ? "Present" : "Missing");
-              console.log("- User Data:", userDataStored ? JSON.parse(userDataStored) : "Missing");
-
-              const debugInfo = `Access Token: ${accessToken ? "Present" : "Missing"}\nRefresh Token: ${refreshToken ? "Present" : "Missing"}\nUser Data: ${userDataStored ? "Present" : "Missing"}`;
-              Alert.alert("Debug Info", debugInfo);
             }
           }
         ]
@@ -1109,6 +1093,45 @@ export default function AccountScreen() {
             } catch (error) {
               console.error("Error during logout:", error);
               Alert.alert("Error", "Failed to logout. Please try again.");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to permanently delete your account? You will not be able to log in again, and your personal data will be removed.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete My Account",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const result = await deleteAccountApi();
+              if (result.success) {
+                clearCart();
+                await Promise.all([
+                  AsyncStorage.removeItem("accessToken"),
+                  AsyncStorage.removeItem("refreshToken"),
+                  AsyncStorage.removeItem("userData"),
+                  AsyncStorage.removeItem("customerId"),
+                  AsyncStorage.removeItem("selectedStoreId"),
+                  AsyncStorage.removeItem("selectedStoreName"),
+                  AsyncStorage.removeItem("cart"),
+                ]);
+                router.replace("/OnboardingScreen");
+              } else {
+                Alert.alert("Error", result.message || "Failed to delete account. Please try again.");
+              }
+            } catch {
+              Alert.alert("Error", "Failed to delete account. Please try again.");
             }
           }
         }
@@ -1292,8 +1315,26 @@ export default function AccountScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Delete Account */}
+        {!isGuest && (
+          <View className="mt-4 mx-4">
+            <TouchableOpacity
+              onPress={handleDeleteAccount}
+              className="bg-white rounded-lg py-4 px-4 border border-red-200 shadow-sm"
+              activeOpacity={0.8}
+            >
+              <View className="flex-row items-center justify-center">
+                <Ionicons name="trash-outline" size={24} color="#DC2626" />
+                <Text className="text-lg font-semibold text-red-600 ml-3">
+                  Delete Account
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* App Version - UNCHANGED */}
-        <View className="mt-8 items-center pb-4">
+        <View className="mt-6 items-center pb-4">
           <Text className="text-gray-400 text-sm">
             Version 1.0.0
           </Text>

@@ -157,7 +157,7 @@ const InvoiceDetailModal = ({
   const [loadingItems, setLoadingItems] = useState(false);
   const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
 
-  console.log("Invoice Modal - visible:", visible, "transaction:", transaction?.id);
+  if (__DEV__) console.log("Invoice Modal - visible:", visible, "transaction:", transaction?.id);
 
   useEffect(() => {
     if (visible && transaction && transaction.type === 'invoice') {
@@ -202,7 +202,7 @@ const InvoiceDetailModal = ({
     
     try {
       setDownloading(true);
-      console.log('📄 Starting PDF download for transaction:', transaction.id);
+      if (__DEV__) console.log('📄 Starting PDF download for transaction:', transaction.id);
 
       // Validate transaction has required data
       if (!transaction) {
@@ -218,9 +218,9 @@ const InvoiceDetailModal = ({
       const dateStr = formatDateForFilename(transaction.date);
       const fileName = `${storeName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
 
-      console.log('📄 Generating PDF with filename:', fileName);
-      console.log('📄 Invoice items count:', invoiceItems.length);
-      console.log('📄 Store name:', storeName);
+      if (__DEV__) console.log('📄 Generating PDF with filename:', fileName);
+      if (__DEV__) console.log('📄 Invoice items count:', invoiceItems.length);
+      if (__DEV__) console.log('📄 Store name:', storeName);
 
       const html = generateInvoicePDF(
         transaction,
@@ -229,9 +229,9 @@ const InvoiceDetailModal = ({
         storeName
       );
 
-      console.log('📄 HTML generated, creating PDF...');
+      if (__DEV__) console.log('📄 HTML generated, creating PDF...');
       const { uri } = await Print.printToFileAsync({ html });
-      console.log('📄 PDF created at temp location:', uri);
+      if (__DEV__) console.log('📄 PDF created at temp location:', uri);
 
       // Persist using new FileSystem API
       const file = new File(Paths.document, fileName);
@@ -240,15 +240,14 @@ const InvoiceDetailModal = ({
       try {
         const response = await fetch(uri);
         await file.write(await response.bytes());
-        console.log('📄 PDF persisted to:', file.uri);
+        if (__DEV__) console.log('📄 PDF persisted to:', file.uri);
         shareTarget = file.uri;
       } catch (moveErr) {
-        // If persist fails, fall back to sharing the temp uri
-        console.warn('⚠️ Failed to persist PDF, using temp uri:', moveErr);
+        if (__DEV__) console.warn('⚠️ Failed to persist PDF, using temp uri:', moveErr);
       }
 
       const canShare = await Sharing.isAvailableAsync();
-      console.log('📄 Sharing available:', canShare);
+      if (__DEV__) console.log('📄 Sharing available:', canShare);
       
       if (canShare) {
         await Sharing.shareAsync(shareTarget, {
@@ -256,14 +255,14 @@ const InvoiceDetailModal = ({
           mimeType: 'application/pdf',
           dialogTitle: 'Share Invoice PDF'
         });
-        console.log('✅ PDF shared successfully');
+        if (__DEV__) console.log('✅ PDF shared successfully');
       } else {
         Alert.alert('Success', `PDF generated successfully!\nSaved to: ${fileName}`);
       }
     } catch (error: any) {
-      console.error('❌ Error generating PDF:', error);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
+      if (__DEV__) console.error('❌ Error generating PDF:', error);
+      if (__DEV__) console.error('❌ Error message:', error.message);
+      if (__DEV__) console.error('❌ Error stack:', error.stack);
       Alert.alert(
         'Download Failed', 
         error.message || 'Unable to generate PDF. Please try again.',
@@ -588,7 +587,7 @@ const PaymentDetailModal = ({
 }) => {
   const insets = useSafeAreaInsets();
   const [downloading, setDownloading] = useState(false);
-  console.log("Payment Modal - visible:", visible, "transaction:", transaction?.id);
+  if (__DEV__) console.log("Payment Modal - visible:", visible, "transaction:", transaction?.id);
 
   if (!transaction || !visible) return null;
 
@@ -631,7 +630,7 @@ const PaymentDetailModal = ({
         await file.write(await response.bytes());
         shareTarget = file.uri;
       } catch (moveErr) {
-        console.warn('Failed to persist receipt PDF, sharing temp uri:', moveErr);
+        if (__DEV__) console.warn('Failed to persist receipt PDF, sharing temp uri:', moveErr);
       }
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -644,9 +643,9 @@ const PaymentDetailModal = ({
         Alert.alert('Success', 'Receipt generated successfully!');
       }
 
-      console.log('✅ Receipt PDF generated successfully');
+      if (__DEV__) console.log('✅ Receipt PDF generated successfully');
     } catch (error) {
-      console.error('❌ Error generating receipt PDF:', error);
+      if (__DEV__) console.error('❌ Error generating receipt PDF:', error);
       Alert.alert(
         'Download Failed',
         'Unable to generate payment receipt. Please try again.',
@@ -962,7 +961,7 @@ const TransactionRow = ({
   return (
     <TouchableOpacity
       onPress={() => {
-        console.log("Transaction row pressed:", transaction.id, transaction.type);
+        if (__DEV__) console.log("Transaction row pressed:", transaction.id, transaction.type);
         onPress();
       }}
       activeOpacity={0.7}
@@ -1159,7 +1158,7 @@ export default function InvoicesScreen() {
     setLoading(true);
     setError(null);
     try {
-      console.log('📊 Loading invoices from API...');
+      if (__DEV__) console.log('📊 Loading invoices from API...');
 
       const toDt = getEndOfDay(toDate || new Date());
       const fromDt = getStartOfDay(fromDate || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000));
@@ -1167,23 +1166,22 @@ export default function InvoicesScreen() {
       const fromDateTime = fromDt.getTime().toString();
       const toDateTime = toDt.getTime().toString();
 
-      console.log('🔍 API Request params:', { fromDateTime, toDateTime, from: fromDt, to: toDt });
+      if (__DEV__) console.log('🔍 API Request params:', { fromDateTime, toDateTime });
 
       const res = await getInvoicesByCustomerAndDateRange(fromDateTime, toDateTime);
 
-      console.log('📥 API Response:', JSON.stringify(res, null, 2));
+      if (__DEV__) console.log('📥 API Response:', JSON.stringify(res, null, 2));
 
       if (!res || !Array.isArray(res.invoices)) {
-        console.warn('⚠️ Invalid API response structure:', { 
+        if (__DEV__) console.warn('⚠️ Invalid API response structure:', { 
           hasRes: !!res, 
-          isArray: Array.isArray(res?.invoices),
-          response: res 
+          isArray: Array.isArray(res?.invoices)
         });
         throw new Error(res?.message || 'Invalid response from API');
       }
 
       if (!res.success) {
-        console.warn('⚠️ API returned failure response:', res);
+        if (__DEV__) console.warn('⚠️ API returned failure response:', res);
         if (!res.invoices || res.invoices.length === 0) {
           throw new Error(res.message || 'Failed to fetch invoices');
         }
@@ -1192,26 +1190,14 @@ export default function InvoicesScreen() {
       const apiInvoices = res.invoices;
 
       if (latestLoadRequestIdRef.current !== requestId) {
-        console.log('⏭️ Ignoring stale invoice response for request:', requestId);
+        if (__DEV__) console.log('⏭️ Ignoring stale invoice response for request:', requestId);
         return;
       }
 
-      console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
-
-      // Log the first invoice structure to see actual field names
-      if (apiInvoices.length > 0) {
-        console.log('📋 First invoice fields:', Object.keys(apiInvoices[0]));
-        console.log('📋 Sample invoice data:', JSON.stringify(apiInvoices[0], null, 2));
-      }
+      if (__DEV__) console.log('✅ Loaded', apiInvoices.length, 'invoices from API');
 
       const firstInvoice = apiInvoices[0];
       const openingBalance = firstInvoice ? (firstInvoice.obAmount - firstInvoice.saleAmount) : 0;
-
-      console.log('💰 Before Balance (BF) Calculation:', {
-        obAmount: firstInvoice?.obAmount,
-        saleAmount: firstInvoice?.saleAmount,
-        calculatedBF: openingBalance
-      });
 
       const allTransactions: Transaction[] = [];
       allTransactions.push({
