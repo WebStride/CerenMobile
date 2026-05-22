@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect, useCallback , useRef} from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, Platform, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
