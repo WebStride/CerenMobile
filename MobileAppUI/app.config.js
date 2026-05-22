@@ -76,37 +76,6 @@ module.exports = ({ config }) => {
           apiKey: androidKey,
         },
       },
-      ios: {
-        ...config.expo?.ios,
-        config: {
-          ...(config.expo?.ios?.config || {}),
-          googleMapsApiKey: iosKey,
-        },
-        infoPlist: {
-          ...(config.expo?.ios?.infoPlist || {}),
-          NSLocationWhenInUseUsageDescription:
-            config.expo?.ios?.infoPlist?.NSLocationWhenInUseUsageDescription ||
-            'We need your location to show nearby distributors and set your address',
-        },
-      },
-      extra: {
-        ...(config.expo?.extra || {}),
-        eas: {
-          projectId: "4723d436-4ca1-433e-91dc-708913375cfa",
-        },
-        GOOGLE_MAPS_API_KEY_ANDROID: androidKey,
-        GOOGLE_MAPS_API_KEY_IOS: iosKey,
-        // Backwards compatibility key used in some screens
-        GOOGLE_MAPS_API_KEY: iosKey || androidKey || (config.expo?.extra && config.expo.extra.GOOGLE_MAPS_API_KEY) || '',
-        // Optional API base for proxying map requests to your backend (e.g. http://192.168.1.5:3002)
-        EXPO_PUBLIC_API_URL: publicApiUrl,
-        EXPO_PUBLIC_INTEGRATED_NO: publicIntegratedNo,
-        EXPO_PUBLIC_ADMIN_TO_NUMBER: publicAdminToNumber,
-        EXPO_PUBLIC_MSG91_AUTH_KEY: publicMsg91AuthKey,
-        EXPO_PUBLIC_MSG91_WHATSAPP_URL: publicMsg91WhatsappUrl,
-      },
-      // Plugins array assembled above (may or may not contain react-native-maps)
-      plugins: basePlugins,
     },
     ios: {
       ...config.ios,
