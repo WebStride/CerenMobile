@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ceren",
     "slug": "mobileappui",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "backgroundColor": "#BCD042",
@@ -13,7 +13,8 @@
     "projectId": "4723d436-4ca1-433e-91dc-708913375cfa",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ceren.ceren"
+      "bundleIdentifier": "com.ceren.ceren",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,6 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.ceren.ceren",
+      "versionCode": 1,
       "permissions": []
     },
     "web": {
