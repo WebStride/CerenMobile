@@ -56,18 +56,31 @@ jobs:
           STAGING_ADMIN_WHATSAPP_NUMBER: ${{ secrets.STAGING_ADMIN_WHATSAPP_NUMBER }}
         timeout-minutes: 60
         run: |
-          printf '%s' "$STAGING_SSH_KEY" > /tmp/deploy_key.pem
-          chmod 600 /tmp/deploy_key.pem
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # ── Validate required secrets ────────────────────────────────────────
-          for var in STAGING_DATABASE_URL STAGING_ACCESS_TOKEN_SECRET STAGING_REFRESH_TOKEN_SECRET; do
+          set -euo pipefail
+          for var in STAGING_HOST STAGING_SSH_USER STAGING_SSH_KEY STAGING_DATABASE_URL STAGING_ACCESS_TOKEN_SECRET STAGING_REFRESH_TOKEN_SECRET; do
             if [ -z "${!var}" ]; then
               echo "ERROR: Required GitHub secret $var is not set in the staging environment"
               exit 1
             fi
           done
-          # ── Write backend .env to staging server ──────────────────────────────
+          printf '%s\n' "$STAGING_SSH_KEY" | sed 's/\r$//' > /tmp/deploy_key.pem
+          if grep -q '\\n' /tmp/deploy_key.pem && ! grep -q "BEGIN" /tmp/deploy_key.pem; then
+            perl -pi -e 's/\\n/\n/g' /tmp/deploy_key.pem
+          fi
+          if ! grep -q "BEGIN .*PRIVATE KEY" /tmp/deploy_key.pem; then
+            echo "ERROR: STAGING_SSH_KEY does not look like a PEM private key (missing BEGIN PRIVATE KEY)"
+            exit 1
+          fi
+          chmod 600 /tmp/deploy_key.pem
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "→ Scanning SSH host keys (non-fatal if this fails)…"
+          ssh-keyscan -T 10 -H "$STAGING_HOST" >> ~/.ssh/known_hosts 2>/tmp/keyscan.err || {
+            echo "WARN: ssh-keyscan failed (host down, wrong IP, or port 22 blocked):"
+            cat /tmp/keyscan.err || true
+          }
+          SSH_OPTS=(-i /tmp/deploy_key.pem -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts")
+          echo "→ Writing .env over SSH…"
           printf '%s\n' \
             "NODE_ENV=staging" \
             "DATABASE_URL=${STAGING_DATABASE_URL}" \
@@ -83,16 +96,13 @@ jobs:
             "NOTIFY_ADMIN_ON_NEW_USER=${STAGING_NOTIFY_ADMIN_ON_NEW_USER}" \
             "ADMIN_WHATSAPP_NUMBER=${STAGING_ADMIN_WHATSAPP_NUMBER}" \
             | base64 -w 0 \
-            | ssh -i /tmp/deploy_key.pem \
-                -o ConnectTimeout=30 -o BatchMode=yes \
+            | ssh "${SSH_OPTS[@]}" \
                 "$STAGING_SSH_USER@$STAGING_HOST" \
                 "base64 -d > ~/ceren-backend/backend/.env"
           echo "✓ .env written to staging server"
-          cat << DEPLOY_SCRIPT | ssh -i /tmp/deploy_key.pem \
+          cat << DEPLOY_SCRIPT | ssh "${SSH_OPTS[@]}" \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
-            -o ConnectTimeout=30 \
-            -o BatchMode=yes \
             "$STAGING_SSH_USER@$STAGING_HOST" bash
           set -e
           GH_TOKEN="${GH_TOKEN}"
@@ -190,18 +200,31 @@ jobs:
           PRODUCTION_ADMIN_WHATSAPP_NUMBER: ${{ secrets.PRODUCTION_ADMIN_WHATSAPP_NUMBER }}
         timeout-minutes: 60
         run: |
-          printf '%s' "$PRODUCTION_SSH_KEY" > /tmp/deploy_key.pem
-          chmod 600 /tmp/deploy_key.pem
-          mkdir -p ~/.ssh
-          ssh-keyscan -H "$PRODUCTION_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          # ── Validate required secrets ────────────────────────────────────────
-          for var in PRODUCTION_DATABASE_URL PRODUCTION_ACCESS_TOKEN_SECRET PRODUCTION_REFRESH_TOKEN_SECRET; do
+          set -euo pipefail
+          for var in PRODUCTION_HOST PRODUCTION_SSH_USER PRODUCTION_SSH_KEY PRODUCTION_DATABASE_URL PRODUCTION_ACCESS_TOKEN_SECRET PRODUCTION_REFRESH_TOKEN_SECRET; do
             if [ -z "${!var}" ]; then
               echo "ERROR: Required GitHub secret $var is not set in the production environment"
               exit 1
             fi
           done
-          # ── Write backend .env to production server ───────────────────────────
+          printf '%s\n' "$PRODUCTION_SSH_KEY" | sed 's/\r$//' > /tmp/deploy_key.pem
+          if grep -q '\\n' /tmp/deploy_key.pem && ! grep -q "BEGIN" /tmp/deploy_key.pem; then
+            perl -pi -e 's/\\n/\n/g' /tmp/deploy_key.pem
+          fi
+          if ! grep -q "BEGIN .*PRIVATE KEY" /tmp/deploy_key.pem; then
+            echo "ERROR: PRODUCTION_SSH_KEY does not look like a PEM private key (missing BEGIN PRIVATE KEY)"
+            exit 1
+          fi
+          chmod 600 /tmp/deploy_key.pem
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "→ Scanning SSH host keys (non-fatal if this fails)…"
+          ssh-keyscan -T 10 -H "$PRODUCTION_HOST" >> ~/.ssh/known_hosts 2>/tmp/keyscan.err || {
+            echo "WARN: ssh-keyscan failed (host down, wrong IP, or port 22 blocked):"
+            cat /tmp/keyscan.err || true
+          }
+          SSH_OPTS=(-i /tmp/deploy_key.pem -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=30 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$HOME/.ssh/known_hosts")
+          echo "→ Writing .env over SSH…"
           printf '%s\n' \
             "NODE_ENV=production" \
             "DATABASE_URL=${PRODUCTION_DATABASE_URL}" \
@@ -217,16 +240,13 @@ jobs:
             "NOTIFY_ADMIN_ON_NEW_USER=${PRODUCTION_NOTIFY_ADMIN_ON_NEW_USER}" \
             "ADMIN_WHATSAPP_NUMBER=${PRODUCTION_ADMIN_WHATSAPP_NUMBER}" \
             | base64 -w 0 \
-            | ssh -i /tmp/deploy_key.pem \
-                -o ConnectTimeout=30 -o BatchMode=yes \
+            | ssh "${SSH_OPTS[@]}" \
                 "$PRODUCTION_SSH_USER@$PRODUCTION_HOST" \
                 "base64 -d > ~/ceren-backend/backend/.env"
           echo "✓ .env written to production server"
-          cat << DEPLOY_SCRIPT | ssh -i /tmp/deploy_key.pem \
+          cat << DEPLOY_SCRIPT | ssh "${SSH_OPTS[@]}" \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
-            -o ConnectTimeout=30 \
-            -o BatchMode=yes \
             "$PRODUCTION_SSH_USER@$PRODUCTION_HOST" bash
           set -e
           GH_TOKEN="${GH_TOKEN}"
