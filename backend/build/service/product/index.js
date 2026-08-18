@@ -294,9 +294,12 @@ function getBestSellingProducts(customerId_1, priceColumn_1, sortOrderLimit_1) {
 function getCategories() {
     return __awaiter(this, void 0, void 0, function* () {
         const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
-        const categories = yield prisma_1.default.productCategoryMaster.findMany({
+        const categories = yield prisma_1.default.productCategoryForAppMaster.findMany({
             where: {
                 Active: 1
+            },
+            orderBy: {
+                SortOrder: 'asc'
             },
             select: {
                 CategoryID: true,
@@ -330,10 +333,13 @@ function getSubCategoriesByCategoryId(categoryId) {
     return __awaiter(this, void 0, void 0, function* () {
         const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
         // Fetch subcategories for the given categoryId
-        const subCategories = yield prisma_1.default.productSubCategoryMaster.findMany({
+        const subCategories = yield prisma_1.default.productSubCategoryForAppMaster.findMany({
             where: {
                 CategoryID: categoryId,
                 Active: 1
+            },
+            orderBy: {
+                SortOrder: 'asc'
             },
             select: {
                 SubCategoryID: true,
@@ -368,7 +374,7 @@ function getProductsBySubCategory(subCategoryId, priceColumn) {
         const catalogProducts = yield prisma_1.default.productMaster.findMany({
             where: {
                 CatalogDefault: 1,
-                SubCategoryID: subCategoryId,
+                SubCategoryIDForApp: subCategoryId,
             },
             select: Object.assign({ ProductID: true, ProductName: true, Units: true, UnitsOfMeasurement: true, CatalogID: true, MinimumQty: true }, (priceColumn ? { [priceColumn]: true } : {})),
         });
@@ -426,21 +432,20 @@ function getProductsByCatalogOfProduct(productId, priceColumn) {
         return productsWithImages;
     });
 }
-// Returns products similar to a given product (by CategoryID). Excludes the source product.
+// Returns products similar to a given product (by CategoryIDForApp). Excludes the source product.
 function getSimilarProducts(productId, priceColumn) {
     return __awaiter(this, void 0, void 0, function* () {
-        // Find the product to get its CategoryID
         const source = yield prisma_1.default.productMaster.findUnique({
             where: { ProductID: productId },
-            select: { CategoryID: true }
+            select: { CategoryIDForApp: true }
         });
-        if (!source || !source.CategoryID)
+        if (!source || !source.CategoryIDForApp)
             return [];
-        const categoryId = source.CategoryID;
+        const categoryId = source.CategoryIDForApp;
         const catalogProducts = yield prisma_1.default.productMaster.findMany({
             where: {
                 CatalogDefault: 1,
-                CategoryID: categoryId,
+                CategoryIDForApp: categoryId,
                 ProductID: { not: productId }
             },
             take: 50,

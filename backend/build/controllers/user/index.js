@@ -15,6 +15,7 @@ exports.setDefaultAddress = setDefaultAddress;
 exports.getDefaultAddress = getDefaultAddress;
 exports.updateUserAddress = updateUserAddress;
 exports.deleteUserAddress = deleteUserAddress;
+exports.deleteAccount = deleteAccount;
 exports.getUserMasterAddress = getUserMasterAddress;
 const client_1 = require("@prisma/client");
 // import { sendUserDetailsToAdmin } from '../../service/notification'; // Disabled for now
@@ -363,6 +364,54 @@ function deleteUserAddress(req, res) {
             console.error('Error deleting address:', error);
             res.status(500).json({
                 error: 'Failed to delete address',
+                details: error.message
+            });
+        }
+    });
+}
+// Delete user account (soft delete — anonymize PII, remove transient data)
+function deleteAccount(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a;
+        try {
+            const authenticatedUserId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+            if (!authenticatedUserId) {
+                return res.status(401).json({ error: 'User not authenticated' });
+            }
+            const userId = parseInt(authenticatedUserId);
+            // Find the customer record linked to this user
+            const customer = yield prisma.cUSTOMERMASTER.findFirst({
+                where: { USERID: userId }
+            });
+            const customerId = customer === null || customer === void 0 ? void 0 : customer.CUSTOMERID;
+            // Anonymize the auth user record
+            yield prisma.uSERCUSTOMERMASTER.update({
+                where: { id: userId },
+                data: {
+                    name: '[deleted]',
+                    phoneNumber: '[deleted]',
+                    address: null,
+                }
+            });
+            // If a CustomerMaster record exists, soft-delete it
+            if (customerId) {
+                yield prisma.cUSTOMERMASTER.update({
+                    where: { CUSTOMERID: customerId },
+                    data: {
+                        CUSTOMERNAME: '[deleted]',
+                        PHONENO: null,
+                        ADDRESS: null,
+                        GSTIN: null,
+                        ACTIVE: false,
+                    }
+                });
+            }
+            res.json({ success: true, message: 'Account deleted successfully' });
+        }
+        catch (error) {
+            console.error('Error deleting account:', error);
+            res.status(500).json({
+                error: 'Failed to delete account',
                 details: error.message
             });
         }

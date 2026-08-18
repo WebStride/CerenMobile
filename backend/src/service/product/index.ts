@@ -318,9 +318,12 @@ export async function getBestSellingProducts(customerId: number | null, priceCol
 export async function getCategories() {
     const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
     
-    const categories = await prisma.productCategoryMaster.findMany({
+    const categories = await prisma.productCategoryForAppMaster.findMany({
         where: {
             Active: 1
+        },
+        orderBy: {
+            SortOrder: 'asc'
         },
         select: {
             CategoryID: true,
@@ -360,10 +363,13 @@ export async function getSubCategoriesByCategoryId(categoryId: number) {
     const imageBaseUrl = process.env.IMAGE_BASE_URL || 'https://cerenpune.com/';
     
     // Fetch subcategories for the given categoryId
-    const subCategories = await prisma.productSubCategoryMaster.findMany({
+    const subCategories = await prisma.productSubCategoryForAppMaster.findMany({
         where: {
             CategoryID: categoryId,
             Active: 1
+        },
+        orderBy: {
+            SortOrder: 'asc'
         },
         select: {
             SubCategoryID: true,
@@ -406,7 +412,7 @@ export async function getProductsBySubCategory(
   const catalogProducts = await prisma.productMaster.findMany({
     where: {
       CatalogDefault: 1,
-      SubCategoryID: subCategoryId,
+      SubCategoryIDForApp: subCategoryId,
     },
     select: {
       ProductID: true,
@@ -479,22 +485,21 @@ export async function getProductsByCatalogOfProduct(productId: number, priceColu
     return productsWithImages;
 }
 
-// Returns products similar to a given product (by CategoryID). Excludes the source product.
+// Returns products similar to a given product (by CategoryIDForApp). Excludes the source product.
 export async function getSimilarProducts(productId: number, priceColumn: string | null) {
-    // Find the product to get its CategoryID
     const source = await prisma.productMaster.findUnique({
         where: { ProductID: productId },
-        select: { CategoryID: true }
+        select: { CategoryIDForApp: true }
     });
 
-    if (!source || !source.CategoryID) return [];
+    if (!source || !source.CategoryIDForApp) return [];
 
-    const categoryId = source.CategoryID;
+    const categoryId = source.CategoryIDForApp;
 
     const catalogProducts = await prisma.productMaster.findMany({
         where: {
             CatalogDefault: 1,
-            CategoryID: categoryId,
+            CategoryIDForApp: categoryId,
             ProductID: { not: productId }
         },
         take: 50,

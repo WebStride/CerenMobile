@@ -35,6 +35,7 @@ function routes(app) {
     app.get("/user/master-address", auth_2.authenticateToken, user_1.getUserMasterAddress);
     app.put("/user/addresses/:addressId", auth_2.authenticateToken, user_1.updateUserAddress);
     app.delete("/user/addresses/:addressId", auth_2.authenticateToken, user_1.deleteUserAddress);
+    app.delete("/user/account", auth_2.authenticateToken, user_1.deleteAccount);
     // Product routes (guest browsing allowed)
     app.get("/products/exclusive", product_1.getExclusiveProductsList);
     app.get("/products/best-selling", product_1.getBestSelling);
