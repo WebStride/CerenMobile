@@ -130,6 +130,7 @@ function getOrderItemsByOrderId(orderId) {
                 return Object.assign(Object.assign({}, item), { ProductName: productName, ProductImage: productImage });
             });
             const serializedOrderItems = JSON.parse(JSON.stringify(orderItemsWithNames, jsonReplacer));
+            console.log('📊 Found order items count:', orderItems.length);
             return {
                 success: true,
                 orderItems: serializedOrderItems
