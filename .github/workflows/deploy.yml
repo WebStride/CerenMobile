@@ -114,12 +114,12 @@ jobs:
           fi
           cd ~/ceren-backend
           echo "→ Pulling latest develop…"
-          git remote set-url origin "https://x-access-token:\${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
+          git remote set-url origin "https://x-access-token:\${GH_TOKEN}@github.com/ethicalapp/cerenmobile.git"
           git fetch origin
           git clean -fd
           git checkout develop 2>/dev/null || git checkout -b develop --track origin/develop
           git reset --hard origin/develop
-          git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
+          git remote set-url origin "https://github.com/ethicalapp/cerenmobile.git"
           cd backend
           LOCK_HASH=\$(md5sum package-lock.json | awk '{print \$1}')
           LAST_HASH_FILE="\$HOME/.ceren-staging-npm-hash"
@@ -258,12 +258,12 @@ jobs:
           fi
           cd ~/ceren-backend
           echo "→ Pulling latest main…"
-          git remote set-url origin "https://x-access-token:\${GH_TOKEN}@github.com/WebStride/CerenMobile.git"
+          git remote set-url origin "https://x-access-token:\${GH_TOKEN}@github.com/ethicalapp/cerenmobile.git"
           git fetch origin
           git clean -fd
           git checkout main 2>/dev/null || git checkout -b main --track origin/main
           git reset --hard origin/main
-          git remote set-url origin "https://github.com/WebStride/CerenMobile.git"
+          git remote set-url origin "https://github.com/ethicalapp/cerenmobile.git"
           cd backend
           LOCK_HASH=\$(md5sum package-lock.json | awk '{print \$1}')
           LAST_HASH_FILE="\$HOME/.ceren-production-npm-hash"
