@@ -17,6 +17,7 @@ import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
 import { QuantitySelector } from "@/components/QuantitySelector";
+import { isValidRemoteImageUrl, resolveProductImageSource } from "@/utils/productImage";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -208,12 +209,7 @@ const ProductCard = React.memo(({
   }, [increaseQuantity, item.productId]);
 
   // Handle image source properly for display
-  const getImageSource = () => {
-    if (item.image && typeof item.image === 'string' && item.image.startsWith('http')) {
-      return { uri: item.image };
-    }
-    return defaultImage;
-  };
+  const getImageSource = () => resolveProductImageSource(item.image);
 
   return (
     <View className="bg-white rounded-xl p-3 m-2 flex-1 border border-gray-100 min-w-0">
@@ -396,7 +392,9 @@ const AllProductsList = () => {
           const normalized = apiProducts.map((p: any, idx: number) => {
             const pid = Number(p.productId || p.id || idx);
             const minOrder = Number(p.minimumOrderQuantity || p.minOrderQuantity || p.min_order_quantity || p.minOrder || 1) || 1;
-            const img = p.image && p.image !== "" ? p.image : getFallbackImageFor(pid || idx);
+            const rawImg = p.image ?? p.imageUrl ?? p.productImage;
+            const img =
+              typeof rawImg === 'string' && isValidRemoteImageUrl(rawImg) ? rawImg : null;
             return {
               productId: pid,
               productName: p.productName || p.name || p.title || "Product",

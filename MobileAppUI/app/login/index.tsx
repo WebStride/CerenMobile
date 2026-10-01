@@ -221,6 +221,11 @@ export default function LoginNumberScreen() {
                   }}
                   onBlur={handlePhoneBlur}
                   returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (!isButtonDisabled && !loading) {
+                      handleNext();
+                    }
+                  }}
                 />
               </View>
               {!!phoneError && (
@@ -230,8 +235,11 @@ export default function LoginNumberScreen() {
               )}
             </View>
           </View>
-          {/* Next Button (at the bottom, not inside inputs) */}
-          <View className="items-end pb-10 px-6">
+
+          <View
+            className="items-end px-6"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}
+          >
             <TouchableOpacity
               className={`w-14 h-14 rounded-full bg-[#BCD042] items-center justify-center shadow-md ${isButtonDisabled || loading ? "opacity-50" : ""}`}
               disabled={isButtonDisabled || loading}

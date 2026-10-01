@@ -3,14 +3,11 @@
     "name": "Ceren",
     "slug": "mobileappui",
     "version": "1.0.1",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "backgroundColor": "#BCD042",
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "ceren",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "projectId": "4723d436-4ca1-433e-91dc-708913375cfa",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ceren.ceren",
@@ -21,7 +18,6 @@
         "foregroundImage": "./assets/images/splash-icon.png",
         "backgroundColor": "#BCD042"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.ceren.ceren",
       "versionCode": 3,
       "permissions": []

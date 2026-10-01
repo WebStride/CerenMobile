@@ -23,7 +23,7 @@ import { PriceRequestModal } from "@/components/PriceRequestModal";
 import { QuantitySelector } from "@/components/QuantitySelector";
 
 const { width } = Dimensions.get('window');
-const defaultImage = require("../../assets/images/Banana.png");
+import { resolveProductImageSource } from "@/utils/productImage";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -97,12 +97,7 @@ const ProductCard = React.memo(({
     }
   }, [cartItem, showControls]);
 
-  const getImageSource = (imageUrl: string | null) => {
-    if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
-      return { uri: imageUrl };
-    }
-    return defaultImage;
-  };
+  const getImageSource = (imageUrl: string | null) => resolveProductImageSource(imageUrl);
 
   const handleProductPress = useCallback(() => {
     router.push({
@@ -457,12 +452,10 @@ export default function ProductDetailsScreen() {
     return () => { mounted = false; };
   }, [baseProduct.productId]);
 
-  const getImageSource = useCallback((imageUrl: string | null) => {
-    if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
-      return { uri: imageUrl };
-    }
-    return defaultImage;
-  }, []);
+  const getImageSource = useCallback(
+    (imageUrl: string | null) => resolveProductImageSource(imageUrl),
+    [],
+  );
 
   const productImages = useMemo(() => [
     currentProduct.image || '',

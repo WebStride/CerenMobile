@@ -13,13 +13,18 @@
     },
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "production"
       }
     },
     "testflight": {
       "distribution": "store",
       "autoIncrement": true,
+      "environment": "production",
       "env": {
         "APP_ENV": "production"
       },
@@ -30,6 +35,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
       "env": {
         "APP_ENV": "production"
       },

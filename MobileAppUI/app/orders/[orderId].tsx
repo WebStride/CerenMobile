@@ -15,7 +15,7 @@ import { getOrderItems, getDefaultAddress } from '../../services/api';
 import { useCart } from "../context/CartContext";
 
 // Placeholder image for loading state
-const placeholderImage = require('../../assets/images/Banana.png');
+import { resolveProductImageSource } from '@/utils/productImage';
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -155,7 +155,7 @@ const OrderDetailScreen = () => {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: 12 }}>
           <Image 
-            source={item.productImage ? { uri: item.productImage } : placeholderImage}
+            source={resolveProductImageSource(item.productImage)}
             placeholder={blurhash}
             contentFit="cover"
             transition={200}

@@ -51,12 +51,15 @@ const KeyboardAvoidingAnimatedView = forwardRef((props: any, ref: any) => {
       bottomRef.current = 0;
     };
 
-    Keyboard.addListener('keyboardWillShow', onKeyboardShow);
-    Keyboard.addListener('keyboardWillHide', onKeyboardHide);
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, onKeyboardShow);
+    const hideSub = Keyboard.addListener(hideEvent, onKeyboardHide);
 
     return () => {
-      Keyboard.removeAllListeners('keyboardWillShow');
-      Keyboard.removeAllListeners('keyboardWillHide');
+      showSub.remove();
+      hideSub.remove();
     };
   }, [keyboardVerticalOffset, enabled, bottomHeight]);
 

@@ -2,17 +2,19 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     FlatList,
     ActivityIndicator,
     Alert,
+    RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { getCategories } from "@/services/api";
+import { SearchInput } from "@/components/SearchInput";
+import { resolveCategoryImageSource } from "@/utils/productImage";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -24,39 +26,28 @@ interface Category {
     categoryImage: string | null;
 }
 
-const defaultImage = require("../../assets/images/Banana.png");
-// A small set of bundled fallback images to display when the API returns no image
-const fallbackImages = [
-    require("../../assets/images/Banana.png"),
-    require("../../assets/images/PulsesCategory.png"),
-    require("../../assets/images/LocationThumbnail.png"),
-    require("../../assets/images/HomeLogo.png"),
+const CATEGORY_BG = [
+    "bg-amber-100",
+    "bg-green-100",
+    "bg-blue-100",
+    "bg-purple-100",
+    "bg-pink-100",
+    "bg-orange-100",
+    "bg-red-100",
+    "bg-indigo-100",
 ];
+
+const categoryBgClass = (categoryId: number) =>
+    CATEGORY_BG[categoryId % CATEGORY_BG.length];
 
 // Category Card Component (Grid Layout)
 const CategoryCard = ({ item, onPress }: { item: Category; onPress: () => void }) => {
-    const getRandomColor = () => {
-        const colors = [
-            "bg-amber-100",
-            "bg-green-100",
-            "bg-blue-100",
-            "bg-purple-100",
-            "bg-pink-100",
-            "bg-orange-100",
-            "bg-red-100",
-            "bg-indigo-100",
-        ];
-        return colors[Math.floor(Math.random() * colors.length)];
-    };
-
-        // Choose a deterministic fallback image when categoryImage is null
-        const fallback = fallbackImages[item.categoryId % fallbackImages.length];
-        const imageSource = item.categoryImage ? { uri: item.categoryImage } : fallback;
+        const imageSource = resolveCategoryImageSource(item.categoryImage);
 
         return (
             <TouchableOpacity
                 onPress={onPress}
-                className={`rounded-xl flex-col items-center justify-start m-2 px-4 py-3 flex-1 ${getRandomColor()} min-h-[120px]`}
+                className={`rounded-xl flex-col items-center justify-start m-2 px-4 py-3 flex-1 ${categoryBgClass(item.categoryId)} min-h-[120px]`}
                 activeOpacity={0.8}
             >
                 <Image 
@@ -74,26 +65,25 @@ const CategoryCard = ({ item, onPress }: { item: Category; onPress: () => void }
         );
 };
 
-const AllCategoriesScreen = () => {
+type AllCategoriesScreenProps = {
+    embeddedInTab?: boolean;
+};
+
+const AllCategoriesScreen = ({ embeddedInTab = false }: AllCategoriesScreenProps) => {
     const router = useRouter();
     const [categories, setCategories] = useState<Category[]>([]);
     const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(false);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [hasMoreData, setHasMoreData] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const ITEMS_PER_PAGE = 20;
     const fullCategoryList = useRef<Category[]>([]);
 
-    // Initial load - fetch categories from API
-    useEffect(() => {
-        loadInitialData();
-    }, []);
-
-    const loadInitialData = async () => {
-        setLoading(true);
+    const loadInitialData = useCallback(async (options?: { silent?: boolean }) => {
+        const silent = options?.silent ?? false;
+        if (!silent) {
+            setLoading(true);
+        }
         try {
             const res = await getCategories();
             if (!res.success) {
@@ -101,49 +91,33 @@ const AllCategoriesScreen = () => {
                 Alert.alert("Error", res.message || "Failed to fetch categories");
                 setCategories([]);
                 setFilteredCategories([]);
-                setHasMoreData(false);
+                fullCategoryList.current = [];
                 return;
             }
 
             const fetchedCategories: Category[] = res.categories || [];
             fullCategoryList.current = fetchedCategories;
-
-            setCategories(fetchedCategories.slice(0, ITEMS_PER_PAGE));
-            setFilteredCategories(fetchedCategories.slice(0, ITEMS_PER_PAGE));
-            setCurrentPage(1);
-            setHasMoreData(fetchedCategories.length > ITEMS_PER_PAGE);
+            setCategories(fetchedCategories);
+            setFilteredCategories(fetchedCategories);
         } catch (error) {
             console.error("Error fetching categories:", error);
             Alert.alert("Error", "Failed to load categories");
         } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadMoreData = async () => {
-        if (loadingMore || !hasMoreData || searchQuery.trim() !== "") return;
-
-        setLoadingMore(true);
-        try {
-            const nextPage = currentPage + 1;
-            const startIndex = (nextPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const newCategories = fullCategoryList.current.slice(startIndex, endIndex);
-
-            if (newCategories.length > 0) {
-                setCategories((prev) => [...prev, ...newCategories]);
-                setFilteredCategories((prev) => [...prev, ...newCategories]);
-                setCurrentPage(nextPage);
-                setHasMoreData(endIndex < fullCategoryList.current.length);
-            } else {
-                setHasMoreData(false);
+            if (!silent) {
+                setLoading(false);
             }
-        } catch (error) {
-            console.error("Error loading more categories:", error);
-        } finally {
-            setLoadingMore(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadInitialData();
+    }, [loadInitialData]);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadInitialData({ silent: true });
+        setRefreshing(false);
+    }, [loadInitialData]);
 
     // Filter categories when search changes
     useEffect(() => {
@@ -175,17 +149,6 @@ const AllCategoriesScreen = () => {
         [handleCategoryPress]
     );
 
-    const renderFooter = () => {
-        if (!loadingMore) return null;
-
-        return (
-            <View className="py-4">
-                <ActivityIndicator size="small" color="#16a34a" />
-                <Text className="text-center text-gray-500 mt-2">Loading more categories...</Text>
-            </View>
-        );
-    };
-
     const renderEmpty = () => (
         <View className="flex-1 justify-center items-center py-20">
             <Ionicons name="grid" size={64} color="#d1d5db" />
@@ -205,36 +168,28 @@ const AllCategoriesScreen = () => {
         );
     }
 
+    const listBottomPadding = embeddedInTab ? 120 : 100;
+
     return (
-        <SafeAreaView className="flex-1 bg-white">
-            {/* Header */}
+        <SafeAreaView className="flex-1 bg-white" edges={embeddedInTab ? ["top"] : undefined}>
             <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
-                <TouchableOpacity onPress={() => router.back()} className="mr-3">
-                    <Ionicons name="arrow-back" size={24} color="#374151" />
-                </TouchableOpacity>
-                <Text className="text-lg font-semibold text-gray-900 flex-1">All Categories</Text>
+                {!embeddedInTab ? (
+                    <TouchableOpacity onPress={() => router.back()} className="mr-3">
+                        <Ionicons name="arrow-back" size={24} color="#374151" />
+                    </TouchableOpacity>
+                ) : null}
+                <Text className="text-lg font-semibold text-gray-900 flex-1">
+                    {embeddedInTab ? "Categories" : "All Categories"}
+                </Text>
             </View>
 
-            {/* Search Bar */}
-            <View className="px-4 py-3">
-                <View className="flex-row items-center bg-gray-100 rounded-xl px-3 h-12">
-                    <Ionicons name="search" size={20} color="#6b7280" />
-                    <TextInput
-                        className="flex-1 ml-2 text-base text-gray-900"
-                        placeholder="Search categories..."
-                        placeholderTextColor="#6b7280"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                    {searchQuery ? (
-                        <TouchableOpacity onPress={() => setSearchQuery("")}>
-                            <Ionicons name="close-circle" size={20} color="#6b7280" />
-                        </TouchableOpacity>
-                    ) : null}
-                </View>
-            </View>
+            <SearchInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search categories..."
+                containerClassName="flex-row items-center bg-gray-100 rounded-xl mx-4 mt-3 px-3 h-12"
+            />
 
-            {/* Categories List */}
             <FlatList
                 data={filteredCategories}
                 renderItem={renderCategory}
@@ -242,34 +197,15 @@ const AllCategoriesScreen = () => {
                 columnWrapperStyle={{ justifyContent: "space-between" }}
                 numColumns={2}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 100, flexGrow: 1 }}
-                onEndReached={loadMoreData}
-                onEndReachedThreshold={0.1}
-                ListFooterComponent={renderFooter}
+                contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: listBottomPadding, flexGrow: 1 }}
                 ListEmptyComponent={renderEmpty}
-                maxToRenderPerBatch={10}
-                windowSize={10}
-                initialNumToRender={20}
-                removeClippedSubviews={true}
-                getItemLayout={(data, index) => ({
-                    length: 86, // Approximate item height (70px + margins)
-                    offset: 86 * index,
-                    index,
-                })}
+                initialNumToRender={16}
+                maxToRenderPerBatch={12}
+                windowSize={8}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#16a34a" />
+                }
             />
-
-            {/* Results Count */}
-            {filteredCategories.length > 0 && (
-                <View className="absolute bottom-4 left-4 right-4">
-                    <View className="bg-black/80 rounded-full px-4 py-2 self-center">
-                        <Text className="text-white text-sm">
-                            {searchQuery
-                                ? `${filteredCategories.length} results`
-                                : `${categories.length} of ${fullCategoryList.current.length} categories`}
-                        </Text>
-                    </View>
-                </View>
-            )}
         </SafeAreaView>
     );
 };

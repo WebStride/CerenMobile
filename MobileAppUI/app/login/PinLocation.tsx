@@ -419,6 +419,11 @@ const params = useLocalSearchParams();
     console.log('[PinLocation] Error logging GOOGLE_MAPS_API_KEY', e);
   }
 
+  // Expo Go: no native Google Maps SDK on iOS — use default (Apple Maps).
+  // Standalone/dev-client: Google provider; tiles use native keys (Info.plist / AndroidManifest), not JS extra.
+  const isExpoGo = Constants.appOwnership === 'expo';
+  const mapProvider = isExpoGo ? undefined : PROVIDER_GOOGLE;
+
   const setToDefaultLocation = () => {
     // Use Bengaluru as the friendly default region (city center)
     const fallbackRegion = {
@@ -1010,8 +1015,7 @@ const params = useLocalSearchParams();
       <View style={{ flex: 1 }}>
         <MapView
           ref={mapRef}
-          // Use Google Maps on both platforms (requires native dev build, not Expo Go)
-          provider={PROVIDER_GOOGLE}
+          provider={mapProvider}
           style={{ flex: 1 }}
           region={region}
           onPress={onMapPress}

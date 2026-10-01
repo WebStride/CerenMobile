@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router"; // Import useRouter
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import { getOrders, getOrderItems } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import GuestScreen from "@/components/GuestScreen";
