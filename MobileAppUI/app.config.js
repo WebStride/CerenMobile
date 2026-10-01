@@ -51,6 +51,10 @@ module.exports = ({ config }) => {
   if (!basePlugins.includes('@react-native-community/datetimepicker')) {
     basePlugins.push('@react-native-community/datetimepicker');
   }
+
+  if (!basePlugins.includes('expo-web-browser')) {
+    basePlugins.push('expo-web-browser');
+  }
   
   try {
     // If react-native-maps provides an app.plugin.js, resolve it and include the plugin.
@@ -58,8 +62,18 @@ module.exports = ({ config }) => {
     require.resolve('react-native-maps/app.plugin.js');
     const hasMapsPlugin = basePlugins.some((plugin) => Array.isArray(plugin) && plugin[0] === 'react-native-maps');
 
+    const mapsPluginConfig = {
+      iosGoogleMapsApiKey: iosKey,
+      androidGoogleMapsApiKey: androidKey,
+    };
     if (!hasMapsPlugin) {
-      basePlugins.push(['react-native-maps', { provider: 'google' }]);
+      basePlugins.push(['react-native-maps', mapsPluginConfig]);
+    } else {
+      basePlugins.forEach((plugin, index) => {
+        if (Array.isArray(plugin) && plugin[0] === 'react-native-maps') {
+          basePlugins[index] = ['react-native-maps', { ...(plugin[1] || {}), ...mapsPluginConfig }];
+        }
+      });
     }
   } catch (e) {
     // No plugin available; skip adding it (safe for managed Expo workflows).

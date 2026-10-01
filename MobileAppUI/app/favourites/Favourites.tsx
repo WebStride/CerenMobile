@@ -14,7 +14,7 @@ import { useFavourites } from "../context/FavouritesContext";
 import { useCart } from "../context/CartContext";
 import { QuantitySelector } from "@/components/QuantitySelector";
 
-const defaultImage = require("../../assets/images/Banana.png");
+import { resolveProductImageSource } from "@/utils/productImage";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -128,7 +128,7 @@ export default function FavouritesScreen() {
         {/* Product Image - Clickable */}
         <TouchableOpacity onPress={handleProductPress} activeOpacity={0.7}>
           <Image 
-            source={item.image ? (typeof item.image === 'string' ? { uri: item.image } : item.image) : defaultImage}
+            source={resolveProductImageSource(item.image)}
             placeholder={blurhash}
             contentFit="contain"
             transition={200}

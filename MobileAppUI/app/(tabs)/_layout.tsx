@@ -65,9 +65,18 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="shop"
         options={{
-          title: "Shop",
-          tabBarIcon: ({ color, size }) => (
+          title: "Home",
+          tabBarIcon: ({ color }) => (
             <Ionicons name="home-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="categories"
+        options={{
+          title: "Category",
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="grid-outline" size={24} color={color} />
           ),
         }}
       />
@@ -83,7 +92,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="orders"
         options={{
-          title: "Orders",
+          title: "Order",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="clipboard-outline" size={24} color={color} />
           ),
@@ -102,10 +111,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="account"
         options={{
+          href: null,
           title: "Account",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={24} color={color} />
-          ),
         }}
       />
     </Tabs>

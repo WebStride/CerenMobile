@@ -13,7 +13,6 @@ platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 prepare_react_native_project!
 
 target 'MobileAppUI' do
-  pod 'GoogleMaps'
   use_expo_modules!
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
@@ -28,6 +27,10 @@ target 'MobileAppUI' do
       'ios'
     ]
   end
+
+  # react-native-maps: Google provider needs AirGoogleMaps (Google subspec), not Apple-only Maps.
+  rn_maps_path = File.dirname(`node --print "require.resolve('react-native-maps/package.json')"`)
+  pod 'react-native-maps/Google', :path => rn_maps_path
 
   config = use_native_modules!(config_command)
 

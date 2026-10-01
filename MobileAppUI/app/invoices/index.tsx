@@ -10,12 +10,13 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import { isGuestSession } from "@/utils/session";
 import GuestScreen from "@/components/GuestScreen";
 // @ts-ignore
@@ -24,9 +25,10 @@ import { getInvoices, getInvoiceItems, getInvoicesByCustomerAndDateRange } from 
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { fetch } from 'expo/fetch';
-import { File, Paths } from 'expo-file-system/next';
+import { File, Paths } from 'expo-file-system';
 import { generateInvoicePDF, generatePaymentReceiptPDF } from '../../utils/pdfTemplates';
 import { formatDateForFilename } from '../../utils/dateUtils';
+import { COMPANY_LOGO } from '@/utils/productImage';
 
 const { height } = Dimensions.get('window');
 
@@ -214,7 +216,7 @@ const InvoiceDetailModal = ({
       }
 
       // Get store name from AsyncStorage
-      const storeName = await AsyncStorage.getItem('selectedStoreName') || 'Customer';
+      const storeName = (await AsyncStorage.getItem('selectedStoreName')) || 'Customer';
       const dateStr = formatDateForFilename(transaction.date);
       const fileName = `${storeName.replace(/\s+/g, '')}_Invoice_${dateStr}.pdf`;
 
@@ -318,7 +320,7 @@ const InvoiceDetailModal = ({
           <ScrollView 
             style={{ flex: 1 }} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ padding: 24 }}
+            contentContainerStyle={{ padding: 24, paddingBottom: Math.max(insets.bottom, 24) + 24 }}
           >
             {/* Invoice Information Section */}
             <View style={{
@@ -437,7 +439,7 @@ const InvoiceDetailModal = ({
                         {item.ProductImage ? (
                           <Image source={{ uri: item.ProductImage }} style={{ width: 72, height: 72, borderRadius: 8 }} />
                         ) : (
-                          <Image source={require('../../assets/images/Banana.png')} style={{ width: 72, height: 72, borderRadius: 8 }} />
+                          <Image source={COMPANY_LOGO} style={{ width: 72, height: 72, borderRadius: 8 }} />
                         )}
                       </View>
 
@@ -701,7 +703,7 @@ const PaymentDetailModal = ({
           <ScrollView 
             style={{ flex: 1 }} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ padding: 24 }}
+            contentContainerStyle={{ padding: 24, paddingBottom: Math.max(insets.bottom, 24) + 24 }}
           >
             {/* Payment Header */}
             <View style={{
@@ -1068,7 +1070,9 @@ export default function InvoicesScreen() {
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [downloadingStatement, setDownloadingStatement] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null); // null = checking, true = guest, false = logged in
+  const tabBarClearance = 60 + insets.bottom + 24;
 
   // Keep only the latest invoice request authoritative so quick filter changes cannot leave stale data onscreen.
   const latestLoadRequestIdRef = React.useRef(0);
@@ -1762,12 +1766,7 @@ export default function InvoicesScreen() {
         style={{ paddingTop: insets.top + 16 }}
       >
         <View className="flex-row items-center justify-between mb-4">
-          <TouchableOpacity 
-            onPress={() => router.push('/shop')}
-            className="p-2 -ml-2"
-          >
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
+          <View className="w-10" />
           <Text className="text-xl font-bold text-gray-900 flex-1 text-center">
             Invoice Statement
           </Text>
@@ -1888,7 +1887,21 @@ export default function InvoicesScreen() {
         <ScrollView 
           className="flex-1" 
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 16 }}
+          contentContainerStyle={{ paddingVertical: 16, paddingBottom: tabBarClearance }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => {
+                setRefreshing(true);
+                try {
+                  await loadInvoicesForFilter(selectedFilter, startDate, endDate);
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
+              tintColor="#15803D"
+            />
+          }
         >
           {transactionsWithBalance.length > 0 ? (
             transactionsWithBalance.map((transaction, index) => (

@@ -303,6 +303,11 @@ export default function VerificationScreen() {
                   returnKeyType="done"
                   secureTextEntry={false}
                   textContentType="oneTimeCode"
+                  onSubmitEditing={() => {
+                    if (!isButtonDisabled && !loading) {
+                      handleVerifyOTP();
+                    }
+                  }}
                 />
               </View>
             </View>
@@ -344,13 +349,16 @@ export default function VerificationScreen() {
               )}
             </View>
           </View>
-          {/* Next Button (at the bottom, not inside inputs) */}
-          <View className="items-end pb-10 px-6">
+
+          <View
+            className="items-end px-6"
+            style={{ paddingBottom: Math.max(insets.bottom, 16) + 24 }}
+          >
             <TouchableOpacity
               className={`w-14 h-14 rounded-full bg-[#BCD042] items-center justify-center shadow-md ${isButtonDisabled || loading ? "opacity-50" : ""}`}
               disabled={isButtonDisabled || loading}
-              onPress={handleVerifyOTP} 
-              accessibilityLabel="Next"
+              onPress={handleVerifyOTP}
+              accessibilityLabel="Verify"
             >
               <Image source={images.RightArrow} className="w-6 h-6" resizeMode="contain" />
             </TouchableOpacity>

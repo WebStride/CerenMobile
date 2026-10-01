@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import { useFavourites } from "../context/FavouritesContext";
 import {
   View,
@@ -14,6 +14,7 @@ import {
   Dimensions,
   Pressable,
   StatusBar,
+  RefreshControl,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,7 +24,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getExclusiveOffers,
   getBestSelling,
-  getCategories,
   checkCustomerExists,
   getNewProducts,
   getBuyAgainProducts,
@@ -46,6 +46,8 @@ import {
   formatIndianMobileForDisplay,
 } from "@/utils/phoneNumber";
 import { useSubmissionGuard } from "@/utils/useSubmissionGuard";
+import { SearchInput } from "@/components/SearchInput";
+import { isValidRemoteImageUrl, resolveProductImageSource } from "@/utils/productImage";
 
 const { height, width } = Dimensions.get('window');
 
@@ -62,12 +64,6 @@ interface Product {
   image: string | number | null;
   minOrderQuantity?: number;
   showPricing?: boolean; // Flag from backend
-}
-
-interface Category {
-  categoryId: number;
-  categoryName: string;
-  categoryImage: string | null;
 }
 
 interface Address {
@@ -90,21 +86,10 @@ interface Address {
   PhoneNumber?: string;
 }
 
-const defaultImage = require("../../assets/images/Banana.png");
-const fallbackImages = [
-  require("../../assets/images/Banana.png"),
-  require("../../assets/images/PulsesCategory.png"),
-  require("../../assets/images/LocationThumbnail.png"),
-  require("../../assets/images/HomeLogo.png"),
-];
 const HOME_RAIL_PADDING_LEFT = 16;
 const HOME_PRODUCT_CARD_WIDTH = 160;
 const HOME_PRODUCT_CARD_SPACING = 16;
 const HOME_PRODUCT_CARD_ITEM_SIZE = HOME_PRODUCT_CARD_WIDTH + HOME_PRODUCT_CARD_SPACING;
-const HOME_CATEGORY_CARD_WIDTH = 192;
-const HOME_CATEGORY_CARD_SPACING = 12;
-const HOME_CATEGORY_CARD_ITEM_SIZE = HOME_CATEGORY_CARD_WIDTH + HOME_CATEGORY_CARD_SPACING;
-
 const createHorizontalItemLayout = (itemSize: number, leadingPadding = 0) =>
   (_data: ArrayLike<unknown> | null | undefined, index: number) => ({
     length: itemSize,
@@ -116,11 +101,6 @@ const getHomeProductItemLayout = createHorizontalItemLayout(
   HOME_PRODUCT_CARD_ITEM_SIZE,
   HOME_RAIL_PADDING_LEFT,
 );
-const getHomeCategoryItemLayout = createHorizontalItemLayout(
-  HOME_CATEGORY_CARD_ITEM_SIZE,
-  HOME_RAIL_PADDING_LEFT,
-);
-
 // ---------- Fixed Location Selection Modal ----------
 const LocationModal = ({
   visible,
@@ -1049,13 +1029,7 @@ const ProductCard = React.memo(({
     });
   }, [item, minOrder, router]);
 
-  const getImageSource = () => {
-    const img = (item as any).image;
-    if (img && typeof img === 'string' && (img.startsWith('http') || img.startsWith('https'))) {
-      return { uri: img };
-    }
-    return img || defaultImage;
-  };
+  const getImageSource = () => resolveProductImageSource((item as any).image);
 
   const handleFavouriteToggle = useCallback((event: any) => {
     event.stopPropagation();
@@ -1264,38 +1238,6 @@ const ProductCard = React.memo(({
   );
 });
 
-// ---------- Category Card ----------
-const GroceryCategoryCard = ({
-  item,
-  onPress,
-}: { item: Category; onPress: () => void }) => {
-  const getRandomColor = () => {
-    const colors = ['bg-amber-100', 'bg-green-100', 'bg-blue-100', 'bg-purple-100', 'bg-pink-100'];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      className={`rounded-xl flex-row items-center justify-start px-3 py-2 h-auto ${getRandomColor()} gap-x-3`}
-      style={{ marginRight: HOME_CATEGORY_CARD_SPACING, width: HOME_CATEGORY_CARD_WIDTH }}
-    >
-      <Image 
-        source={typeof item.categoryImage === 'string' ? { uri: item.categoryImage } : (item.categoryImage || defaultImage)} 
-        placeholder={blurhash}
-        contentFit="contain"
-        transition={200}
-        cachePolicy="memory-disk"
-        style={{ width: 48, height: 48, marginBottom: 8, backgroundColor: 'transparent' }}
-      />
-      <Text className="font-semibold text-sm text-gray-800 flex-1">
-        {item.categoryName}
-      </Text>
-    </TouchableOpacity>
-  );
-};
-
 // ---------- Main Home Screen ----------
 const HomeScreen = () => {
   const router = useRouter();
@@ -1357,8 +1299,8 @@ const HomeScreen = () => {
 
   const [exclusiveOffers, setExclusiveOffers] = useState<Product[]>([]);
   const [bestSelling, setBestSelling] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [userData, setUserData] = useState<{name: string; phoneNumber: string} | null>(null);
@@ -1366,15 +1308,6 @@ const HomeScreen = () => {
   const [newProducts, setNewProducts] = useState<Product[]>([]);
   const [buyAgainProducts, setBuyAgainProducts] = useState<Product[]>([]);
 
-  const handleCategoryPress = useCallback((category: Category) => {
-    router.push({
-      pathname: "/products/CategoryProductsScreen",
-      params: {
-        categoryId: category.categoryId.toString(),
-        categoryName: category.categoryName,
-      },
-    });
-  }, [router]);
 
   const handleLocationPress = useCallback(() => {
     console.log("Opening location modal...");
@@ -1690,6 +1623,8 @@ const HomeScreen = () => {
             
             const img = p.image ?? p.imageUrl ?? p.productImage ?? null;
             const minOrder = p.minimumOrderQuantity ?? p.minOrderQuantity ?? p.minOrder ?? 1;
+            const imageUrl =
+              typeof img === 'string' && isValidRemoteImageUrl(img) ? img : null;
             
             return {
               productId: Number(id),
@@ -1697,7 +1632,7 @@ const HomeScreen = () => {
               productUnits: Number(units),
               unitsOfMeasurement: String(measurement),
               price: price !== null ? Number(price) : null,
-              image: img && typeof img === 'string' && img.length > 0 ? img : fallbackImages[Number(id) % fallbackImages.length],
+              image: imageUrl,
               minOrderQuantity: Number(minOrder),
             } as Product;
           };
@@ -1730,15 +1665,20 @@ const HomeScreen = () => {
     setFilteredProducts(filtered);
   }, [searchQuery, exclusiveOffers, bestSelling]);
 
-  const fetchData = async (shouldFetchBuyAgain: boolean = true) => {
+  const fetchData = async (
+    shouldFetchBuyAgain: boolean = true,
+    options?: { showFullScreenLoader?: boolean },
+  ) => {
+    const showFullScreenLoader = options?.showFullScreenLoader ?? true;
     try {
-      setLoading(true);
+      if (showFullScreenLoader) {
+        setLoading(true);
+      }
       
       // Conditionally fetch Buy Again products only for registered users
       const apiCalls = [
         getExclusiveOffers(),
         getBestSelling(50),
-        getCategories(),
         getNewProducts()
       ];
       
@@ -1747,7 +1687,7 @@ const HomeScreen = () => {
       }
       
       const results = await Promise.all(apiCalls);
-      const [exclusiveRes, bestSellingRes, categoriesRes, newProductsRes, buyAgainProductsRes] = results;
+      const [exclusiveRes, bestSellingRes, newProductsRes, buyAgainProductsRes] = results;
 
       const normalize = (p: any, idx: number): Product => {
         const id = p.productId ?? p.id ?? p.product_id ?? (idx + 1);
@@ -1762,6 +1702,8 @@ const HomeScreen = () => {
         
         const img = p.image ?? p.imageUrl ?? p.productImage ?? null;
         const minOrder = p.minimumOrderQuantity ?? p.minOrderQuantity ?? p.minOrder ?? 1;
+        const imageUrl =
+          typeof img === 'string' && isValidRemoteImageUrl(img) ? img : null;
 
         return {
           productId: Number(id),
@@ -1769,22 +1711,36 @@ const HomeScreen = () => {
           productUnits: Number(units),
           unitsOfMeasurement: String(measurement),
           price: price !== null ? Number(price) : null, // Keep null if no price
-          image: img && typeof img === 'string' && img.length > 0 ? img : fallbackImages[Number(id) % fallbackImages.length],
+          image: imageUrl,
           minOrderQuantity: Number(minOrder),
         } as Product;
       };
 
       if (exclusiveRes.success) setExclusiveOffers((exclusiveRes.products || []).map((p: any, i: number) => normalize(p, i)));
       if (bestSellingRes.success) setBestSelling((bestSellingRes.products || []).map((p: any, i: number) => normalize(p, i)));
-      if (categoriesRes.success) setCategories(categoriesRes.categories);
       if (newProductsRes.success) setNewProducts((newProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
       if (buyAgainProductsRes && buyAgainProductsRes.success) setBuyAgainProducts((buyAgainProductsRes.products || []).map((p: any, i: number) => normalize(p, i)));
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
-      setLoading(false);
+      if (showFullScreenLoader) {
+        setLoading(false);
+      }
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchData(isCustomerExists === true, { showFullScreenLoader: false }),
+        loadStoreData(),
+        fetchDefaultAddress(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [isCustomerExists, loadStoreData, fetchDefaultAddress]);
 
   const handleSeeAllExclusive = useCallback(() => {
     router.push({ pathname: "/products/AllProductsList", params: { feedType: "exclusive" } });
@@ -1820,7 +1776,10 @@ const HomeScreen = () => {
         <>
           <ScrollView 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 120 }} // Extra padding for cart button
+            contentContainerStyle={{ paddingBottom: 120 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#15803d" />
+            }
           >
             {/* Top Header with Store/Location */}
             <View className="flex-row items-center justify-between px-5 mt-20">
@@ -1913,46 +1872,35 @@ const HomeScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Search Box */}
-            <View className="flex-row items-center bg-gray-100 rounded-xl mx-4 mt-4 px-3 h-12">
-              <Ionicons name="search" size={20} color="#888" />
-              <TextInput
-                className="flex-1 ml-2 text-base"
-                placeholder="Search for groceries..."
-                placeholderTextColor="#888"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
+            <SearchInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search for groceries..."
+            />
 
             {searchQuery ? (
-              <View className="mt-4">
-                <Text className="text-lg font-bold text-gray-900 mx-4 mb-2">Search Results</Text>
-                <FlatList
-                  data={filteredProducts}
-                  horizontal={false}
-                  numColumns={2}
-                  showsVerticalScrollIndicator={false}
-                  keyExtractor={(item, index) => `search_${item.productId ?? index}`}
-                  renderItem={({ item, index }) => (
-                    <View className="flex-1 m-2">
-                      <ProductCard
-                        item={item}
-                        isCustomerExists={isCustomerExists}
-                        sectionKey="search"
-                        index={index}
-                      />
-                    </View>
-                  )}
-                  contentContainerStyle={{ paddingHorizontal: 12 }}
-                  removeClippedSubviews={true}
-                  initialNumToRender={8}
-                  maxToRenderPerBatch={8}
-                  windowSize={7}
-                  ListEmptyComponent={() => (
-                    <Text className="text-center text-gray-500 mt-4">No products found</Text>
-                  )}
-                />
+              <View className="mt-4 px-2">
+                <Text className="text-lg font-bold text-gray-900 mx-2 mb-2">Search Results</Text>
+                {filteredProducts.length === 0 ? (
+                  <Text className="text-center text-gray-500 mt-4">No products found</Text>
+                ) : (
+                  <View className="flex-row flex-wrap">
+                    {filteredProducts.map((item, index) => (
+                      <View
+                        key={`search_${item.productId ?? index}`}
+                        style={{ width: "50%" }}
+                        className="p-2"
+                      >
+                        <ProductCard
+                          item={item}
+                          isCustomerExists={isCustomerExists}
+                          sectionKey="search"
+                          index={index}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             ) : (
               <>
@@ -2079,26 +2027,6 @@ const HomeScreen = () => {
                     />
                   </>
                 )}
-
-                {/* Categories */}
-                <View className="flex-row justify-between items-center mx-4 mt-3 mb-1">
-                  <Text className="text-lg font-bold text-gray-900">Categories</Text>
-                  <TouchableOpacity onPress={() => router.push("/products/CategoriesList")}>
-                    <Text className="text-green-700 font-medium text-base">See all</Text>
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  data={categories}
-                  horizontal
-                  showsVerticalScrollIndicator={false}
-                  getItemLayout={getHomeCategoryItemLayout}
-                  keyExtractor={(item) => item.categoryId.toString()}
-                  renderItem={({ item }) => <GroceryCategoryCard item={item} onPress={() => handleCategoryPress(item)} />}
-                  contentContainerStyle={{ paddingLeft: 16, paddingBottom: 32 }}
-                  ListEmptyComponent={() => (
-                    <Text className="text-center text-gray-500 mx-4">No categories available</Text>
-                  )}
-                />
               </>
             )}
           </ScrollView>

@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, ActivityIndicator, RefreshControl } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { useRouter } from "expo-router";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import { useCart } from "../context/CartContext";
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { checkCustomerExists, placeOrder } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import GuestScreen from "@/components/GuestScreen";
 import { isGuestSession } from "@/utils/session";
-
-const defaultImage = require("../../assets/images/Banana.png");
+import { resolveProductImageSource } from "@/utils/productImage";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -217,6 +216,7 @@ export default function CartScreen() {
   const [orderDate, setOrderDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const lastFocusedStoreIdRef = useRef<string | null>(null);
   const lastCartSyncAtRef = useRef(0);
   
@@ -289,6 +289,21 @@ export default function CartScreen() {
     
     checkCustomer();
   }, [router]);
+
+  const onPullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshCart();
+      lastCartSyncAtRef.current = Date.now();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshCart]);
+
+  const handleConfirmOrderDate = (selectedDate: Date) => {
+    setOrderDate(selectedDate);
+    setShowDatePicker(false);
+  };
 
   // Show guest screen if guest or still checking
   const guestScreen = (
@@ -375,11 +390,6 @@ export default function CartScreen() {
     );
   }
 
-  const handleConfirmOrderDate = (selectedDate: Date) => {
-    setOrderDate(selectedDate);
-    setShowDatePicker(false);
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       {/* Header */}
@@ -390,9 +400,11 @@ export default function CartScreen() {
       {/* Scrollable Content */}
       <ScrollView 
         className="flex-1" 
-  // ensure content is fully visible above bottom checkout bar + safe area
-  contentContainerStyle={{ paddingBottom: checkoutBarHeight + bottomOffset + 16 }}
+        contentContainerStyle={{ paddingBottom: checkoutBarHeight + bottomOffset + 16 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor="#15803D" />
+        }
       >
         {/* Cart Items */}
         <View className="px-4">
@@ -403,7 +415,7 @@ export default function CartScreen() {
                 {/* Product Image */}
                 <View className="mr-3">
                   <Image 
-                    source={item.image ? (typeof item.image === 'string' ? { uri: item.image } : item.image) : defaultImage}
+                    source={resolveProductImageSource(item.image)}
                     placeholder={blurhash}
                     contentFit="contain"
                     transition={200}
@@ -565,7 +577,7 @@ export default function CartScreen() {
             try {
               // Get customer info from AsyncStorage
               const selectedStoreId = await AsyncStorage.getItem('selectedStoreId');
-              const customerName = await AsyncStorage.getItem('customerName') || 'Customer';
+              const customerName = (await AsyncStorage.getItem('customerName')) || 'Customer';
               
               if (!selectedStoreId) {
                 Alert.alert('Error', 'No store selected. Please select a store first.');

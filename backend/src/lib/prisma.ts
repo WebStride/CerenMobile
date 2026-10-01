@@ -43,10 +43,25 @@ connectWithRetry().catch(err => {
   console.error('⚠️  Server will continue running but database operations will fail');
 });
 
-// Graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
-  console.log('🔌 Database disconnected');
+// Disconnect only on real process shutdown — NOT beforeExit.
+// beforeExit can fire while the HTTP server is still up (Prisma idle),
+// which closes the pool and breaks API calls during local/dev runs.
+async function disconnectPrisma(signal: string) {
+  try {
+    await prisma.$disconnect();
+    console.log(`🔌 Database disconnected (${signal})`);
+  } catch (err: any) {
+    console.error('Prisma disconnect error:', err?.message || err);
+  }
+}
+
+process.once('SIGINT', async () => {
+  await disconnectPrisma('SIGINT');
+  process.exit(0);
+});
+process.once('SIGTERM', async () => {
+  await disconnectPrisma('SIGTERM');
+  process.exit(0);
 });
 
 export default prisma;

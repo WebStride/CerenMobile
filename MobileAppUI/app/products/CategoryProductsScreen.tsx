@@ -18,6 +18,11 @@ import { useCart } from "../context/CartContext";
 import { useFavourites } from "../context/FavouritesContext";
 import { getSubCategories, getProductsBySubCategory, checkCustomerExists } from "../../services/api";
 import { PriceRequestModal } from "@/components/PriceRequestModal";
+import {
+  isValidRemoteImageUrl,
+  resolveCategoryImageSource,
+  resolveProductImageSource,
+} from "@/utils/productImage";
 
 // Blurhash for smooth placeholder (light gray)
 const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -50,91 +55,8 @@ interface Category {
   categoryName: string;
 }
 
-const defaultImage = require("../../assets/images/Banana.png");
-
-// Placeholder image URLs to use when API returns null
-const placeholderImageUrls = [
-  "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=400&h=400&fit=crop",
-  "https://images.unsplash.com/photo-1502741126161-b048400d7c6f?w=400&h=400&fit=crop",
-];
-
-const getRandomImage = () => placeholderImageUrls[Math.floor(Math.random() * placeholderImageUrls.length)];
-
-// Mock data generators
-const generateMockSubcategories = (categoryId: number): Subcategory[] => {
-  const subcategoryNames = [
-    "Fresh Fruits", "Seasonal Fruits", "Exotic Fruits", "Citrus Fruits", "Berries",
-    "Tropical Fruits", "Stone Fruits", "Dried Fruits", "Organic Fruits", "Local Fruits",
-    "Imported Fruits", "Fruit Juices", "Frozen Fruits", "Canned Fruits", "Fruit Salads",
-    "Baby Fruits", "Premium Fruits", "Bulk Fruits", "Gift Packs", "Fruit Combos",
-    "Green Vegetables", "Root Vegetables", "Leafy Greens", "Herbs", "Mushrooms",
-    "Onions & Garlic", "Tomatoes", "Potatoes", "Peppers", "Squash & Gourds"
-  ];
-  
-  return Array.from({ length: 25 }, (_, index) => ({
-    subcategoryId: index + 1,
-    subcategoryName: subcategoryNames[index % subcategoryNames.length],
-    categoryId: categoryId,
-    productCount: Math.floor(Math.random() * 50) + 5,
-    subcategoryImage: defaultImage
-  }));
-};
-
-// Enhanced product generation with MOQ and full product details
-const generateMockProducts = (subcategoryId: number, count: number, startIndex: number = 0): Product[] => {
-  const productNames = [
-    "Fresh Bananas", "Organic Apples", "Red Strawberries", "Sweet Oranges", "Green Grapes",
-    "Ripe Mangoes", "Fresh Pineapple", "Juicy Watermelon", "Sweet Peaches", "Fresh Kiwi",
-    "Dragon Fruit", "Passion Fruit", "Star Fruit", "Lychee", "Rambutan",
-    "Fresh Blueberries", "Blackberries", "Raspberries", "Cranberries", "Goji Berries",
-    "Avocados", "Pomegranates", "Fresh Coconut", "Papaya", "Guava",
-    "Fresh Lemons", "Limes", "Grapefruit", "Tangerines", "Blood Oranges"
-  ];
-  
-  const units = [250, 500, 1000, 1500, 2000];
-  const measurements = ["g", "kg", "pieces", "bunch", "pack"];
-  
-  // Sample image URLs
-  const imageUrls = [
-    "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=300&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=300&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=300&h=300&fit=crop"
-  ];
-
-  // Smart MOQ assignment based on product type
-  const getMinOrderQuantity = (productName: string, measurement: string): number => {
-    if (measurement === "kg") return Math.floor(Math.random() * 2) + 1; // 1-2
-    else if (measurement === "g") return Math.floor(Math.random() * 3) + 2; // 2-4
-    else if (measurement === "pieces") return Math.floor(Math.random() * 5) + 3; // 3-7
-    else return Math.floor(Math.random() * 2) + 1; // 1-2
-  };
-  
-  return Array.from({ length: count }, (_, index) => {
-    const productName = productNames[(startIndex + index) % productNames.length];
-    const measurement = measurements[Math.floor(Math.random() * measurements.length)];
-    const minOrderQty = getMinOrderQuantity(productName, measurement);
-    
-    return {
-      productId: (subcategoryId * 10000) + startIndex + index + 1,
-      productName,
-      productUnits: units[Math.floor(Math.random() * units.length)],
-      unitsOfMeasurement: measurement,
-      price: Math.floor(Math.random() * 300) + 20,
-      image: imageUrls[(startIndex + index) % imageUrls.length],
-      subcategoryId: subcategoryId,
-      minOrderQuantity: minOrderQty,
-      description: `Fresh and natural ${productName} sourced directly from farms. Rich in nutrients and perfect for daily consumption.`,
-      nutritionInfo: "100gm",
-      otherDetails: "Store in a cool, dry place. Best consumed within 3-5 days."
-    };
-  });
-};
+const normalizeProductImage = (image: unknown): string | null =>
+  isValidRemoteImageUrl(image) ? image.trim() : null;
 
 // FIXED: Enhanced Product Card Component with Android-compatible quantity controls
 const ProductCard = React.memo(({ 
@@ -273,13 +195,7 @@ const ProductCard = React.memo(({
     increaseQuantity(item.productId);
   }, [increaseQuantity, item.productId]);
 
-  // Handle image source properly
-  const getImageSource = () => {
-    if (item.image && typeof item.image === 'string' && item.image.startsWith('http')) {
-      return { uri: item.image };
-    }
-    return defaultImage;
-  };
+  const getImageSource = () => resolveProductImageSource(item.image);
 
   return (
     <View
@@ -596,7 +512,9 @@ const SubcategoryItem = ({
       justifyContent: 'center',
     }}>
       <Image 
-        source={typeof item.subcategoryImage === 'string' ? { uri: item.subcategoryImage } : (item.subcategoryImage || defaultImage)}
+        source={resolveCategoryImageSource(
+          typeof item.subcategoryImage === 'string' ? item.subcategoryImage : null,
+        )}
         style={{
           width: '100%',
           height: '100%',
@@ -695,22 +613,21 @@ const CategoryProductsScreen = () => {
           subcategoryName: s.subCategoryName,
           categoryId: categoryId,
           productCount: 0,
-          subcategoryImage: s.subCategoryImage || getRandomImage(),
+          subcategoryImage: normalizeProductImage(s.subCategoryImage),
         }));
         setSubcategories(mapped);
 
         if (mapped.length > 0) {
           setSelectedSubcategory(mapped[0]);
           await loadProducts(mapped[0].subcategoryId, true);
+        } else {
+          setProducts([]);
+          setFilteredProducts([]);
         }
       } else {
-        // Fallback to mock if API fails
-        const mockSubcategories = generateMockSubcategories(categoryId);
-        setSubcategories(mockSubcategories);
-        if (mockSubcategories.length > 0) {
-          setSelectedSubcategory(mockSubcategories[0]);
-          loadProducts(mockSubcategories[0].subcategoryId, true);
-        }
+        setSubcategories([]);
+        setProducts([]);
+        setFilteredProducts([]);
       }
     } catch (error) {
       console.error("Error loading subcategories:", error);
@@ -740,7 +657,7 @@ const CategoryProductsScreen = () => {
           productUnits: p.productUnits,
           unitsOfMeasurement: p.unitsOfMeasurement,
           price: p.price,
-          image: p.image || getRandomImage(),
+          image: normalizeProductImage(p.image ?? p.imageUrl ?? p.productImage),
           subcategoryId: subcategoryId,
           minOrderQuantity: p.minimumOrderQuantity ?? p.minOrderQuantity ?? 1,
           description: p.description || '',
@@ -753,26 +670,11 @@ const CategoryProductsScreen = () => {
         setProducts(firstPage);
         setCurrentPage(2);
         setHasMoreData(mapped.length > firstPage.length);
-      } else {
-        // Fallback to mock data
-        await new Promise(resolve => setTimeout(resolve, 600));
-        const totalProducts = Math.floor(Math.random() * 100) + 50;
-        const startIndex = isInitial ? 0 : (currentPage - 1) * ITEMS_PER_PAGE;
-        const newProducts = generateMockProducts(
-          subcategoryId,
-          Math.min(ITEMS_PER_PAGE, totalProducts - startIndex),
-          startIndex
-        );
-
-        if (isInitial) {
-          setProducts(newProducts);
-          setCurrentPage(2);
-        } else {
-          setProducts(prev => [...prev, ...newProducts]);
-          setCurrentPage(prev => prev + 1);
-        }
-
-        setHasMoreData((startIndex + newProducts.length) < totalProducts);
+      } else if (isInitial) {
+        setAllProducts([]);
+        setProducts([]);
+        setFilteredProducts([]);
+        setHasMoreData(false);
       }
     } catch (error) {
       console.error("Error loading products:", error);
@@ -808,9 +710,7 @@ const CategoryProductsScreen = () => {
       return;
     }
 
-    // Fallback to server/mock pagination
-    loadProducts(selectedSubcategory.subcategoryId, false);
-  }, [loadingMore, hasMoreData, selectedSubcategory, searchQuery]);
+  }, [loadingMore, hasMoreData, selectedSubcategory, searchQuery, allProducts, currentPage]);
 
   const renderProduct = useCallback(({ item, index }: { item: Product, index: number }) => (
     <ProductCard 
